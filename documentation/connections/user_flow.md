@@ -7,8 +7,8 @@ This document outlines the user flow and connections between pages in the Octavi
 ```mermaid
 graph TD
     %% Public Area
-    Landing[Landing Page] -->|Login/Signup| Auth[Auth (Clerk)]
-    Auth -->|Success| Hub[Hub / Dashboard]
+    Landing[Landing Page] -->|Login/Signup| Auth["Auth (Clerk)"]
+    Auth -->|Success| Hub["Hub / Dashboard"]
 
     %% Core Hub Navigation
     Hub -->|Select Video Tool| VideoInput[Video Translator Input]
