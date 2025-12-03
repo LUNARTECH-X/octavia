@@ -25,9 +25,74 @@ interface User {
   created_at?: string;
 }
 
+// Credit package interface
+interface CreditPackage {
+  id: string;
+  name: string;
+  credits: number;
+  price: number;
+  description: string;
+  features: string[];
+  checkout_link?: string;
+}
+
+// Payment session response
+interface PaymentSessionResponse {
+  session_id: string;
+  transaction_id: string;
+  checkout_url: string;
+  package_id: string;
+  credits: number;
+  price: number;
+  message: string;
+  status: string;
+  test_mode?: boolean;
+  new_balance?: number;
+  credits_added?: number;
+}
+
+// Payment status response
+interface PaymentStatusResponse {
+  session_id: string;
+  transaction_id: string;
+  status: string;
+  credits: number;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Transaction interface
+interface Transaction {
+  id: string;
+  amount: number;
+  credits: number;
+  status: string;
+  created_at: string;
+  description: string;
+  session_id?: string;
+  package_id?: string;
+}
+
 class ApiService {
+  // Get authentication token from localStorage
+  private getToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    
+    const userStr = localStorage.getItem('octavia_user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        return user.token || null;
+      } catch (error) {
+        console.error('Failed to parse user token from localStorage:', error);
+        return null;
+      }
+    }
+    return null;
+  }
+
   // Core request handler for all API calls
-  // Handles authentication tokens, error parsing, and response formatting
   private async request<T = any>(
     endpoint: string,
     options: RequestInit = {},
@@ -36,31 +101,22 @@ class ApiService {
     try {
       const url = `${API_BASE_URL}${endpoint}`;
       
-      // Debug logging for development
-      console.log(`API Request: ${options.method || 'GET'} ${url}`);
-      
-      // Get JWT token from localStorage for authenticated requests
-      let token: string | null = null;
-      if (typeof window !== 'undefined') {
-        const userStr = localStorage.getItem('octavia_user');
-        if (userStr) {
-          try {
-            const user = JSON.parse(userStr);
-            token = user.token;
-          } catch (error) {
-            console.error('Failed to parse user token from localStorage:', error);
-          }
-        }
-      }
-      
       // Setup headers for the request
       const headers: Record<string, string> = {
         'Accept': 'application/json',
       };
       
       // Add Authorization header for protected endpoints
-      if (requiresAuth && token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (requiresAuth) {
+        const token = this.getToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        } else {
+          return {
+            success: false,
+            error: 'Authentication required. Please log in.',
+          };
+        }
       }
       
       // Set Content-Type for JSON payloads (skip for FormData)
@@ -162,24 +218,22 @@ class ApiService {
 
   // Logout user and invalidate session
   async logout() {
-    const userStr = localStorage.getItem('octavia_user');
-    let token: string | undefined;
+    const token = this.getToken();
     
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        token = user.token;
-      } catch (error) {
-        console.error('Failed to parse user token for logout:', error);
-      }
-    }
-    
-    return this.request('/api/auth/logout', {
+    const response = await this.request('/api/auth/logout', {
       method: 'POST',
       headers: token ? {
         'Authorization': `Bearer ${token}`
       } : {},
     }, false);
+    
+    // Clear localStorage on logout
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('octavia_user');
+      localStorage.removeItem('last_payment_session');
+    }
+    
+    return response;
   }
 
   // --- EMAIL VERIFICATION ---
@@ -205,6 +259,95 @@ class ApiService {
       method: 'POST',
       body: body,
     });
+  }
+
+  // --- PAYMENT & CREDITS ---
+
+  // Get available credit packages
+  async getCreditPackages() {
+    return this.request<{
+      packages: CreditPackage[];
+    }>('/api/payments/packages', {
+      method: 'GET',
+    });
+  }
+
+  // Create payment session for credit purchase
+  async createPaymentSession(packageId: string): Promise<ApiResponse<PaymentSessionResponse>> {
+    const body = JSON.stringify({
+      package_id: packageId
+    });
+
+    return this.request<PaymentSessionResponse>('/api/payments/create-session', {
+      method: 'POST',
+      body: body,
+    }, true);
+  }
+
+  // Check payment status
+  async checkPaymentStatus(sessionId: string): Promise<ApiResponse<PaymentStatusResponse>> {
+    return this.request<PaymentStatusResponse>(`/api/payments/status/${sessionId}`, {
+      method: 'GET',
+    }, true);
+  }
+
+  // Poll payment status until completed or failed
+  async pollPaymentStatus(sessionId: string, maxAttempts: number = 30): Promise<PaymentStatusResponse | null> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await this.checkPaymentStatus(sessionId);
+        
+        if (response.success && response.status === 'completed') {
+          return response;
+        }
+        
+        if (response.success && response.status === 'failed') {
+          console.error('Payment failed:', response.description);
+          return response;
+        }
+        
+        // Wait before next attempt
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error('Error polling payment status:', error);
+      }
+    }
+    
+    return null;
+  }
+
+  // Add test credits (for development/testing without payment)
+  async addTestCredits(credits: number) {
+    const body = JSON.stringify({
+      credits: credits
+    });
+
+    return this.request<{
+      new_balance: number;
+      credits_added: number;
+    }>('/api/payments/add-test-credits', {
+      method: 'POST',
+      body: body,
+    }, true);
+  }
+
+  // Get user's transaction history
+  async getTransactionHistory(): Promise<ApiResponse<{ transactions: Transaction[] }>> {
+    return this.request<{ transactions: Transaction[] }>('/api/payments/transactions', {
+      method: 'GET',
+    }, true);
+  }
+
+  // Debug webhook endpoint
+  async debugWebhook(): Promise<ApiResponse<{
+    transactions: any[];
+    webhook_secret_configured: boolean;
+    test_mode: boolean;
+    polar_server: string;
+  }>> {
+    return this.request('/api/payments/webhook/debug', {
+      method: 'GET',
+    }, true);
   }
 
   // --- VIDEO TRANSLATION ---
@@ -244,20 +387,15 @@ class ApiService {
   // --- USER PROFILE ---
 
   // Get current user's profile information
-  async getUserProfile() {
-    return this.request<{
-      user: User;
-    }>('/api/user/profile', {
+  async getUserProfile(): Promise<ApiResponse<{ user: User }>> {
+    return this.request<{ user: User }>('/api/user/profile', {
       method: 'GET',
     }, true);
   }
 
   // Get user's current credit balance
-  async getUserCredits() {
-    return this.request<{
-      credits: number;
-      email: string;
-    }>('/api/user/credits', {
+  async getUserCredits(): Promise<ApiResponse<{ credits: number; email: string }>> {
+    return this.request<{ credits: number; email: string }>('/api/user/credits', {
       method: 'GET',
     }, true);
   }
@@ -266,18 +404,7 @@ class ApiService {
 
   // Download translated video file by job ID
   async downloadFile(jobId: string): Promise<Blob> {
-    const userStr = localStorage.getItem('octavia_user');
-    let token: string = '';
-    
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        token = user.token;
-      } catch (error) {
-        console.error('Failed to parse user token for download:', error);
-      }
-    }
-    
+    const token = this.getToken();
     const url = `${API_BASE_URL}/api/download/${jobId}`;
     
     const response = await fetch(url, {
@@ -346,6 +473,72 @@ class ApiService {
       console.error('Direct signup test error:', error);
       throw error;
     }
+  }
+
+  // --- HELPER METHODS ---
+
+  // Store payment session for later polling
+  storePaymentSession(sessionId: string, transactionId: string, packageId: string) {
+    if (typeof window === 'undefined') return;
+    
+    const paymentData = {
+      session_id: sessionId,
+      transaction_id: transactionId,
+      package_id: packageId,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem('last_payment_session', JSON.stringify(paymentData));
+  }
+
+  // Get stored payment session
+  getStoredPaymentSession() {
+    if (typeof window === 'undefined') return null;
+    
+    const paymentData = localStorage.getItem('last_payment_session');
+    if (!paymentData) return null;
+    
+    try {
+      const parsed = JSON.parse(paymentData);
+      
+      // Check if session is older than 5 minutes
+      const timeElapsed = Date.now() - parsed.timestamp;
+      if (timeElapsed > 5 * 60 * 1000) {
+        localStorage.removeItem('last_payment_session');
+        return null;
+      }
+      
+      return parsed;
+    } catch (error) {
+      console.error('Failed to parse stored payment session:', error);
+      localStorage.removeItem('last_payment_session');
+      return null;
+    }
+  }
+
+  // Clear stored payment session
+  clearStoredPaymentSession() {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('last_payment_session');
+  }
+
+  // Check URL parameters for payment success
+  checkUrlForPaymentSuccess(): { success: boolean; sessionId: string | null } {
+    if (typeof window === 'undefined') return { success: false, sessionId: null };
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentSuccess = urlParams.get('payment_success');
+    const sessionId = urlParams.get('session_id');
+    
+    if (paymentSuccess === 'true' && sessionId) {
+      // Clean URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      return { success: true, sessionId };
+    }
+    
+    return { success: false, sessionId: null };
   }
 }
 
