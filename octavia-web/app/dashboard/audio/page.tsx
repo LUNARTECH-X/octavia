@@ -1,102 +1,1035 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AudioLines, Play } from "lucide-react";
+import { AudioLines, Play, Loader2, Upload, FileAudio, X, Download } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { api, ApiResponse } from "@/lib/api"; // Import your API service
 
 export default function AudioTranslationPage() {
-    return (
-        <div className="space-y-8">
-            {/* Header */}
-            <div className="flex flex-col gap-2">
-                <h1 className="font-display text-3xl font-black text-white text-glow-purple">Audio Translation</h1>
-                <p className="text-slate-400 text-sm">Transform audio files across languages with AI-powered voice synthesis</p>
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [sourceLanguage, setSourceLanguage] = useState("auto");
+  const [targetLanguage, setTargetLanguage] = useState("es");
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [jobStatus, setJobStatus] = useState<string>("idle");
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [userCredits, setUserCredits] = useState<number>(0);
+  const [processingStage, setProcessingStage] = useState<string>("idle");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  
+  // Polling interval reference
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch user credits on component mount
+  useEffect(() => {
+    const fetchUserCredits = async () => {
+      try {
+        const response = await api.getUserCredits();
+        console.log('Credits API response:', response);
+
+        // Check if we have a successful response with data
+        if (response && response.success === true && response.data && typeof response.data.credits === 'number') {
+          const credits = response.data.credits;
+          setUserCredits(credits);
+          console.log('User credits loaded:', credits);
+
+          // Auto-add test credits in development if user has 0 credits
+          if (process.env.NODE_ENV === 'development' && credits === 0) {
+            console.log('Auto-adding test credits in development mode...');
+            try {
+              const testResponse = await api.addTestCredits(100);
+              if (testResponse && testResponse.success && testResponse.data) {
+                setUserCredits(testResponse.data.new_balance || 100);
+                console.log('Test credits added automatically');
+              }
+            } catch (testError) {
+              console.warn('Failed to auto-add test credits:', testError);
+              // Still set credits to 100
+              setUserCredits(100);
+            }
+          }
+        } else {
+          // API call failed or returned invalid data
+          console.warn('Credits API failed or returned invalid data. Response:', response);
+          console.log('Setting default credits for development...');
+
+          // Always set credits to 100 in development for testing
+          if (process.env.NODE_ENV === 'development') {
+            setUserCredits(100);
+            console.log('Default test credits set: 100');
+          } else {
+            // In production, set to 0 and show an error
+            setUserCredits(0);
+            setError('Unable to load user credits. Please refresh the page or contact support.');
+          }
+        }
+      } catch (error) {
+        console.error('Exception fetching user credits:', error);
+
+        // Always provide credits in development mode
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Exception occurred, setting fallback credits: 100');
+          setUserCredits(100);
+        } else {
+          setUserCredits(0);
+          setError('Failed to load credits. Please check your connection and refresh the page.');
+        }
+      }
+    };
+
+    fetchUserCredits();
+  }, []);
+
+  // Add test credits for development
+  const handleAddTestCredits = async () => {
+    try {
+      const response = await api.addTestCredits(100);
+      if (response.success && response.data) {
+        setUserCredits(response.data.new_balance || userCredits + 100);
+        setError(null);
+      } else {
+        setError("Failed to add test credits");
+      }
+    } catch (error) {
+      console.error('Add test credits error:', error);
+      setError("Failed to add test credits");
+    }
+  };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/x-m4a', 'audio/x-aac'];
+    const fileType = file.type;
+    
+    // Also check file extension
+    const validExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4', '.aac'];
+    const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    if (!validTypes.includes(fileType) && !validExtensions.includes(fileExt)) {
+      setError("Please upload MP3, WAV, FLAC, OGG, or M4A files only.");
+      return;
+    }
+
+    // Check file size (max 100MB)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (file.size > maxSize) {
+      setError("File size too large. Maximum size is 100MB.");
+      return;
+    }
+
+    setSelectedFile(file);
+    setError(null);
+  };
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const file = e.dataTransfer.files[0];
+    
+    if (file) {
+      const validTypes = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/x-m4a'];
+      const fileType = file.type;
+      
+      const validExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4'];
+      const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!validTypes.includes(fileType) && !validExtensions.includes(fileExt)) {
+        setError("Please upload MP3, WAV, FLAC, OGG, or M4A files only.");
+        return;
+      }
+
+      const maxSize = 100 * 1024 * 1024;
+      if (file.size > maxSize) {
+        setError("File size too large. Maximum size is 100MB.");
+        return;
+      }
+
+      setSelectedFile(file);
+      setError(null);
+    }
+  };
+
+  // Start audio translation using the API service
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setError("No audio file selected. Please choose an audio file to translate.");
+      return;
+    }
+
+    // Check if user has enough credits (10 credits for audio translation)
+    if (userCredits < 10) {
+      setError(`Insufficient credits. You need 10 credits but only have ${userCredits}. Please purchase more credits.`);
+      return;
+    }
+
+    setIsProcessing(true);
+    setProcessingStage("uploading");
+    setProgress(10);
+    setJobStatus("uploading");
+    setError(null);
+
+    try {
+      console.log('Starting audio translation:', selectedFile.name);
+      console.log('Target language:', targetLanguage);
+      
+      // Use the API service to translate audio
+      const response = await api.translateAudio(selectedFile, targetLanguage);
+      
+      console.log('API Response:', response);
+
+      if (!response.success) {
+        throw new Error(response.error || response.message || "Failed to start translation job");
+      }
+      
+      if (response.job_id) {
+        setJobId(response.job_id);
+        setProgress(30);
+        setProcessingStage("transcribing");
+        setJobStatus("processing");
+        
+        // Update user credits if provided
+        if (response.remaining_credits !== undefined) {
+          setUserCredits(response.remaining_credits);
+        }
+        
+        // Start polling for job status
+        startPollingJobStatus(response.job_id);
+      } else {
+        throw new Error(response.error || response.message || "Failed to get job ID");
+      }
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setError(err.message || "Failed to upload audio file");
+      setIsProcessing(false);
+      setProgress(0);
+      setJobStatus("idle");
+      setProcessingStage("error");
+    }
+  };
+
+  // Start polling for job status
+  const startPollingJobStatus = (jobId: string) => {
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    let pollCount = 0;
+    const maxPolls = 300; // Maximum 10 minutes (300 * 2 seconds)
+
+    const poll = async () => {
+      pollCount++;
+
+      try {
+        console.log(`Polling job ${jobId} (attempt ${pollCount}/${maxPolls})`);
+
+        const response = await api.getJobStatus(jobId);
+
+        if (response.success) {
+          // The job data is directly in the response, not in response.data
+          const job = {
+            job_id: response.job_id,
+            status: response.status,
+            progress: response.progress || 0,
+            download_url: response.download_url,
+            error: response.error,
+            message: response.message
+          };
+
+          console.log(`Job ${jobId} status: ${job.status}, progress: ${job.progress}`);
+
+          const jobProgress = job.progress || 0;
+
+          // Update progress based on stage
+          let calculatedProgress = 30;
+          if (job.status === "processing") {
+            // Simulate stages: 30-60% transcription, 60-80% translation, 80-95% synthesis
+            if (jobProgress < 33) {
+              setProcessingStage("transcribing");
+              calculatedProgress = 30 + (jobProgress * 0.3);
+            } else if (jobProgress < 66) {
+              setProcessingStage("translating");
+              calculatedProgress = 40 + ((jobProgress - 33) * 0.3);
+            } else {
+              setProcessingStage("synthesizing");
+              calculatedProgress = 50 + ((jobProgress - 66) * 0.5);
+            }
+          }
+
+          setProgress(Math.min(calculatedProgress, 99));
+
+          if (job.status === "completed") {
+            console.log(`Job ${jobId} completed successfully!`);
+
+            setJobStatus("completed");
+            setProgress(100);
+            setProcessingStage("delivery");
+
+            // Set download URL
+            const downloadUrl = job.download_url || `/api/download/audio/${jobId}`;
+            setDownloadUrl(downloadUrl);
+            setIsProcessing(false);
+
+            // Clear polling
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+
+            console.log('Job completed! Download URL:', downloadUrl);
+            return; // Stop polling
+          } else if (job.status === "failed") {
+            console.log(`Job ${jobId} failed: ${job.error}`);
+
+            setJobStatus("failed");
+            setProcessingStage("error");
+            setError(job.error || "Translation failed");
+            setIsProcessing(false);
+
+            // Clear polling
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current);
+              pollingIntervalRef.current = null;
+            }
+
+            return; // Stop polling
+          }
+        } else {
+          console.warn(`Job ${jobId} polling failed:`, response);
+        }
+
+        // Check if we've exceeded max polls
+        if (pollCount >= maxPolls) {
+          console.error(`Job ${jobId} polling timed out after ${maxPolls} attempts`);
+
+          setJobStatus("failed");
+          setProcessingStage("error");
+          setError("Translation timed out. Please try again.");
+          setIsProcessing(false);
+
+          // Clear polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+
+          return; // Stop polling
+        }
+
+      } catch (err: any) {
+        console.error(`Polling error for job ${jobId}:`, err);
+
+        // If we get 404 (job not found), stop polling
+        if (err.message && err.message.includes('404')) {
+          console.log(`Job ${jobId} not found, stopping polling`);
+
+          setJobStatus("failed");
+          setProcessingStage("error");
+          setError("Job not found. Please try starting a new translation.");
+          setIsProcessing(false);
+
+          // Clear polling
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+
+          return; // Stop polling
+        }
+      }
+    };
+
+    // Start polling every 2 seconds
+    pollingIntervalRef.current = setInterval(poll, 2000);
+
+    // Initial poll
+    poll();
+  };
+
+  // Download translated audio
+  const handleDownload = async () => {
+    if (!jobId) {
+      setError("No job ID found. Please start a translation first.");
+      return;
+    }
+
+    try {
+      console.log('Downloading audio for job:', jobId);
+      
+      // Use the API service to download the file
+      const blob = await api.downloadFile(jobId);
+      
+      // Extract filename
+      const fileName = `octavia_translated_audio_${jobId}.mp3`;
+      
+      // Save the file
+      api.saveFile(blob, fileName);
+      
+      console.log('Audio file downloaded:', fileName);
+      
+    } catch (err: any) {
+      console.error('Download error:', err);
+      setError("Failed to download audio file. Please try again or contact support.");
+    }
+  };
+
+  // Remove selected file
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle audio play/pause
+  const handlePlayPause = async () => {
+    if (!jobId) return;
+
+    if (isPlaying && audioElement) {
+      audioElement.pause();
+      setIsPlaying(false);
+    } else {
+      try {
+        let audioToPlay = audioElement;
+
+        if (!audioToPlay) {
+          // Download the audio file as a blob first
+          console.log('Downloading audio file for playback...');
+          const audioBlob = await api.downloadFile(jobId);
+
+          // Validate blob
+          if (!audioBlob || audioBlob.size === 0) {
+            throw new Error('Downloaded audio file is empty or invalid');
+          }
+
+          console.log(`Downloaded audio blob: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+
+          // Create an object URL from the blob
+          const audioUrl = URL.createObjectURL(audioBlob);
+
+          const audio = new Audio(audioUrl);
+
+          // Set up event listeners
+          audio.addEventListener('ended', () => {
+            setIsPlaying(false);
+            console.log('Audio playback ended');
+          });
+
+          audio.addEventListener('error', (e) => {
+            console.error('Audio playback error:', e);
+            const audioError = e.target as HTMLAudioElement;
+            let errorMessage = "Failed to play audio. ";
+
+            // Provide more specific error messages
+            if (audioError.error) {
+              switch (audioError.error.code) {
+                case MediaError.MEDIA_ERR_ABORTED:
+                  errorMessage += "Playback was aborted.";
+                  break;
+                case MediaError.MEDIA_ERR_NETWORK:
+                  errorMessage += "Network error occurred.";
+                  break;
+                case MediaError.MEDIA_ERR_DECODE:
+                  errorMessage += "Audio format not supported or corrupted.";
+                  break;
+                case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                  errorMessage += "Audio format not supported by your browser.";
+                  break;
+                default:
+                  errorMessage += "Unknown playback error.";
+              }
+            }
+
+            setError(errorMessage + " Please try downloading the file instead.");
+            setIsPlaying(false);
+
+            // Clean up the object URL
+            URL.revokeObjectURL(audioUrl);
+          });
+
+          audio.addEventListener('canplay', () => {
+            console.log('Audio can play successfully');
+          });
+
+          audio.addEventListener('loadstart', () => {
+            console.log('Audio load started');
+          });
+
+          setAudioElement(audio);
+          audioToPlay = audio;
+        }
+
+        // Validate audio element before playing
+        if (!audioToPlay.src) {
+          throw new Error('Audio source not set');
+        }
+
+        console.log('Attempting to play audio...');
+        await audioToPlay.play();
+        setIsPlaying(true);
+        console.log('Audio playback started successfully');
+
+      } catch (err: any) {
+        console.error('Audio play error:', err);
+        let errorMessage = "Failed to play audio. ";
+
+        if (err.name === 'NotSupportedError') {
+          errorMessage += "Audio format not supported by your browser.";
+        } else if (err.name === 'NotAllowedError') {
+          errorMessage += "Playback blocked by browser. Please interact with the page first.";
+        } else if (err.message) {
+          errorMessage += err.message;
+        } else {
+          errorMessage += "Unknown error occurred.";
+        }
+
+        setError(errorMessage + " Please try downloading the file instead.");
+      }
+    }
+  };
+
+  // Reset form for new translation
+  const handleReset = () => {
+    // Stop and cleanup audio
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      // Clean up the object URL if it exists
+      if (audioElement.src && audioElement.src.startsWith('blob:')) {
+        URL.revokeObjectURL(audioElement.src);
+      }
+      setAudioElement(null);
+    }
+    setIsPlaying(false);
+
+    setSelectedFile(null);
+    setJobId(null);
+    setProgress(0);
+    setJobStatus("idle");
+    setProcessingStage("idle");
+    setDownloadUrl(null);
+    setError(null);
+    setIsProcessing(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Clear any polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+  };
+
+  // Get stage description
+  const getStageDescription = () => {
+    switch (processingStage) {
+      case "uploading":
+        return "Uploading audio file...";
+      case "transcribing":
+        return "Transcribing audio with OpenAI Whisper...";
+      case "translating":
+        return "Translating text with Helsinki NLP...";
+      case "synthesizing":
+        return "Generating audio with Coqui TTS...";
+      case "delivery":
+        return "Preparing download...";
+      case "error":
+        return "Error occurred";
+      default:
+        return "Ready to translate";
+    }
+  };
+
+  const languageOptions = [
+    { value: "en", label: "English" },
+    { value: "es", label: "Spanish" },
+    { value: "fr", label: "French" },
+    { value: "de", label: "German" },
+    { value: "it", label: "Italian" },
+    { value: "pt", label: "Portuguese" },
+    { value: "ru", label: "Russian" },
+    { value: "ja", label: "Japanese" },
+    { value: "ko", label: "Korean" },
+    { value: "zh", label: "Chinese" },
+    { value: "ar", label: "Arabic" },
+    { value: "hi", label: "Hindi" },
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="font-display text-3xl font-black text-white text-glow-purple">Audio Translation</h1>
+            <p className="text-slate-400 text-sm">Transform audio files across languages with AI-powered voice synthesis</p>
+          </div>
+          <div className="glass-card px-4 py-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary-purple-bright animate-pulse"></div>
+              <span className="text-white text-sm">Credits: <span className="font-bold">{userCredits}</span></span>
             </div>
-
-            {/* Upload Zone */}
-            <motion.div
-                whileHover={{ scale: 1.01 }}
-                className="glass-panel glass-panel-high relative border-2 border-dashed border-primary-purple/30 hover:border-primary-purple/50 transition-all cursor-pointer group mb-6 overflow-hidden"
-            >
-                <div className="glass-shine" />
-                <div className="glow-purple" style={{ width: "300px", height: "300px", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1 }} />
-
-                <div className="relative z-20 py-12 px-6">
-                    <div className="flex flex-col items-center justify-center gap-3 text-center">
-                        <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary-purple/10 border border-primary-purple/30 shadow-glow group-hover:scale-110 transition-transform">
-                            <AudioLines className="w-8 h-8 text-primary-purple-bright" />
-                        </div>
-                        <div>
-                            <h3 className="text-white text-lg font-bold mb-1 text-glow-purple">Drop your audio here</h3>
-                            <p className="text-slate-400 text-sm">or click to browse files • MP3, WAV, FLAC supported</p>
-                        </div>
-                    </div>
-                </div>
-            </motion.div>
-
-            {/* Configuration */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {/* Source Language */}
-                <div className="glass-card p-4">
-                    <label className="text-white text-sm font-semibold mb-2 block">Source Language</label>
-                    <select className="glass-select w-full">
-                        <option>English</option>
-                        <option>Spanish</option>
-                        <option>French</option>
-                        <option>German</option>
-                    </select>
-                </div>
-
-                {/* Target Language */}
-                <div className="glass-card p-4">
-                    <label className="text-white text-sm font-semibold mb-2 block">Target Language</label>
-                    <select className="glass-select w-full">
-                        <option>Spanish</option>
-                        <option>English</option>
-                        <option>French</option>
-                        <option>German</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Voice Options */}
-            <div className="glass-panel glass-panel-glow mb-6 p-5 relative overflow-hidden">
-                <div className="glass-shine" />
-                <div className="relative z-10">
-                    <div className="flex items-start gap-3 mb-3">
-                        <AudioLines className="w-5 h-5 text-primary-purple-bright" />
-                        <div>
-                            <h3 className="text-white text-sm font-bold mb-1">Voice Synthesis Options</h3>
-                            <p className="text-slate-400 text-xs">Choose voice characteristics for translated audio</p>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="glass-card p-3">
-                            <label className="text-white text-xs font-semibold mb-2 block">Voice Gender</label>
-                            <select className="glass-select w-full text-sm">
-                                <option>Male</option>
-                                <option>Female</option>
-                                <option>Neutral</option>
-                            </select>
-                        </div>
-                        <div className="glass-card p-3">
-                            <label className="text-white text-xs font-semibold mb-2 block">Voice Style</label>
-                            <select className="glass-select w-full text-sm">
-                                <option>Natural</option>
-                                <option>Professional</option>
-                                <option>Casual</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Start Button */}
-            <button className="btn-border-beam w-full group">
-                <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-                    <Play className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-                    <span>Start Audio Translation</span>
-                </div>
-            </button>
+            <p className="text-slate-400 text-xs mt-1">10 credits per translation</p>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel border-red-500/30 bg-red-500/10 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5">
+              <div className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
+                <span className="text-red-400 text-xs">!</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-red-400 text-sm">{error}</p>
+              {error.includes("credits") && (
+                <button
+                  onClick={() => window.location.href = '/dashboard/credits'}
+                  className="mt-2 px-3 py-1 text-xs bg-red-500/20 border border-red-500/30 text-red-400 rounded hover:bg-red-500/30 transition-colors"
+                >
+                  Buy Credits
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-300 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Upload Zone */}
+      <div
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={() => !selectedFile && !isProcessing && fileInputRef.current?.click()}
+        className="relative"
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.mp4,.aac"
+          className="hidden"
+          disabled={isProcessing}
+        />
+        
+        <motion.div
+          whileHover={!selectedFile && !isProcessing ? { scale: 1.01 } : {}}
+          className={`glass-panel glass-panel-high relative border-2 border-dashed transition-all mb-6 overflow-hidden
+            ${selectedFile ? 'border-green-500/50 cursor-default' : 
+              isProcessing ? 'border-primary-purple/30 cursor-wait' : 
+              'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
+        >
+          <div className="glass-shine" />
+          <div className="glow-purple" style={{ width: "300px", height: "300px", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1 }} />
+
+          <div className="relative z-20 py-12 px-6">
+            {selectedFile ? (
+              <div className="flex flex-col items-center justify-center gap-3 text-center">
+                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/30 shadow-glow">
+                  <FileAudio className="w-8 h-8 text-green-500" />
+                </div>
+                <div>
+                  <h3 className="text-white text-lg font-bold mb-1 text-glow-green">{selectedFile.name}</h3>
+                  <p className="text-slate-400 text-sm">
+                    {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to translate
+                  </p>
+                </div>
+                {!isProcessing && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFile();
+                    }}
+                    className="mt-4 px-4 py-2 text-sm bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Remove File
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 text-center">
+                <div className={`flex items-center justify-center w-16 h-16 rounded-2xl ${isProcessing ? 'bg-primary-purple/20' : 'bg-primary-purple/10'} border border-primary-purple/30 shadow-glow group-hover:scale-110 transition-transform`}>
+                  {isProcessing ? (
+                    <Loader2 className="w-8 h-8 text-primary-purple-bright animate-spin" />
+                  ) : (
+                    <Upload className="w-8 h-8 text-primary-purple-bright" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-white text-lg font-bold mb-1 text-glow-purple">
+                    {isProcessing ? 'Processing...' : 'Drop your audio file here'}
+                  </h3>
+                  <p className="text-slate-400 text-sm">
+                    {isProcessing ? 'Translation in progress...' : 'or click to browse files • MP3, WAV, FLAC, OGG, M4A supported'}
+                  </p>
+                  <p className="text-slate-500 text-xs mt-2">Max file size: 100MB</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Configuration */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="glass-card p-4">
+          <label className="text-white text-sm font-semibold mb-2 block">Source Language</label>
+          <select 
+            value={sourceLanguage}
+            onChange={(e) => setSourceLanguage(e.target.value)}
+            className="glass-select w-full"
+            disabled={isProcessing}
+          >
+            <option value="auto">Auto-detect</option>
+            {languageOptions.map((lang) => (
+              <option key={lang.value} value={lang.value}>{lang.label}</option>
+            ))}
+          </select>
+          <p className="text-slate-500 text-xs mt-2">Language of the original audio</p>
+        </div>
+
+        <div className="glass-card p-4">
+          <label className="text-white text-sm font-semibold mb-2 block">Target Language</label>
+          <select 
+            value={targetLanguage}
+            onChange={(e) => setTargetLanguage(e.target.value)}
+            className="glass-select w-full"
+            disabled={isProcessing}
+          >
+            {languageOptions.map((lang) => (
+              <option key={lang.value} value={lang.value}>{lang.label}</option>
+            ))}
+          </select>
+          <p className="text-slate-500 text-xs mt-2">Language to translate to</p>
+        </div>
+      </div>
+
+      {/* Progress Tracking */}
+      {isProcessing && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-panel p-4 mb-6"
+        >
+          <div className="flex justify-between text-sm mb-2">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${
+                processingStage === "uploading" ? 'bg-blue-500 animate-pulse' :
+                processingStage === "transcribing" ? 'bg-yellow-500 animate-pulse' :
+                processingStage === "translating" ? 'bg-purple-500 animate-pulse' :
+                processingStage === "synthesizing" ? 'bg-pink-500 animate-pulse' :
+                processingStage === "delivery" ? 'bg-green-500 animate-pulse' :
+                'bg-gray-500'
+              }`}></div>
+              <span className="text-gray-400">
+                {getStageDescription()}
+              </span>
+            </div>
+            <span className="text-white font-bold">{Math.round(progress)}%</span>
+          </div>
+          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-primary-purple to-primary-purple-bright"
+              initial={{ width: "0%" }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+          
+          {/* Stage breakdown */}
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            <div className={`text-center p-2 rounded ${processingStage === "uploading" ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-gray-500/10'}`}>
+              <div className="text-xs text-gray-400">1. Upload</div>
+              <div className={`text-xs ${processingStage === "uploading" ? 'text-blue-400' : 'text-gray-500'}`}>Audio File</div>
+            </div>
+            <div className={`text-center p-2 rounded ${processingStage === "transcribing" ? 'bg-yellow-500/20 border border-yellow-500/30' : 'bg-gray-500/10'}`}>
+              <div className="text-xs text-gray-400">2. Transcribe</div>
+              <div className={`text-xs ${processingStage === "transcribing" ? 'text-yellow-400' : 'text-gray-500'}`}>OpenAI Whisper</div>
+            </div>
+            <div className={`text-center p-2 rounded ${processingStage === "translating" ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-gray-500/10'}`}>
+              <div className="text-xs text-gray-400">3. Translate</div>
+              <div className={`text-xs ${processingStage === "translating" ? 'text-purple-400' : 'text-gray-500'}`}>Helsinki NLP</div>
+            </div>
+            <div className={`text-center p-2 rounded ${processingStage === "synthesizing" || processingStage === "delivery" ? 'bg-pink-500/20 border border-pink-500/30' : 'bg-gray-500/10'}`}>
+              <div className="text-xs text-gray-400">4. Synthesize</div>
+              <div className={`text-xs ${processingStage === "synthesizing" || processingStage === "delivery" ? 'text-pink-400' : 'text-gray-500'}`}>Coqui TTS</div>
+            </div>
+          </div>
+          
+          {jobId && (
+            <p className="text-slate-500 text-xs mt-2">Job ID: {jobId}</p>
+          )}
+        </motion.div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {jobStatus === "completed" ? (
+          <>
+            <button
+              onClick={handlePlayPause}
+              className="btn-border-beam w-full sm:w-auto group bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20 transition-all duration-300"
+              disabled={!downloadUrl}
+            >
+              <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+                {isPlaying ? (
+                  <>
+                    <div className="w-5 h-5 flex items-center justify-center">
+                      <div className="w-1 h-4 bg-blue-400 mr-1"></div>
+                      <div className="w-1 h-4 bg-blue-400"></div>
+                    </div>
+                    <span>Pause Audio</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                    <span>Play Translated Audio</span>
+                  </>
+                )}
+              </div>
+            </button>
+            <button
+              onClick={handleDownload}
+              className="btn-border-beam w-full sm:w-auto group bg-green-500/10 border-green-500/30 hover:bg-green-500/20 transition-all duration-300"
+              disabled={!downloadUrl}
+            >
+              <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+                <Download className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                <span>Download Translated Audio</span>
+              </div>
+            </button>
+            <button
+              onClick={handleReset}
+              className="btn-border-beam w-full sm:w-auto group bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
+            >
+              <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+                <AudioLines className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                <span>Translate Another File</span>
+              </div>
+            </button>
+          </>
+        ) : (
+          <button 
+            onClick={handleUpload}
+            disabled={!selectedFile || isProcessing || userCredits < 10}
+            className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
+          >
+            <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+                  <span>
+                    {userCredits < 10 ? 'Insufficient Credits' : 'Start Audio Translation'}
+                    {userCredits >= 10 && ` (10 credits)`}
+                  </span>
+                </>
+              )}
+            </div>
+          </button>
+        )}
+      </div>
+
+      {/* Status Message */}
+      {jobStatus === "completed" && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-panel border-green-500/30 bg-green-500/10 p-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-white font-semibold">Translation Complete!</h3>
+              <p className="text-green-400 text-sm">Your audio has been successfully translated. Play it here or download the file.</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Instructions */}
+      <div className="glass-card p-4 mt-8">
+        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+          <AudioLines className="w-5 h-5 text-primary-purple-bright" />
+          How Audio Translation Works:
+        </h3>
+        <ol className="text-slate-400 text-sm space-y-3 pl-2">
+          <li className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
+              1
+            </div>
+            <div>
+              <span className="font-medium text-slate-300">Upload Audio File</span>
+              <p className="text-slate-500">Select your audio file (MP3, WAV, FLAC, OGG, M4A). Maximum size: 100MB.</p>
+            </div>
+          </li>
+          <li className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
+              2
+            </div>
+            <div>
+              <span className="font-medium text-slate-300">Transcription</span>
+              <p className="text-slate-500">OpenAI Whisper transcribes the audio to text with timestamps.</p>
+            </div>
+          </li>
+          <li className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
+              3
+            </div>
+            <div>
+              <span className="font-medium text-slate-300">Translation</span>
+              <p className="text-slate-500">Helsinki NLP translates the transcribed text to your target language.</p>
+            </div>
+          </li>
+          <li className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
+              4
+            </div>
+            <div>
+              <span className="font-medium text-slate-300">Synthesis</span>
+              <p className="text-slate-500">Coqui TTS generates spoken audio from translated text with proper timing.</p>
+            </div>
+          </li>
+          <li className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
+              5
+            </div>
+            <div>
+              <span className="font-medium text-slate-300">Delivery</span>
+              <p className="text-slate-500">Download your translated audio file with synchronized voice synthesis.</p>
+            </div>
+          </li>
+        </ol>
+        
+        <div className="mt-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-blue-400 font-semibold mb-1">Important Notes</h4>
+              <ul className="text-blue-300/80 text-sm space-y-1">
+                <li>• Each audio translation costs <span className="font-bold">10 credits</span></li>
+                <li>• Processing time depends on audio length (approximately 1-2 minutes per minute of audio)</li>
+                <li>• Supports translation between all listed languages</li>
+                <li>• Output format: MP3 with high-quality voice synthesis</li>
+                <li>• Your files are processed securely and deleted after 24 hours</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Technical Details */}
+      <div className="glass-card p-4">
+        <h3 className="text-white font-semibold mb-3">Technical Process</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded">
+            <div className="text-blue-400 text-xs font-semibold mb-1">1. OpenAI Whisper</div>
+            <p className="text-slate-400 text-xs">Speech-to-text transcription with 99% accuracy, preserving timing data</p>
+          </div>
+          <div className="bg-purple-500/10 border border-purple-500/20 p-3 rounded">
+            <div className="text-purple-400 text-xs font-semibold mb-1">2. Helsinki NLP</div>
+            <p className="text-slate-400 text-xs">Neural machine translation with context-aware language models</p>
+          </div>
+          <div className="bg-pink-500/10 border border-pink-500/20 p-3 rounded">
+            <div className="text-pink-400 text-xs font-semibold mb-1">3. Coqui TTS</div>
+            <p className="text-slate-400 text-xs">Text-to-speech synthesis with natural voice cloning and timing synchronization</p>
+          </div>
+          <div className="bg-green-500/10 border border-green-500/20 p-3 rounded">
+            <div className="text-green-400 text-xs font-semibold mb-1">4. Audio Processing</div>
+            <p className="text-slate-400 text-xs">Final audio mixing, normalization, and format conversion to MP3</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Debug Info (only show in development) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="glass-card p-4 border-dashed border-gray-700/50">
+          <h4 className="text-gray-400 text-sm font-semibold mb-2">Debug Info</h4>
+          <div className="text-xs text-gray-500 space-y-1 mb-4">
+            <div>Job ID: <span className="text-gray-400">{jobId || 'None'}</span></div>
+            <div>Job Status: <span className="text-gray-400">{jobStatus}</span></div>
+            <div>Processing Stage: <span className="text-gray-400">{processingStage}</span></div>
+            <div>Progress: <span className="text-gray-400">{progress}%</span></div>
+            <div>Download URL: <span className="text-gray-400 truncate block">{downloadUrl || 'None'}</span></div>
+            <div>Selected File: <span className="text-gray-400">{selectedFile?.name || 'None'}</span></div>
+            <div>User Credits: <span className="text-gray-400">{userCredits}</span></div>
+          </div>
+          <button
+            onClick={handleAddTestCredits}
+            className="px-3 py-2 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+          >
+            Add 100 Test Credits
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

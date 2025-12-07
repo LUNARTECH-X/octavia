@@ -127,7 +127,7 @@ def test_integration(args):
     print(" Running integration test...")
     
     # Check for test sample
-    test_video = "test_samples/sample_30s.mp4"
+    test_video = "test_samples/sample_30s_en.mp4"
     if not os.path.exists(test_video):
         print(f" Test sample not found: {test_video}")
         print("   Please create a 20-30s test video in test_samples/")

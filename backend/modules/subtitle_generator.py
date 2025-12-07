@@ -11,9 +11,17 @@ import webvtt
 from typing import Dict, List, Optional
 
 class SubtitleGenerator:
-    def __init__(self, model_size="base"):
-        self.model = whisper.load_model(model_size)
+    # Class-level model cache to avoid reloading
+    _model_cache = {}
+
+    def __init__(self, model_size="tiny"):  # Changed default to tiny for speed
+        self.model_size = model_size
         self.supported_formats = ["srt", "vtt", "ass", "ssa"]
+
+        # Load model with caching
+        if model_size not in self._model_cache:
+            self._model_cache[model_size] = whisper.load_model(model_size)
+        self.model = self._model_cache[model_size]
     
     def extract_audio(self, video_path, audio_path):
         """Extract audio from video for processing"""
@@ -41,13 +49,16 @@ class SubtitleGenerator:
         try:
             result = self.model.transcribe(
                 audio_path,
-                word_timestamps=True,
+                word_timestamps=False,  # Disabled for speed - we don't need word-level timestamps
                 language=language,
                 task="transcribe",
                 temperature=0.0,
-                best_of=5,
-                beam_size=5,
-                condition_on_previous_text=False
+                best_of=1,  # Reduced from 5 for speed
+                beam_size=1,  # Reduced from 5 for speed
+                condition_on_previous_text=True,  # Enabled for better coherence
+                no_speech_threshold=0.6,  # More aggressive silence detection
+                logprob_threshold=-1.0,  # Allow lower confidence segments
+                compression_ratio_threshold=2.4  # Allow more compression
             )
             
             # Process segments for better accuracy

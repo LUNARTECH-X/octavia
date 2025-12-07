@@ -139,11 +139,16 @@ export default function BillingPage() {
     setLoadingTransactions(true);
     try {
       const response = await api.getTransactionHistory();
-      if (response.success && response.transactions) {
-        setTransactions(response.transactions);
+      if (response.success && response.data?.transactions) {
+        setTransactions(response.data.transactions);
+      } else if (!response.success) {
+        console.error("Failed to fetch transactions:", response.error);
+        // Show user-friendly error message
+        // You could add a toast notification here
       }
     } catch (error) {
-      console.error("Failed to fetch transactions:", error);
+      console.error("Unexpected error fetching transactions:", error);
+      // Handle unexpected errors
     } finally {
       setLoadingTransactions(false);
     }

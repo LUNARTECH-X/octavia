@@ -11,20 +11,17 @@ export function SubtitleNav() {
     {
       name: "Generate",
       href: "/dashboard/subtitles",
-      icon: Upload,
-      description: "Upload and generate subtitles"
+      icon: Upload
     },
     {
       name: "Progress",
       href: "/dashboard/subtitles/progress",
-      icon: Clock,
-      description: "Track generation status"
+      icon: Clock
     },
     {
       name: "Review",
       href: "/dashboard/subtitles/review",
-      icon: Eye,
-      description: "Edit and download subtitles"
+      icon: Eye
     }
   ];
 
@@ -41,16 +38,13 @@ export function SubtitleNav() {
                 key={item.href}
                 href={item.href}
                 className={`flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all ${
-                  isActive 
-                    ? "text-primary-purple-bright bg-primary-purple/10 border border-primary-purple/20" 
+                  isActive
+                    ? "text-primary-purple-bright bg-primary-purple/10 border border-primary-purple/20"
                     : "text-slate-400 hover:text-white hover:bg-white/5"
                 }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-sm font-medium">{item.name}</span>
-                <span className="text-xs text-slate-500 text-center max-w-[120px]">
-                  {item.description}
-                </span>
               </Link>
             );
           })}

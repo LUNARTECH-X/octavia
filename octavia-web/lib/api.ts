@@ -3,7 +3,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // Standard response format from all API endpoints
-interface ApiResponse<T = any> {
+export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
@@ -25,7 +25,7 @@ interface ApiResponse<T = any> {
   completed_at?: string;
 }
 
-interface User {
+export interface User {
   id: string;
   email: string;
   name: string;
@@ -35,7 +35,7 @@ interface User {
 }
 
 // Credit package interface
-interface CreditPackage {
+export interface CreditPackage {
   id: string;
   name: string;
   credits: number;
@@ -46,7 +46,7 @@ interface CreditPackage {
 }
 
 // Payment session response
-interface PaymentSessionResponse {
+export interface PaymentSessionResponse {
   session_id: string;
   transaction_id: string;
   checkout_url: string;
@@ -61,7 +61,7 @@ interface PaymentSessionResponse {
 }
 
 // Payment status response
-interface PaymentStatusResponse {
+export interface PaymentStatusResponse {
   session_id: string;
   transaction_id: string;
   status: string;
@@ -72,7 +72,7 @@ interface PaymentStatusResponse {
 }
 
 // Transaction interface
-interface Transaction {
+export interface Transaction {
   id: string;
   amount: number;
   credits: number;
@@ -84,7 +84,7 @@ interface Transaction {
 }
 
 // Subtitle job interface
-interface SubtitleJobResponse {
+export interface SubtitleJobResponse {
   job_id: string;
   download_url?: string;
   format?: string;
@@ -95,7 +95,7 @@ interface SubtitleJobResponse {
 }
 
 // Subtitle segment interface
-interface SubtitleSegment {
+export interface SubtitleSegment {
   id: number;
   start: number;
   end: number;
@@ -109,8 +109,8 @@ interface SubtitleSegment {
   }>;
 }
 
-// Subtitle review data-
-interface SubtitleReviewData {
+// Subtitle review data
+export interface SubtitleReviewData {
   job_id: string;
   status: string;
   format: string;
@@ -121,6 +121,35 @@ interface SubtitleReviewData {
   created_at: string;
   completed_at?: string;
   segments?: SubtitleSegment[];
+}
+
+// Translation request interface
+export interface TranslationRequest {
+  file: File;
+  sourceLanguage: string;
+  targetLanguage: string;
+}
+
+// Translation response interface
+export interface TranslationResponse {
+  success: boolean;
+  file?: Blob;
+  fileName?: string;
+  error?: string;
+}
+
+// Language option interface
+export interface LanguageOption {
+  value: string;
+  label: string;
+  code: string;
+}
+
+// Translation progress interface
+export interface TranslationProgress {
+  status: 'idle' | 'uploading' | 'translating' | 'downloading' | 'complete' | 'error';
+  progress: number;
+  message?: string;
 }
 
 class ApiService {
@@ -165,38 +194,80 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     try {
       const url = `${API_BASE_URL}${endpoint}`;
-      
+      console.log(`API Request: ${options.method || 'GET'} ${url}`);
+
       // Setup headers for the request
       const headers: Record<string, string> = {
         'Accept': 'application/json',
       };
-      
+
       // Add Authorization header for protected endpoints
       if (requiresAuth) {
         const token = this.getToken();
+        console.log(`Auth required, token present: ${!!token}`);
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         } else {
+          console.log('No token found, returning auth error');
           return {
             success: false,
             error: 'Authentication required. Please log in.',
           };
         }
       }
-      
+
       // Set Content-Type for JSON payloads (skip for FormData)
       const isFormData = options.body instanceof FormData;
       if (!isFormData && options.body) {
         headers['Content-Type'] = 'application/json';
       }
-      
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...headers,
-          ...options.headers,
-        },
-      });
+
+      console.log(`Making fetch request to: ${url}`);
+
+      // DEBUG CODE START - ADD THIS
+      if (options.body instanceof FormData) {
+        console.log('🔍 DEBUG: FormData contents being sent:');
+        const formData = options.body as FormData;
+        for (const [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            console.log(`  📁 Field: "${key}" = File: ${value.name} (${value.type}, ${value.size} bytes)`);
+          } else {
+            console.log(`  📝 Field: "${key}" = "${value}"`);
+          }
+        }
+      }
+      // DEBUG CODE END
+
+      let response;
+      try {
+        // Add timeout to prevent hanging requests (longer for file uploads)
+        const controller = new AbortController();
+        const isFileUpload = options.body instanceof FormData;
+        const timeoutMs = isFileUpload ? 300000 : 60000; // 5 minutes for uploads, 1 minute for others
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        response = await fetch(url, {
+          ...options,
+          headers: {
+            ...headers,
+            ...options.headers,
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        console.log(`Fetch completed, response status: ${response.status}`)
+      } catch (fetchError) {
+        console.error('Fetch failed with network error:', fetchError);
+        const isAbortError = fetchError instanceof DOMException && fetchError.name === 'AbortError';
+        const errorMessage = isAbortError
+          ? `Request timed out. File uploads may take longer - please try again.`
+          : (fetchError instanceof Error ? fetchError.message : 'Unknown network error');
+        return {
+          success: false,
+          error: `Network error: ${errorMessage}. Please check your connection and try again.`,
+        };
+      }
 
       // Handle HTTP errors (4xx, 5xx responses)
       if (!response.ok) {
@@ -206,16 +277,36 @@ class ApiService {
         try {
           // Try to extract error message from response body
           const responseText = await response.text();
-          
+
           if (responseText) {
             try {
               errorData = JSON.parse(responseText);
-              
+
               // Look for error message in common response fields
-              errorMessage = errorData.detail || 
-                           errorData.error || 
-                           errorData.message || 
-                           (typeof errorData === 'string' ? errorData : errorMessage);
+              if (errorData.detail) {
+                // Handle FastAPI/Pydantic validation errors
+                if (Array.isArray(errorData.detail)) {
+                  // Extract messages from validation error array
+                  errorMessage = errorData.detail.map((err: any) => {
+                    if (typeof err === 'string') return err;
+                    return err.msg || err.message || JSON.stringify(err);
+                  }).join(', ');
+                } else if (typeof errorData.detail === 'string') {
+                  errorMessage = errorData.detail;
+                } else if (typeof errorData.detail === 'object' && errorData.detail.msg) {
+                  errorMessage = errorData.detail.msg;
+                } else {
+                  errorMessage = JSON.stringify(errorData.detail);
+                }
+              } else if (errorData.error) {
+                errorMessage = errorData.error;
+              } else if (errorData.message) {
+                errorMessage = errorData.message;
+              } else if (typeof errorData === 'string') {
+                errorMessage = errorData;
+              } else {
+                errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+              }
             } catch {
               // Response wasn't JSON, use text directly
               errorMessage = responseText || errorMessage;
@@ -226,7 +317,7 @@ class ApiService {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
         
-        // FIXED: Return the error response instead of throwing
+        // Return the error response
         return {
           success: false,
           error: errorMessage,
@@ -260,6 +351,112 @@ class ApiService {
     }
   }
 
+  // --- SUBTITLE TRANSLATION ENDPOINTS ---
+
+  // Get subtitle translation job status
+  async getSubtitleTranslationStatus(jobId: string): Promise<ApiResponse<{
+    job_id: string;
+    status: string;
+    progress: number;
+    download_url?: string;
+    source_language?: string;
+    target_language?: string;
+    error?: string;
+  }>> {
+    return this.request<{
+      job_id: string;
+      status: string;
+      progress: number;
+      download_url?: string;
+      source_language?: string;
+      target_language?: string;
+      error?: string;
+    }>(`/api/translate/subtitle-status/${jobId}`, {
+      method: 'GET',
+    }, true);
+  }
+
+
+
+async downloadTranslatedSubtitle(jobId: string): Promise<Blob> {
+  const token = this.getToken();
+  
+  // Try multiple endpoint patterns
+  const endpoints = [
+    `/api/download/translated-subtitle/${jobId}`,
+    `/api/download/subtitle-audio/${jobId}`,
+    `/api/generate/subtitle-audio/download/${jobId}`,
+    `/api/download/${jobId}`
+  ];
+  
+  let lastError: Error | null = null;
+  
+  for (const endpoint of endpoints) {
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    try {
+      const response = await fetch(url, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {},
+      });
+      
+      if (response.ok) {
+        return await response.blob();
+      }
+      
+      // If not found, try next endpoint
+      if (response.status === 404) {
+        continue;
+      }
+      
+      // For other errors, throw immediately
+      const errorText = await response.text();
+      throw new Error(`Download failed (${response.status}): ${errorText}`);
+      
+    } catch (error) {
+      lastError = error as Error;
+      console.log(`Endpoint ${endpoint} failed, trying next...`);
+    }
+  }
+  
+  // If all endpoints failed
+  throw lastError || new Error('Download failed: All endpoints failed');
+}
+
+
+
+async translateSubtitleFile(
+  data: TranslationRequest
+): Promise<ApiResponse<{ job_id: string; status_url: string }>> {
+  try {
+    // Use query parameters instead of form data for language parameters
+    // to avoid FastAPI parameter binding issues with File + Form combination
+    const endpoint = `/api/translate/subtitle-file?sourceLanguage=${encodeURIComponent(data.sourceLanguage)}&targetLanguage=${encodeURIComponent(data.targetLanguage)}&format=srt`;
+
+    const formData = new FormData();
+    formData.append('file', data.file);
+
+    console.log('DEBUG: Subtitle translation request:', {
+      endpoint: endpoint,
+      file: data.file.name,
+      sourceLanguage: data.sourceLanguage,
+      targetLanguage: data.targetLanguage
+    });
+
+    return this.request<{ job_id: string; status_url: string }>(endpoint, {
+      method: 'POST',
+      body: formData,
+    }, true);  // Authentication required
+  } catch (error) {
+    console.error('Translation error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
   // --- AUTHENTICATION ENDPOINTS ---
 
   // Register a new user account
@@ -283,22 +480,31 @@ class ApiService {
       password: password
     });
 
-    return this.request('/api/auth/login', {
+    const response = await this.request('/api/auth/login', {
       method: 'POST',
       body: body,
     });
+
+    // Store token if login successful
+    if (response.success && response.token && response.user) {
+      const userData = {
+        ...response.user,
+        token: response.token
+      };
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('octavia_user', JSON.stringify(userData));
+      }
+    }
+
+    return response;
   }
 
   // Logout user and invalidate session
   async logout(): Promise<ApiResponse> {
-    const token = this.getToken();
-    
     const response = await this.request('/api/auth/logout', {
       method: 'POST',
-      headers: token ? {
-        'Authorization': `Bearer ${token}`
-      } : {},
-    }, false);
+    }, true);
     
     // Clear localStorage on logout
     if (typeof window !== 'undefined') {
@@ -368,13 +574,15 @@ class ApiService {
       try {
         const response = await this.checkPaymentStatus(sessionId);
         
-        if (response.success && response.status === 'completed') {
-          return response;
-        }
-        
-        if (response.success && response.status === 'failed') {
-          console.error('Payment failed:', response.description);
-          return response;
+        if (response.success && response.data) {
+          if (response.data.status === 'completed') {
+            return response.data;
+          }
+          
+          if (response.data.status === 'failed') {
+            console.error('Payment failed:', response.data.description);
+            return response.data;
+          }
         }
         
         // Wait before next attempt
@@ -405,6 +613,7 @@ class ApiService {
       method: 'GET',
     }, true);
   }
+  
 
   // Debug webhook endpoint
   async debugWebhook(): Promise<ApiResponse<{
@@ -419,22 +628,6 @@ class ApiService {
   }
 
   // --- VIDEO TRANSLATION ---
-
-  // Upload video file for translation to target language
-  async translateVideo(
-    file: File,
-    targetLanguage: string = 'es',
-    userEmail: string
-  ): Promise<ApiResponse> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('target_language', targetLanguage);
-
-    return this.request('/api/translate/video', {
-      method: 'POST',
-      body: formData,
-    }, true);
-  }
 
   // Check status of a translation job
   async getJobStatus(jobId: string): Promise<ApiResponse<{
@@ -461,27 +654,76 @@ class ApiService {
     }, true);
   }
 
+  // Get user's job history
+  async getUserJobHistory(): Promise<ApiResponse<{
+    jobs: Array<{
+      id: string;
+      type: string;
+      status: string;
+      progress: number;
+      file_path?: string;
+      target_language?: string;
+      original_filename?: string;
+      created_at: string;
+      completed_at?: string;
+      result?: any;
+      output_path?: string;
+      error?: string;
+      message?: string;
+    }>;
+    total: number;
+  }>> {
+    return this.request<{
+      jobs: Array<{
+        id: string;
+        type: string;
+        status: string;
+        progress: number;
+        file_path?: string;
+        target_language?: string;
+        original_filename?: string;
+        created_at: string;
+        completed_at?: string;
+        result?: any;
+        output_path?: string;
+        error?: string;
+        message?: string;
+      }>;
+      total: number;
+    }>(`/api/translate/jobs/history`, {
+      method: 'GET',
+    }, true);
+  }
+
   // --- SUBTITLE GENERATION ---
 
   // Generate subtitles from video/audio file
   async generateSubtitles(
     file: File,
     format: string = 'srt',
-    userEmail: string,
     language: string = 'auto'
   ): Promise<ApiResponse<SubtitleJobResponse>> {
+    // Use query parameters instead of form data for language/format parameters
+    // to avoid FastAPI parameter binding issues with File + Form combination
+    const endpoint = `/api/translate/subtitles?language=${encodeURIComponent(language)}&format=${encodeURIComponent(format)}`;
+
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('format', format);
-    formData.append('language', language);
-    
-    return this.request<SubtitleJobResponse>('/api/translate/subtitles', {
+
+    console.log('DEBUG: Subtitle generation request:', {
+      endpoint: endpoint,
+      file: file.name,
+      language: language,
+      format: format
+    });
+
+    return this.request<SubtitleJobResponse>(endpoint, {
       method: 'POST',
       body: formData,
-    }, true);
+    }, true);  // Authentication required
   }
 
-  // Get subtitle job status
+  // Get subtitle job status (uses generic job status endpoint)
   async getSubtitleJobStatus(jobId: string): Promise<ApiResponse<{
     job_id: string;
     status: string;
@@ -492,18 +734,7 @@ class ApiService {
     language?: string;
     error?: string;
   }>> {
-    return this.request<{
-      job_id: string;
-      status: string;
-      progress: number;
-      download_url?: string;
-      format?: string;
-      segment_count?: number;
-      language?: string;
-      error?: string;
-    }>(`/api/translate/subtitles/status/${jobId}`, {
-      method: 'GET',
-    }, true);
+    return this.getJobStatus(jobId);
   }
 
   // Poll subtitle generation status
@@ -516,8 +747,10 @@ class ApiService {
       try {
         const response = await this.getSubtitleJobStatus(jobId);
         
-        if (response.success && (response.status === 'completed' || response.status === 'failed')) {
-          return response;
+        if (response.success && response.data) {
+          if (response.data.status === 'completed' || response.data.status === 'failed') {
+            return response;
+          }
         }
         
         // Wait before next attempt
@@ -552,18 +785,21 @@ class ApiService {
     return await response.blob();
   }
 
-  // Get subtitle review data (for the review page) - FIXED
-  async getSubtitleReviewData(jobId: string): Promise<ApiResponse> {
-    const response = await this.request(`/api/translate/subtitles/review/${jobId}`, {
+  // Get subtitle review data (for the review page)
+  async getSubtitleReviewData(jobId: string): Promise<ApiResponse<SubtitleReviewData>> {
+    const response = await this.request<SubtitleReviewData>(`/api/translate/subtitles/review/${jobId}`, {
       method: 'GET',
     }, true);
     
     // If we have SRT content, parse it into segments
-    if (response.success && response.content) {
-      const segments = this.parseSRTContent(response.content);
+    if (response.success && response.data && response.data.content) {
+      const segments = this.parseSRTContent(response.data.content);
       return {
         ...response,
-        segments: segments
+        data: {
+          ...response.data,
+          segments
+        }
       };
     }
     
@@ -607,14 +843,31 @@ class ApiService {
   // Translate audio file
   async translateAudio(
     file: File,
-    targetLanguage: string = 'es',
-    userEmail: string
+    targetLanguage: string = 'es'
   ): Promise<ApiResponse> {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('source_lang', 'en');
     formData.append('target_lang', targetLanguage);
-    
+
     return this.request('/api/translate/audio', {
+      method: 'POST',
+      body: formData,
+    }, true);
+  }
+
+  // --- VIDEO TRANSLATION ---
+
+  // Basic video translation
+  async translateVideo(
+    file: File,
+    targetLanguage: string = 'es'
+  ): Promise<ApiResponse<{ job_id: string; status_url: string; remaining_credits: number }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('target_language', targetLanguage);
+
+    return this.request<{ job_id: string; status_url: string; remaining_credits: number }>('/api/translate/video', {
       method: 'POST',
       body: formData,
     }, true);
@@ -624,15 +877,14 @@ class ApiService {
   async translateVideoEnhanced(
     file: File,
     targetLanguage: string = 'es',
-    userEmail: string,
     chunkSize: number = 30
-  ): Promise<ApiResponse> {
+  ): Promise<ApiResponse<{ job_id: string; status_url: string; remaining_credits: number; features: string[] }>> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('target_language', targetLanguage);
     formData.append('chunk_size', chunkSize.toString());
-    
-    return this.request('/api/translate/video/enhanced', {
+
+    return this.request<{ job_id: string; status_url: string; remaining_credits: number; features: string[] }>('/api/translate/video/enhanced', {
       method: 'POST',
       body: formData,
     }, true);
@@ -654,42 +906,131 @@ class ApiService {
     }, true);
   }
 
+  // Get user settings
+  async getUserSettings(): Promise<ApiResponse<{ settings: any }>> {
+    return this.request<{ settings: any }>('/api/user/settings', {
+      method: 'GET',
+    }, true);
+  }
+
+  // Update user settings
+  async updateUserSettings(settings: any): Promise<ApiResponse<{ settings: any }>> {
+    const body = JSON.stringify(settings);
+
+    return this.request<{ settings: any }>('/api/user/settings', {
+      method: 'PUT',
+      body: body,
+    }, true);
+  }
+
+  // Change user password
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse> {
+    const body = JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword
+    });
+
+    return this.request('/api/user/change-password', {
+      method: 'POST',
+      body: body,
+    }, true);
+  }
+
+  // Update user profile
+  async updateUserProfile(data: { name: string; email: string }): Promise<ApiResponse<{ user: User }>> {
+    const body = JSON.stringify(data);
+
+    return this.request<{ user: User }>('/api/user/profile', {
+      method: 'PUT',
+      body: body,
+    }, true);
+  }
+
+  // Delete user account
+  async deleteUserAccount(): Promise<ApiResponse> {
+    return this.request('/api/user/account', {
+      method: 'DELETE',
+    }, true);
+  }
+
   // --- FILE DOWNLOAD ---
 
   // Download translated video file by job ID
   async downloadFile(jobId: string): Promise<Blob> {
     const token = this.getToken();
-    const url = `${API_BASE_URL}/api/download/${jobId}`;
-    
-    const response = await fetch(url, {
-      headers: token ? {
-        'Authorization': `Bearer ${token}`
-      } : {},
-    });
-    
-    if (!response.ok) {
+
+    // First try the specific video download endpoint
+    const videoUrl = `${API_BASE_URL}/api/download/video/${jobId}`;
+
+    try {
+      const response = await fetch(videoUrl, {
+        headers: token ? {
+          'Authorization': `Bearer ${token}`
+        } : {},
+      });
+
+      if (response.ok) {
+        return await response.blob();
+      }
+
+      // If 404, try the generic download endpoint
+      if (response.status === 404) {
+        const genericUrl = `${API_BASE_URL}/api/download/${jobId}`;
+        const genericResponse = await fetch(genericUrl, {
+          headers: token ? {
+            'Authorization': `Bearer ${token}`
+          } : {},
+        });
+
+        if (genericResponse.ok) {
+          return await genericResponse.blob();
+        }
+      }
+
+      // If still not found, try to get job details to understand what went wrong
       const errorText = await response.text();
-      throw new Error(`Download failed: ${response.statusText}`);
+      console.error(`Download failed for job ${jobId}:`, errorText);
+
+      // Try to get job status for debugging
+      try {
+        const jobStatusResponse = await this.getJobStatus(jobId);
+        console.log('Job status for debugging:', jobStatusResponse);
+      } catch (statusError) {
+        console.error('Failed to get job status for debugging:', statusError);
+      }
+
+      throw new Error(`Download failed: ${response.status} ${response.statusText} - ${errorText}`);
+
+    } catch (error) {
+      console.error('Download file error:', error);
+      throw new Error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    return await response.blob();
   }
 
   // Download any file by URL
-  async downloadFileByUrl(url: string, filename: string): Promise<void> {
+  async downloadFileByUrl(url: string): Promise<Blob> {
     const token = this.getToken();
-    
-    const response = await fetch(url, {
+
+    // Fix URL to use correct backend endpoint
+    const fixedUrl = url.replace('/api/download/', '/api/translate/download/');
+
+    const response = await fetch(fixedUrl, {
       headers: token ? {
         'Authorization': `Bearer ${token}`
       } : {},
     });
-    
+
     if (!response.ok) {
       throw new Error(`Download failed: ${response.statusText}`);
     }
+
+    return await response.blob();
+  }
+
+  // Save downloaded file with proper filename
+  saveFile(blob: Blob, filename: string): void {
+    if (typeof window === 'undefined') return;
     
-    const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = downloadUrl;
@@ -755,6 +1096,24 @@ class ApiService {
   }
 
   // --- HELPER METHODS ---
+
+  // Language options for translation
+  getLanguageOptions(): LanguageOption[] {
+    return [
+      { value: 'english', label: 'English', code: 'en' },
+      { value: 'spanish', label: 'Spanish', code: 'es' },
+      { value: 'french', label: 'French', code: 'fr' },
+      { value: 'german', label: 'German', code: 'de' },
+      { value: 'italian', label: 'Italian', code: 'it' },
+      { value: 'portuguese', label: 'Portuguese', code: 'pt' },
+      { value: 'russian', label: 'Russian', code: 'ru' },
+      { value: 'japanese', label: 'Japanese', code: 'ja' },
+      { value: 'korean', label: 'Korean', code: 'ko' },
+      { value: 'chinese', label: 'Chinese', code: 'zh-cn' },
+      { value: 'arabic', label: 'Arabic', code: 'ar' },
+      { value: 'hindi', label: 'Hindi', code: 'hi' },
+    ];
+  }
 
   // Store payment session for later polling
   storePaymentSession(sessionId: string, transactionId: string, packageId: string): void {
@@ -951,19 +1310,8 @@ class ApiService {
       currentTime += duration + 0.5; // Add small gap between segments
     }
     
-    return segments;
-  }
+  return segments;
+}
 }
 
 export const api = new ApiService();
-export type {
-  ApiResponse,
-  User,
-  CreditPackage,
-  PaymentSessionResponse,
-  PaymentStatusResponse,
-  Transaction,
-  SubtitleJobResponse,
-  SubtitleSegment,
-  SubtitleReviewData
-};

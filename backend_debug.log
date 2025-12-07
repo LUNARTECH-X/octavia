@@ -1,0 +1,1658 @@
+2025-12-06 16:29:08,125 - asyncio - DEBUG - Using proactor: IocpProactor
+2025-12-06 16:29:47,377 - __main__ - INFO - Demo login endpoint called
+2025-12-06 16:29:47,377 - __main__ - INFO - Attempting demo login for email: demo@octavia.com
+2025-12-06 16:29:48,195 - httpcore.connection - DEBUG - connect_tcp.started host='kkkutnaaqqsodidboevg.supabase.co' port=443 local_address=None timeout=120 socket_options=None
+2025-12-06 16:29:48,244 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E0DCED0>
+2025-12-06 16:29:48,245 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x0000023D4E5BA330> server_hostname='kkkutnaaqqsodidboevg.supabase.co' timeout=120
+2025-12-06 16:29:48,277 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E571710>
+2025-12-06 16:29:48,277 - httpcore.http2 - DEBUG - send_connection_init.started request=<Request [b'GET']>
+2025-12-06 16:29:48,278 - httpcore.http2 - DEBUG - send_connection_init.complete
+2025-12-06 16:29:48,278 - httpcore.http2 - DEBUG - send_request_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:29:48,280 - hpack.hpack - DEBUG - Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,280 - hpack.hpack - DEBUG - Encoding 2 with 7 bits
+2025-12-06 16:29:48,280 - hpack.hpack - DEBUG - Adding (b':authority', b'kkkutnaaqqsodidboevg.supabase.co') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,281 - hpack.hpack - DEBUG - Encoding 1 with 6 bits
+2025-12-06 16:29:48,281 - hpack.hpack - DEBUG - Encoding 23 with 7 bits
+2025-12-06 16:29:48,281 - hpack.hpack - DEBUG - Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,282 - hpack.hpack - DEBUG - Encoding 7 with 7 bits
+2025-12-06 16:29:48,282 - hpack.hpack - DEBUG - Adding (b':path', b'/rest/v1/users?select=%2A&email=eq.demo%40octavia.com') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,282 - hpack.hpack - DEBUG - Encoding 4 with 6 bits
+2025-12-06 16:29:48,283 - hpack.hpack - DEBUG - Encoding 38 with 7 bits
+2025-12-06 16:29:48,283 - hpack.hpack - DEBUG - Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,283 - hpack.hpack - DEBUG - Encoding 19 with 6 bits
+2025-12-06 16:29:48,284 - hpack.hpack - DEBUG - Encoding 3 with 7 bits
+2025-12-06 16:29:48,284 - hpack.hpack - DEBUG - Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,284 - hpack.hpack - DEBUG - Encoding 16 with 7 bits
+2025-12-06 16:29:48,285 - hpack.hpack - DEBUG - Adding (b'user-agent', b'python-httpx/0.28.1') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,285 - hpack.hpack - DEBUG - Encoding 58 with 6 bits
+2025-12-06 16:29:48,285 - hpack.hpack - DEBUG - Encoding 14 with 7 bits
+2025-12-06 16:29:48,286 - hpack.hpack - DEBUG - Adding (b'x-client-info', b'supabase-py/2.24.0') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,286 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:29:48,286 - hpack.hpack - DEBUG - Encoding 13 with 7 bits
+2025-12-06 16:29:48,287 - hpack.hpack - DEBUG - Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,287 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:29:48,287 - hpack.hpack - DEBUG - Encoding 178 with 7 bits
+2025-12-06 16:29:48,288 - hpack.hpack - DEBUG - Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:True, huffman:True
+2025-12-06 16:29:48,288 - hpack.hpack - DEBUG - Encoding 23 with 4 bits
+2025-12-06 16:29:48,289 - hpack.hpack - DEBUG - Encoding 183 with 7 bits
+2025-12-06 16:29:48,289 - hpack.hpack - DEBUG - Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,289 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:29:48,289 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:29:48,289 - hpack.hpack - DEBUG - Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:29:48,291 - hpack.hpack - DEBUG - Encoding 11 with 7 bits
+2025-12-06 16:29:48,292 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:29:48,292 - hpack.hpack - DEBUG - Encoded header block to b"\x82A\x97\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x99t[X\xe3\x1a\n\xb9\x0f\x87D\xa6b\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe0\xb4\x8c\xd4@^\xcb\xc8ZN\xab@9\x12>\xe6\x1a\xe4=?S\x83\xf9c\xe7\x90z\x8e\xaf\xd2g=KN\x94\xd7\xe5\x80.'\x97\x0f@\x8a\xf2\xb1(1jJ\xc6\xaaS\xff\x8dE\xb5\x8e1\xa0\xabW\xe9\x81.&\x97\x07@\x85\x1df\xea__\xff3/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf\x1f\x08\xff8\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf@\x8a\x19\x08Z\xd2\xb5v\x1eSP_\x85\xae\xd8\xe81?@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?"
+2025-12-06 16:29:48,294 - httpcore.http2 - DEBUG - send_request_headers.complete
+2025-12-06 16:29:48,294 - httpcore.http2 - DEBUG - send_request_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:29:48,294 - httpcore.http2 - DEBUG - send_request_body.complete
+2025-12-06 16:29:48,295 - httpcore.http2 - DEBUG - receive_response_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:29:48,296 - httpcore.http2 - DEBUG - receive_remote_settings.started
+2025-12-06 16:29:48,296 - httpcore.http2 - DEBUG - receive_remote_settings.complete return_value=<RemoteSettingsChanged changed_settings:{ChangedSetting(setting=3, original_value=None, new_value=100), ChangedSetting(setting=4, original_value=65535, new_value=65536), ChangedSetting(setting=5, original_value=16384, new_value=16777215)}>
+2025-12-06 16:29:48,819 - hpack.hpack - DEBUG - Decoding b'?\xe1\x1f\x88a\x96\xdc4\xfd(\x07\x14\xbeR( \t\xb5\x02\xcd\xc1?q\xa7T\xc5\xa3\x7f_\x96\x1du\xd0b\r&=LtA\xea\xfbP\x93\x8e\xc4\x150Z\x99V{v\x87%\x07\xb6Ih\x1d\x85^\x84\x02\xc0c\xe7@\x85$\xabX?_\x8f|o\x90Bm\xa2\x95\xf27\x19\x1b[M\xdd_@\x8a$\xab\x10d\x9c\xab!#M\xa8\x86\xbf\xcfL:2^Z\x83\x9b\xd9\xab]\xa0b\xd4\x16\xc4\x7f\x85\xa4f\xa2\x02\xf6^B\xd2uZ\x01\xc8\x91\xf70\xd7!\xe9\xf8Ah)\x13\x02\xa2\x87x\xa0\xa4~V\x1c\xc5\x81\x90\xb6\xcb\x80\x00>\xd45D\xa2\xd9\x0b\xba\xd8\xef\x9e\x91\x9a\xa4}\xa9]\x85\xa0\xe3\x93{\x8b\x84\x84-i[\x05D<\x86\xaao@\x90\xf2\xb1\x0fRKRVO\xaa\xca\xb1\xebI\x8fR?\x85\xa8\xe8\xa8\xd2\xcb@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?@\x8dDkL4\x97\xc0\xfd-\xdc\xb6 \xc7\xab\x011@\x8aDkWa\xfa\x14\x89Z\xc2\xcb\x8f\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x9b@\x8aDkX^\xd6\x95\tX\xd2\x7f\x9a\x00_\x1c\xac\xc85\xa3\x08F\xb3\xb2\xc7*\xcf<\xc8V\x10]\x95\xd0\xc8\x00\x85\xc9\x7f@\x8f\xf2\xb1j\xee\x7fK\r)-5\xa5b\x1e\xda\x93\x011@\x95\xf2\xb1j\xee\x7fK[Z\x13aGJ\xc8-\x9d\xccB\xac\x93R_\x0293w\xffX\x8a"K\x14t\xc0v\xf8x\xcf\xbaL\x18\xba\xf3\xa3\xa7,s^\xd1\xe35\xa6\xc3\x94X\xe1\xd1\xcf\xdfn7m> ]~ze:\xc1u\xc6\xc0\']y\xd5\x82\xb8\x17\n\xe1Z\x96o\xd1\x14;\xf4r\xbe\x15\xfbQ\xb0um\xc6\x99\xe2\x86/oy\x9bm=d\xc0\xd6]\x12b\xe4\xd6.\xfb\xf2`\xf5\xb7\xc7q\xe0\xdb|v\x83\x88\xbdy\xc2\x8f\xccTg\xe1\xbe]\xfe\\j\xact\xbe\xce<x;U\x8f.\xbe\xbc\xb6/\x8e\xcan\xec\xa9\xed\x1d\x1asY\xe6\\}~\xd4\xaci\x9e\x06>\xd4/\x9a\xcdaQ\x06\xe1\xa7\xe9@8\xb5\xf2\x91a6\xa0Y\xb8\xdb\xf7\x1auLZ7\xfd\xa9!\xe9\x19\xaa\x81t[X\xe3\x1a\n\xb9\x0f\xf6\xa64\xa6\xbdUQ\xeb\xedM\xc5%\xb6\x17\xedM\xc3\xa4\xbb\x8c\x92\xc1\xa4\xf5\x17@\x85\x1d\tY\x1d\xc9\x90\x9d\x98?\x9b\x8d4\xcf\xf3\xf6\xa5#\x81\xe7\x1a\x00?'
+2025-12-06 16:29:48,820 - hpack.hpack - DEBUG - Decoded 4096, consumed 3 bytes
+2025-12-06 16:29:48,820 - hpack.table - DEBUG - Resizing header table to 4096 from 4096
+2025-12-06 16:29:48,821 - hpack.hpack - DEBUG - Decoded 8, consumed 1 bytes
+2025-12-06 16:29:48,821 - hpack.hpack - DEBUG - Decoded (b':status', b'200'), consumed 1
+2025-12-06 16:29:48,821 - hpack.hpack - DEBUG - Decoded 33, consumed 1 bytes
+2025-12-06 16:29:48,821 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:29:48,822 - hpack.hpack - DEBUG - Decoded (b'date', b'Sat, 06 Dec 2025 13:29:47 GMT'), total consumed 24 bytes, indexed True
+2025-12-06 16:29:48,822 - hpack.hpack - DEBUG - Decoded 31, consumed 1 bytes
+2025-12-06 16:29:48,823 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:29:48,823 - hpack.hpack - DEBUG - Decoded (b'content-type', b'application/json; charset=utf-8'), total consumed 24 bytes, indexed True
+2025-12-06 16:29:48,823 - hpack.hpack - DEBUG - Decoded 54, consumed 1 bytes
+2025-12-06 16:29:48,824 - hpack.hpack - DEBUG - Decoded 7, consumed 1 bytes
+2025-12-06 16:29:48,824 - hpack.hpack - DEBUG - Decoded (b'server', b'cloudflare'), total consumed 9 bytes, indexed True
+2025-12-06 16:29:48,824 - hpack.hpack - DEBUG - Decoded 30, consumed 1 bytes
+2025-12-06 16:29:48,825 - hpack.hpack - DEBUG - Decoded 4, consumed 1 bytes
+2025-12-06 16:29:48,825 - hpack.hpack - DEBUG - Decoded (b'content-range', b'0-0/*'), total consumed 6 bytes, indexed True
+2025-12-06 16:29:48,825 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:29:48,826 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:29:48,826 - hpack.hpack - DEBUG - Decoded (b'cf-ray', b'9a9c2254ee9c5bc5-NBO'), total consumed 23 bytes, indexed True
+2025-12-06 16:29:48,826 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:29:48,827 - hpack.hpack - DEBUG - Decoded 6, consumed 1 bytes
+2025-12-06 16:29:48,827 - hpack.hpack - DEBUG - Decoded (b'cf-cache-status', b'DYNAMIC'), total consumed 19 bytes, indexed True
+2025-12-06 16:29:48,827 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:29:48,828 - hpack.hpack - DEBUG - Decoded 3, consumed 1 bytes
+2025-12-06 16:29:48,828 - hpack.hpack - DEBUG - Decoded (b'content-encoding', b'gzip'), total consumed 5 bytes, indexed True
+2025-12-06 16:29:48,828 - hpack.hpack - DEBUG - Decoded 29, consumed 1 bytes
+2025-12-06 16:29:48,829 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:29:48,829 - hpack.hpack - DEBUG - Decoded (b'content-location', b'/users?email=eq.demo%40octavia.com&select=%2A'), total consumed 34 bytes, indexed True
+2025-12-06 16:29:48,830 - hpack.hpack - DEBUG - Decoded 56, consumed 1 bytes
+2025-12-06 16:29:48,830 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:29:48,830 - hpack.hpack - DEBUG - Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), total consumed 34 bytes, indexed True
+2025-12-06 16:29:48,831 - hpack.hpack - DEBUG - Decoded 59, consumed 1 bytes
+2025-12-06 16:29:48,831 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:29:48,831 - hpack.hpack - DEBUG - Decoded (b'vary', b'Accept-Encoding'), total consumed 13 bytes, indexed True
+2025-12-06 16:29:48,832 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:29:48,832 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:29:48,832 - hpack.hpack - DEBUG - Decoded (b'x-content-type-options', b'nosniff'), total consumed 24 bytes, indexed True
+2025-12-06 16:29:48,833 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:29:48,833 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:29:48,833 - hpack.hpack - DEBUG - Decoded (b'content-profile', b'public'), total consumed 19 bytes, indexed True
+2025-12-06 16:29:48,833 - hpack.hpack - DEBUG - Decoded 13, consumed 1 bytes
+2025-12-06 16:29:48,833 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:29:48,834 - hpack.hpack - DEBUG - Decoded (b'sb-gateway-version', <memory at 0x0000023D4E628880>), total consumed 17 bytes, indexed True
+2025-12-06 16:29:48,834 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:29:48,834 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:29:48,835 - hpack.hpack - DEBUG - Decoded (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), total consumed 28 bytes, indexed True
+2025-12-06 16:29:48,835 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:29:48,835 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:29:48,836 - hpack.hpack - DEBUG - Decoded (b'sb-request-id', b'019af3da-b11a-7fbf-8831-217f71d0116f'), total consumed 39 bytes, indexed True
+2025-12-06 16:29:48,836 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:29:48,837 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:29:48,837 - hpack.hpack - DEBUG - Decoded (b'x-envoy-attempt-count', <memory at 0x0000023D4E628940>), total consumed 19 bytes, indexed True
+2025-12-06 16:29:48,837 - hpack.hpack - DEBUG - Decoded 21, consumed 1 bytes
+2025-12-06 16:29:48,838 - hpack.hpack - DEBUG - Decoded 2, consumed 1 bytes
+2025-12-06 16:29:48,838 - hpack.hpack - DEBUG - Decoded (b'x-envoy-upstream-service-time', <memory at 0x0000023D4E628AC0>), total consumed 26 bytes, indexed True
+2025-12-06 16:29:48,838 - hpack.hpack - DEBUG - Decoded 55, consumed 1 bytes
+2025-12-06 16:29:48,839 - hpack.hpack - DEBUG - Decoded 215, consumed 2 bytes
+2025-12-06 16:29:48,839 - hpack.hpack - DEBUG - Decoded (b'set-cookie', b'__cf_bm=o5UwLSdEGkYljWHgCMwKuiFJ2HAMYzqVBuoG0B9hmfo-1765027787-1.0.1.1-m3Dl_ATMWD1.qlQanRHth_A_z8xgRmkdE4JMdGW4GvTIEyRwvaERDau0V2yxFsXGlLUTfTx64nHm93HHEqnHJPkWQ.HrmBQn8Mj46Pog.ak; path=/; expires=Sat, 06-Dec-25 13:59:47 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None'), total consumed 218 bytes, indexed True
+2025-12-06 16:29:48,840 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:29:48,840 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:29:48,841 - hpack.hpack - DEBUG - Decoded (b'alt-svc', b'h3=":443"; ma=86400'), total consumed 24 bytes, indexed True
+2025-12-06 16:29:48,841 - httpcore.http2 - DEBUG - receive_response_headers.complete return_value=(200, [(b'date', b'Sat, 06 Dec 2025 13:29:47 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'server', b'cloudflare'), (b'content-range', b'0-0/*'), (b'cf-ray', b'9a9c2254ee9c5bc5-NBO'), (b'cf-cache-status', b'DYNAMIC'), (b'content-encoding', b'gzip'), (b'content-location', b'/users?email=eq.demo%40octavia.com&select=%2A'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'vary', b'Accept-Encoding'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), (b'sb-request-id', b'019af3da-b11a-7fbf-8831-217f71d0116f'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'93'), (b'set-cookie', b'__cf_bm=o5UwLSdEGkYljWHgCMwKuiFJ2HAMYzqVBuoG0B9hmfo-1765027787-1.0.1.1-m3Dl_ATMWD1.qlQanRHth_A_z8xgRmkdE4JMdGW4GvTIEyRwvaERDau0V2yxFsXGlLUTfTx64nHm93HHEqnHJPkWQ.HrmBQn8Mj46Pog.ak; path=/; expires=Sat, 06-Dec-25 13:59:47 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-12-06 16:29:48,843 - httpx - INFO - HTTP Request: GET https://kkkutnaaqqsodidboevg.supabase.co/rest/v1/users?select=%2A&email=eq.demo%40octavia.com "HTTP/2 200 OK"
+2025-12-06 16:29:48,843 - httpcore.http2 - DEBUG - receive_response_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:29:49,028 - httpcore.http2 - DEBUG - receive_response_body.complete
+2025-12-06 16:29:49,029 - httpcore.http2 - DEBUG - response_closed.started stream_id=1
+2025-12-06 16:29:49,029 - httpcore.http2 - DEBUG - response_closed.complete
+2025-12-06 16:29:49,031 - __main__ - INFO - Supabase query response: data=[{'id': '00affbea-0235-4cac-a1c5-e74b89342dd3', 'email': 'demo@octavia.com', 'name': 'Demo User', 'password_hash': 'sha256:58e47e89db98b49dd78a9dd4cbc974a9:9abc0ba6ab8cf412bdea23d73708e1a7df76c2f2dd7e46ba060c160c83425084', 'is_verified': True, 'verification_token': None, 'verification_token_expires': None, 'credits': 5100, 'created_at': '2025-12-02T21:20:37.924852+00:00', 'updated_at': '2025-12-02T21:20:37.996861+00:00'}] count=None
+2025-12-06 16:29:49,031 - __main__ - INFO - Demo user exists, checking password
+2025-12-06 16:29:49,031 - __main__ - INFO - Password verification result: True
+2025-12-06 16:29:49,063 - __main__ - INFO - JWT token created successfully
+2025-12-06 16:29:49,064 - __main__ - INFO - Demo login successful for user: demo@octavia.com
+2025-12-06 16:30:43,378 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:30:43,379 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:30:43,379 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:30:43,380 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:30:43,380 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:30:43,380 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:30:43,381 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:30:43,381 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:30:43,381 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:30:43,382 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:30:43,382 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:30:43,382 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:30:43,383 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:30:43,383 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:30:43,383 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:30:43,384 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:30:43,384 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:30:43,385 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:30:43,385 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:30:43,385 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:30:43,386 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:30:43,386 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:30:43,386 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:30:43,387 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:30:43,387 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:32:51,577 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:32:51,577 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:32:51,578 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:32:51,578 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:32:51,578 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:32:51,579 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:32:51,579 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:32:51,579 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:32:51,579 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:32:51,579 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:32:51,581 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:32:51,581 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:32:51,581 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:32:51,582 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:32:51,582 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:32:51,582 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:32:51,583 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:32:51,583 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:32:51,583 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:32:51,583 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:32:51,584 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:32:51,584 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:32:51,584 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:32:51,585 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:32:51,585 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:33:37,557 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:33:37,558 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:33:37,558 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:33:37,559 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:33:37,559 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:33:37,560 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:33:37,560 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:33:37,560 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:33:37,561 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:33:37,561 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:33:37,561 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:33:37,562 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:33:37,562 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:33:37,562 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:33:37,563 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:33:37,563 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:33:37,564 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:33:37,564 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:33:37,564 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:33:37,565 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:33:37,565 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:33:37,565 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:33:37,567 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:33:37,567 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:33:37,567 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:34:28,488 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:34:28,488 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:34:28,489 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:34:28,489 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:34:28,489 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:34:28,490 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:34:28,490 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:34:28,490 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:34:28,491 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:34:28,491 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:34:28,492 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:34:28,492 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:34:28,492 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:34:28,493 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:34:28,493 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:34:28,493 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:34:28,494 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:34:28,494 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:34:28,495 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:34:28,495 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:34:28,495 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:34:28,495 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:34:28,496 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:34:28,496 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:34:28,497 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:35:14,136 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:35:14,136 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:35:14,137 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:35:14,137 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:35:14,137 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:35:14,138 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:35:14,138 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:35:14,138 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:35:14,139 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:35:14,139 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:35:14,139 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:35:14,139 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:35:14,140 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:35:14,140 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:35:14,140 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:35:14,141 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:35:14,141 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:35:14,141 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:35:14,142 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:35:14,142 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:35:14,142 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:35:14,142 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:35:14,143 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:35:14,143 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:35:14,143 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:36:20,766 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:36:20,767 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:36:20,768 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:36:20,768 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:36:20,768 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:36:20,770 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:36:20,770 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:36:20,770 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:36:20,771 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:36:20,771 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:36:20,772 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:36:20,772 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:36:20,773 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:36:20,774 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:36:20,774 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:36:20,775 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:36:20,775 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:36:20,776 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:36:20,776 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:36:20,777 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:36:20,778 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:36:20,779 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:36:20,780 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:36:20,780 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:36:20,781 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:40:11,831 - httpcore.connection - DEBUG - close.started
+2025-12-06 16:40:11,832 - httpcore.connection - DEBUG - close.complete
+2025-12-06 16:40:11,832 - httpcore.connection - DEBUG - connect_tcp.started host='kkkutnaaqqsodidboevg.supabase.co' port=443 local_address=None timeout=120 socket_options=None
+2025-12-06 16:40:11,869 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E3A8F10>
+2025-12-06 16:40:11,869 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x0000023D4E5BA330> server_hostname='kkkutnaaqqsodidboevg.supabase.co' timeout=120
+2025-12-06 16:40:11,907 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E0B7050>
+2025-12-06 16:40:11,908 - httpcore.http2 - DEBUG - send_connection_init.started request=<Request [b'GET']>
+2025-12-06 16:40:11,909 - httpcore.http2 - DEBUG - send_connection_init.complete
+2025-12-06 16:40:11,910 - httpcore.http2 - DEBUG - send_request_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:40:11,910 - hpack.hpack - DEBUG - Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,911 - hpack.hpack - DEBUG - Encoding 2 with 7 bits
+2025-12-06 16:40:11,911 - hpack.hpack - DEBUG - Adding (b':authority', b'kkkutnaaqqsodidboevg.supabase.co') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,911 - hpack.hpack - DEBUG - Encoding 1 with 6 bits
+2025-12-06 16:40:11,912 - hpack.hpack - DEBUG - Encoding 23 with 7 bits
+2025-12-06 16:40:11,912 - hpack.hpack - DEBUG - Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,912 - hpack.hpack - DEBUG - Encoding 7 with 7 bits
+2025-12-06 16:40:11,913 - hpack.hpack - DEBUG - Adding (b':path', b'/rest/v1/users?select=%2A&id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,913 - hpack.hpack - DEBUG - Encoding 4 with 6 bits
+2025-12-06 16:40:11,913 - hpack.hpack - DEBUG - Encoding 49 with 7 bits
+2025-12-06 16:40:11,914 - hpack.hpack - DEBUG - Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,914 - hpack.hpack - DEBUG - Encoding 19 with 6 bits
+2025-12-06 16:40:11,914 - hpack.hpack - DEBUG - Encoding 3 with 7 bits
+2025-12-06 16:40:11,915 - hpack.hpack - DEBUG - Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,915 - hpack.hpack - DEBUG - Encoding 16 with 7 bits
+2025-12-06 16:40:11,915 - hpack.hpack - DEBUG - Adding (b'user-agent', b'python-httpx/0.28.1') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,916 - hpack.hpack - DEBUG - Encoding 58 with 6 bits
+2025-12-06 16:40:11,916 - hpack.hpack - DEBUG - Encoding 14 with 7 bits
+2025-12-06 16:40:11,916 - hpack.hpack - DEBUG - Adding (b'x-client-info', b'supabase-py/2.24.0') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,917 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:40:11,917 - hpack.hpack - DEBUG - Encoding 13 with 7 bits
+2025-12-06 16:40:11,917 - hpack.hpack - DEBUG - Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,918 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:40:11,918 - hpack.hpack - DEBUG - Encoding 178 with 7 bits
+2025-12-06 16:40:11,919 - hpack.hpack - DEBUG - Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:True, huffman:True
+2025-12-06 16:40:11,919 - hpack.hpack - DEBUG - Encoding 23 with 4 bits
+2025-12-06 16:40:11,919 - hpack.hpack - DEBUG - Encoding 183 with 7 bits
+2025-12-06 16:40:11,920 - hpack.hpack - DEBUG - Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,920 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:40:11,920 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:40:11,921 - hpack.hpack - DEBUG - Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,921 - hpack.hpack - DEBUG - Encoding 11 with 7 bits
+2025-12-06 16:40:11,921 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:40:11,921 - hpack.hpack - DEBUG - Adding (b'cookie', b'__cf_bm=o5UwLSdEGkYljWHgCMwKuiFJ2HAMYzqVBuoG0B9hmfo-1765027787-1.0.1.1-m3Dl_ATMWD1.qlQanRHth_A_z8xgRmkdE4JMdGW4GvTIEyRwvaERDau0V2yxFsXGlLUTfTx64nHm93HHEqnHJPkWQ.HrmBQn8Mj46Pog.ak') to the header table, sensitive:False, huffman:True
+2025-12-06 16:40:11,921 - hpack.hpack - DEBUG - Encoding 32 with 6 bits
+2025-12-06 16:40:11,922 - hpack.hpack - DEBUG - Encoding 142 with 7 bits
+2025-12-06 16:40:11,922 - hpack.hpack - DEBUG - Encoded header block to b'\x82A\x97\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x99t[X\xe3\x1a\n\xb9\x0f\x87D\xb1b\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe0\xd2@^\xcb\xb6\xf3n2\xe0\x99XO\x80+5(D\xb0\xdbt\x8b6\xd1C+\xc3x\x91\xc7\x1fS\x83\xf9c\xe7\x90z\x8e\xaf\xd2g=KN\x94\xd7\xe5\x80.\'\x97\x0f@\x8a\xf2\xb1(1jJ\xc6\xaaS\xff\x8dE\xb5\x8e1\xa0\xabW\xe9\x81.&\x97\x07@\x85\x1df\xea__\xff3/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf\x1f\x08\xff8\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf@\x8a\x19\x08Z\xd2\xb5v\x1eSP_\x85\xae\xd8\xe81?@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?`\xff\x0f\x8a"K\x14t\xc0v\xf8x\xcf\xbaL\x18\xba\xf3\xa3\xa7,s^\xd1\xe35\xa6\xc3\x94X\xe1\xd1\xcf\xdfn7m> ]~ze:\xc1u\xc6\xc0\']y\xd5\x82\xb8\x17\n\xe1Z\x96o\xd1\x14;\xf4r\xbe\x15\xfbQ\xb0um\xc6\x99\xe2\x86/oy\x9bm=d\xc0\xd6]\x12b\xe4\xd6.\xfb\xf2`\xf5\xb7\xc7q\xe0\xdb|v\x83\x88\xbdy\xc2\x8f\xccTg\xe1\xbe]\xfe\\j\xact\xbe\xce<x;U\x8f.\xbe\xbc\xb6/\x8e\xcan\xec\xa9\xed\x1d\x1asY\xe6\\}\x7f'
+2025-12-06 16:40:11,923 - httpcore.http2 - DEBUG - send_request_headers.complete
+2025-12-06 16:40:11,924 - httpcore.http2 - DEBUG - send_request_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:40:11,924 - httpcore.http2 - DEBUG - send_request_body.complete
+2025-12-06 16:40:11,924 - httpcore.http2 - DEBUG - receive_response_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:40:11,925 - httpcore.http2 - DEBUG - receive_remote_settings.started
+2025-12-06 16:40:11,926 - httpcore.http2 - DEBUG - receive_remote_settings.complete return_value=<RemoteSettingsChanged changed_settings:{ChangedSetting(setting=3, original_value=None, new_value=100), ChangedSetting(setting=4, original_value=65535, new_value=65536), ChangedSetting(setting=5, original_value=16384, new_value=16777215)}>
+2025-12-06 16:40:12,482 - hpack.hpack - DEBUG - Decoding b'?\xe1\x1f\x88a\x96\xdc4\xfd(\x07\x14\xbeR( \t\xb5\x02\xcd\xc6\x81p!S\x16\x8d\xff_\x96\x1du\xd0b\r&=LtA\xea\xfbP\x93\x8e\xc4\x150Z\x99V{v\x87%\x07\xb6Ih\x1d\x85^\x84\x02\xc0c\xe7@\x85$\xabX?_\x8f|o\x91\x90\xbcW^v6\xe3#\x8bi\xbb\xab@\x8a$\xab\x10d\x9c\xab!#M\xa8\x86\xbf\xcfL:2^Z\x83\x9b\xd9\xab]\xabb\xd4\x16\xc4\x7f\x86\x92\x02\xf6]\xb7\x9bq\x97\x04\xca\xc2|\x01Y\xa9B%\x86\xdb\xa4Y\xb6\x8a\x19^\x1b\xc4\x8e8\xfe\x10Z\nD\xc0\xa8\xa1x\xa0\xa4~V\x1c\xc5\x81\x90\xb6\xcb\x80\x00>\xd45D\xa2\xd9\x0b\xba\xd8\xef\x9e\x91\x9a\xa4}\xa9]\x85\xa0\xe3\x93{\x8b\x84\x84-i[\x05D<\x86\xaao@\x90\xf2\xb1\x0fRKRVO\xaa\xca\xb1\xebI\x8fR?\x85\xa8\xe8\xa8\xd2\xcb@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?@\x8dDkL4\x97\xc0\xfd-\xdc\xb6 \xc7\xab\x011@\x8aDkWa\xfa\x14\x89Z\xc2\xcb\x8f\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x9b@\x8aDkX^\xd6\x95\tX\xd2\x7f\x9a\x00_\x1c\xac\x95\xa5\x99l-\xac\xeb\x81\x8dg\xd9\x18\x96p1\x89\xa2\x86@\xca\x11\xff@\x8f\xf2\xb1j\xee\x7fK\r)-5\xa5b\x1e\xda\x93\x011@\x95\xf2\xb1j\xee\x7fK[Z\x13aGJ\xc8-\x9d\xccB\xac\x93R_\x82\x08\x1b@\x85\x1d\tY\x1d\xc9\x90\x9d\x98?\x9b\x8d4\xcf\xf3\xf6\xa5#\x81\xe7\x1a\x00?'
+2025-12-06 16:40:12,483 - hpack.hpack - DEBUG - Decoded 4096, consumed 3 bytes
+2025-12-06 16:40:12,483 - hpack.table - DEBUG - Resizing header table to 4096 from 4096
+2025-12-06 16:40:12,483 - hpack.hpack - DEBUG - Decoded 8, consumed 1 bytes
+2025-12-06 16:40:12,484 - hpack.hpack - DEBUG - Decoded (b':status', b'200'), consumed 1
+2025-12-06 16:40:12,484 - hpack.hpack - DEBUG - Decoded 33, consumed 1 bytes
+2025-12-06 16:40:12,484 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:40:12,485 - hpack.hpack - DEBUG - Decoded (b'date', b'Sat, 06 Dec 2025 13:40:11 GMT'), total consumed 24 bytes, indexed True
+2025-12-06 16:40:12,485 - hpack.hpack - DEBUG - Decoded 31, consumed 1 bytes
+2025-12-06 16:40:12,485 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:40:12,486 - hpack.hpack - DEBUG - Decoded (b'content-type', b'application/json; charset=utf-8'), total consumed 24 bytes, indexed True
+2025-12-06 16:40:12,486 - hpack.hpack - DEBUG - Decoded 54, consumed 1 bytes
+2025-12-06 16:40:12,486 - hpack.hpack - DEBUG - Decoded 7, consumed 1 bytes
+2025-12-06 16:40:12,487 - hpack.hpack - DEBUG - Decoded (b'server', b'cloudflare'), total consumed 9 bytes, indexed True
+2025-12-06 16:40:12,487 - hpack.hpack - DEBUG - Decoded 30, consumed 1 bytes
+2025-12-06 16:40:12,487 - hpack.hpack - DEBUG - Decoded 4, consumed 1 bytes
+2025-12-06 16:40:12,488 - hpack.hpack - DEBUG - Decoded (b'content-range', b'0-0/*'), total consumed 6 bytes, indexed True
+2025-12-06 16:40:12,488 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:40:12,488 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:40:12,489 - hpack.hpack - DEBUG - Decoded (b'cf-ray', b'9a9c318e787b5bc6-NBO'), total consumed 23 bytes, indexed True
+2025-12-06 16:40:12,489 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:40:12,489 - hpack.hpack - DEBUG - Decoded 6, consumed 1 bytes
+2025-12-06 16:40:12,490 - hpack.hpack - DEBUG - Decoded (b'cf-cache-status', b'DYNAMIC'), total consumed 19 bytes, indexed True
+2025-12-06 16:40:12,490 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:40:12,490 - hpack.hpack - DEBUG - Decoded 3, consumed 1 bytes
+2025-12-06 16:40:12,491 - hpack.hpack - DEBUG - Decoded (b'content-encoding', b'gzip'), total consumed 5 bytes, indexed True
+2025-12-06 16:40:12,491 - hpack.hpack - DEBUG - Decoded 29, consumed 1 bytes
+2025-12-06 16:40:12,491 - hpack.hpack - DEBUG - Decoded 43, consumed 1 bytes
+2025-12-06 16:40:12,492 - hpack.hpack - DEBUG - Decoded (b'content-location', b'/users?id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb&select=%2A'), total consumed 45 bytes, indexed True
+2025-12-06 16:40:12,492 - hpack.hpack - DEBUG - Decoded 56, consumed 1 bytes
+2025-12-06 16:40:12,492 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:40:12,493 - hpack.hpack - DEBUG - Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), total consumed 34 bytes, indexed True
+2025-12-06 16:40:12,493 - hpack.hpack - DEBUG - Decoded 59, consumed 1 bytes
+2025-12-06 16:40:12,493 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:40:12,494 - hpack.hpack - DEBUG - Decoded (b'vary', b'Accept-Encoding'), total consumed 13 bytes, indexed True
+2025-12-06 16:40:12,494 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:40:12,494 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:40:12,495 - hpack.hpack - DEBUG - Decoded (b'x-content-type-options', b'nosniff'), total consumed 24 bytes, indexed True
+2025-12-06 16:40:12,495 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:40:12,495 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:40:12,496 - hpack.hpack - DEBUG - Decoded (b'content-profile', b'public'), total consumed 19 bytes, indexed True
+2025-12-06 16:40:12,496 - hpack.hpack - DEBUG - Decoded 13, consumed 1 bytes
+2025-12-06 16:40:12,496 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:40:12,497 - hpack.hpack - DEBUG - Decoded (b'sb-gateway-version', <memory at 0x0000023D4E62A980>), total consumed 17 bytes, indexed True
+2025-12-06 16:40:12,497 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:40:12,497 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:40:12,497 - hpack.hpack - DEBUG - Decoded (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), total consumed 28 bytes, indexed True
+2025-12-06 16:40:12,499 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:40:12,499 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:40:12,500 - hpack.hpack - DEBUG - Decoded (b'sb-request-id', b'019af3e4-3515-761b-93a2-61b24e1d1f1a'), total consumed 39 bytes, indexed True
+2025-12-06 16:40:12,500 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:40:12,500 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:40:12,501 - hpack.hpack - DEBUG - Decoded (b'x-envoy-attempt-count', <memory at 0x0000023D4E62AA40>), total consumed 19 bytes, indexed True
+2025-12-06 16:40:12,501 - hpack.hpack - DEBUG - Decoded 21, consumed 1 bytes
+2025-12-06 16:40:12,501 - hpack.hpack - DEBUG - Decoded 2, consumed 1 bytes
+2025-12-06 16:40:12,502 - hpack.hpack - DEBUG - Decoded (b'x-envoy-upstream-service-time', b'105'), total consumed 26 bytes, indexed True
+2025-12-06 16:40:12,502 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:40:12,502 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:40:12,503 - hpack.hpack - DEBUG - Decoded (b'alt-svc', b'h3=":443"; ma=86400'), total consumed 24 bytes, indexed True
+2025-12-06 16:40:12,503 - httpcore.http2 - DEBUG - receive_response_headers.complete return_value=(200, [(b'date', b'Sat, 06 Dec 2025 13:40:11 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'server', b'cloudflare'), (b'content-range', b'0-0/*'), (b'cf-ray', b'9a9c318e787b5bc6-NBO'), (b'cf-cache-status', b'DYNAMIC'), (b'content-encoding', b'gzip'), (b'content-location', b'/users?id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb&select=%2A'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'vary', b'Accept-Encoding'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), (b'sb-request-id', b'019af3e4-3515-761b-93a2-61b24e1d1f1a'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'105'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-12-06 16:40:12,504 - httpx - INFO - HTTP Request: GET https://kkkutnaaqqsodidboevg.supabase.co/rest/v1/users?select=%2A&id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb "HTTP/2 200 OK"
+2025-12-06 16:40:12,505 - httpcore.http2 - DEBUG - receive_response_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:40:12,506 - httpcore.http2 - DEBUG - receive_response_body.complete
+2025-12-06 16:40:12,506 - httpcore.http2 - DEBUG - response_closed.started stream_id=1
+2025-12-06 16:40:12,506 - httpcore.http2 - DEBUG - response_closed.complete
+2025-12-06 16:40:12,540 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:40:12,540 - python_multipart.multipart - DEBUG - Calling on_header_field with data[42:61]
+2025-12-06 16:40:12,541 - python_multipart.multipart - DEBUG - Calling on_header_value with data[63:148]
+2025-12-06 16:40:12,541 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:40:12,541 - python_multipart.multipart - DEBUG - Calling on_header_field with data[150:162]
+2025-12-06 16:40:12,542 - python_multipart.multipart - DEBUG - Calling on_header_value with data[164:188]
+2025-12-06 16:40:12,542 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:40:12,543 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:40:12,543 - python_multipart.multipart - DEBUG - Calling on_part_data with data[192:5262]
+2025-12-06 16:40:12,543 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:40:12,544 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:40:12,544 - python_multipart.multipart - DEBUG - Calling on_header_field with data[5306:5325]
+2025-12-06 16:40:12,545 - python_multipart.multipart - DEBUG - Calling on_header_value with data[5327:5359]
+2025-12-06 16:40:12,545 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:40:12,545 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:40:12,546 - python_multipart.multipart - DEBUG - Calling on_part_data with data[5363:5365]
+2025-12-06 16:40:12,546 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:40:12,547 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:40:12,547 - python_multipart.multipart - DEBUG - Calling on_header_field with data[5409:5428]
+2025-12-06 16:40:12,548 - python_multipart.multipart - DEBUG - Calling on_header_value with data[5430:5462]
+2025-12-06 16:40:12,548 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:40:12,548 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:40:12,549 - python_multipart.multipart - DEBUG - Calling on_part_data with data[5466:5468]
+2025-12-06 16:40:12,549 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:40:12,550 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:42:33,212 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:42:33,212 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:42:33,212 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:42:33,213 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:33,213 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:42:33,213 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:42:33,214 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:33,214 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:42:33,214 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:42:33,215 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:42:33,215 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:42:33,215 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:42:33,216 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:42:33,216 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:33,216 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:42:33,217 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:42:33,217 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:42:33,217 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:42:33,218 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:42:33,218 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:42:33,218 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:33,219 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:42:33,219 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:42:33,219 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:42:33,219 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:42:59,144 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:42:59,145 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:42:59,145 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:42:59,146 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:59,146 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:42:59,146 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:42:59,147 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:59,147 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:42:59,148 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:42:59,148 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:42:59,148 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:42:59,149 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:42:59,149 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:42:59,149 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:59,150 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:42:59,150 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:42:59,151 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:42:59,151 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:42:59,152 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:42:59,152 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:42:59,152 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:42:59,153 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:42:59,153 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:42:59,153 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:42:59,154 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:44:31,104 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:44:31,105 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:44:31,105 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:44:31,106 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:44:31,106 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:44:31,106 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:44:31,107 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:44:31,107 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:44:31,108 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:44:31,108 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:44:31,108 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:44:31,109 - python_multipart.multipart - DEBUG - Calling on_header_field with data[322:341]
+2025-12-06 16:44:31,109 - python_multipart.multipart - DEBUG - Calling on_header_value with data[343:375]
+2025-12-06 16:44:31,110 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:44:31,110 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:44:31,111 - python_multipart.multipart - DEBUG - Calling on_part_data with data[379:381]
+2025-12-06 16:44:31,111 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:44:31,111 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:44:31,112 - python_multipart.multipart - DEBUG - Calling on_header_field with data[435:454]
+2025-12-06 16:44:31,112 - python_multipart.multipart - DEBUG - Calling on_header_value with data[456:488]
+2025-12-06 16:44:31,113 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:44:31,113 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:44:31,114 - python_multipart.multipart - DEBUG - Calling on_part_data with data[492:494]
+2025-12-06 16:44:31,114 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:44:31,114 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:45:15,606 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:45:15,607 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:45:15,607 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:45:15,607 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:45:15,608 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:45:15,608 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:45:15,608 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:45:15,609 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:45:15,609 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:45:15,610 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:45:15,610 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:45:56,637 - __main__ - INFO - Demo login endpoint called
+2025-12-06 16:45:56,637 - __main__ - INFO - Attempting demo login for email: demo@octavia.com
+2025-12-06 16:45:56,639 - httpcore.connection - DEBUG - close.started
+2025-12-06 16:45:56,640 - httpcore.connection - DEBUG - close.complete
+2025-12-06 16:45:56,640 - httpcore.connection - DEBUG - connect_tcp.started host='kkkutnaaqqsodidboevg.supabase.co' port=443 local_address=None timeout=120 socket_options=None
+2025-12-06 16:45:56,660 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E6A0690>
+2025-12-06 16:45:56,660 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x0000023D4E5BA330> server_hostname='kkkutnaaqqsodidboevg.supabase.co' timeout=120
+2025-12-06 16:45:56,676 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E6A2AD0>
+2025-12-06 16:45:56,677 - httpcore.http2 - DEBUG - send_connection_init.started request=<Request [b'GET']>
+2025-12-06 16:45:56,678 - httpcore.http2 - DEBUG - send_connection_init.complete
+2025-12-06 16:45:56,678 - httpcore.http2 - DEBUG - send_request_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:45:56,679 - hpack.hpack - DEBUG - Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,679 - hpack.hpack - DEBUG - Encoding 2 with 7 bits
+2025-12-06 16:45:56,679 - hpack.hpack - DEBUG - Adding (b':authority', b'kkkutnaaqqsodidboevg.supabase.co') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,680 - hpack.hpack - DEBUG - Encoding 1 with 6 bits
+2025-12-06 16:45:56,680 - hpack.hpack - DEBUG - Encoding 23 with 7 bits
+2025-12-06 16:45:56,680 - hpack.hpack - DEBUG - Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,681 - hpack.hpack - DEBUG - Encoding 7 with 7 bits
+2025-12-06 16:45:56,681 - hpack.hpack - DEBUG - Adding (b':path', b'/rest/v1/users?select=%2A&email=eq.demo%40octavia.com') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,682 - hpack.hpack - DEBUG - Encoding 4 with 6 bits
+2025-12-06 16:45:56,682 - hpack.hpack - DEBUG - Encoding 38 with 7 bits
+2025-12-06 16:45:56,683 - hpack.hpack - DEBUG - Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,683 - hpack.hpack - DEBUG - Encoding 19 with 6 bits
+2025-12-06 16:45:56,684 - hpack.hpack - DEBUG - Encoding 3 with 7 bits
+2025-12-06 16:45:56,684 - hpack.hpack - DEBUG - Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,685 - hpack.hpack - DEBUG - Encoding 16 with 7 bits
+2025-12-06 16:45:56,685 - hpack.hpack - DEBUG - Adding (b'user-agent', b'python-httpx/0.28.1') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,685 - hpack.hpack - DEBUG - Encoding 58 with 6 bits
+2025-12-06 16:45:56,687 - hpack.hpack - DEBUG - Encoding 14 with 7 bits
+2025-12-06 16:45:56,687 - hpack.hpack - DEBUG - Adding (b'x-client-info', b'supabase-py/2.24.0') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,688 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:45:56,688 - hpack.hpack - DEBUG - Encoding 13 with 7 bits
+2025-12-06 16:45:56,688 - hpack.hpack - DEBUG - Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,689 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:45:56,689 - hpack.hpack - DEBUG - Encoding 178 with 7 bits
+2025-12-06 16:45:56,690 - hpack.hpack - DEBUG - Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:True, huffman:True
+2025-12-06 16:45:56,690 - hpack.hpack - DEBUG - Encoding 23 with 4 bits
+2025-12-06 16:45:56,690 - hpack.hpack - DEBUG - Encoding 183 with 7 bits
+2025-12-06 16:45:56,691 - hpack.hpack - DEBUG - Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,691 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:45:56,692 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:45:56,692 - hpack.hpack - DEBUG - Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,692 - hpack.hpack - DEBUG - Encoding 11 with 7 bits
+2025-12-06 16:45:56,693 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:45:56,693 - hpack.hpack - DEBUG - Adding (b'cookie', b'__cf_bm=o5UwLSdEGkYljWHgCMwKuiFJ2HAMYzqVBuoG0B9hmfo-1765027787-1.0.1.1-m3Dl_ATMWD1.qlQanRHth_A_z8xgRmkdE4JMdGW4GvTIEyRwvaERDau0V2yxFsXGlLUTfTx64nHm93HHEqnHJPkWQ.HrmBQn8Mj46Pog.ak') to the header table, sensitive:False, huffman:True
+2025-12-06 16:45:56,693 - hpack.hpack - DEBUG - Encoding 32 with 6 bits
+2025-12-06 16:45:56,694 - hpack.hpack - DEBUG - Encoding 142 with 7 bits
+2025-12-06 16:45:56,694 - hpack.hpack - DEBUG - Encoded header block to b'\x82A\x97\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x99t[X\xe3\x1a\n\xb9\x0f\x87D\xa6b\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe0\xb4\x8c\xd4@^\xcb\xc8ZN\xab@9\x12>\xe6\x1a\xe4=?S\x83\xf9c\xe7\x90z\x8e\xaf\xd2g=KN\x94\xd7\xe5\x80.\'\x97\x0f@\x8a\xf2\xb1(1jJ\xc6\xaaS\xff\x8dE\xb5\x8e1\xa0\xabW\xe9\x81.&\x97\x07@\x85\x1df\xea__\xff3/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf\x1f\x08\xff8\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf@\x8a\x19\x08Z\xd2\xb5v\x1eSP_\x85\xae\xd8\xe81?@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?`\xff\x0f\x8a"K\x14t\xc0v\xf8x\xcf\xbaL\x18\xba\xf3\xa3\xa7,s^\xd1\xe35\xa6\xc3\x94X\xe1\xd1\xcf\xdfn7m> ]~ze:\xc1u\xc6\xc0\']y\xd5\x82\xb8\x17\n\xe1Z\x96o\xd1\x14;\xf4r\xbe\x15\xfbQ\xb0um\xc6\x99\xe2\x86/oy\x9bm=d\xc0\xd6]\x12b\xe4\xd6.\xfb\xf2`\xf5\xb7\xc7q\xe0\xdb|v\x83\x88\xbdy\xc2\x8f\xccTg\xe1\xbe]\xfe\\j\xact\xbe\xce<x;U\x8f.\xbe\xbc\xb6/\x8e\xcan\xec\xa9\xed\x1d\x1asY\xe6\\}\x7f'
+2025-12-06 16:45:56,695 - httpcore.http2 - DEBUG - send_request_headers.complete
+2025-12-06 16:45:56,695 - httpcore.http2 - DEBUG - send_request_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:45:56,696 - httpcore.http2 - DEBUG - send_request_body.complete
+2025-12-06 16:45:56,696 - httpcore.http2 - DEBUG - receive_response_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:45:56,697 - httpcore.http2 - DEBUG - receive_remote_settings.started
+2025-12-06 16:45:56,697 - httpcore.http2 - DEBUG - receive_remote_settings.complete return_value=<RemoteSettingsChanged changed_settings:{ChangedSetting(setting=3, original_value=None, new_value=100), ChangedSetting(setting=4, original_value=65535, new_value=65536), ChangedSetting(setting=5, original_value=16384, new_value=16777215)}>
+2025-12-06 16:45:57,243 - hpack.hpack - DEBUG - Decoding b'?\xe1\x1f\x88a\x96\xdc4\xfd(\x07\x14\xbeR( \t\xb5\x02\xcd\xc6\x9b\xb8\xdbjb\xd1\xbf_\x96\x1du\xd0b\r&=LtA\xea\xfbP\x93\x8e\xc4\x150Z\x99V{v\x87%\x07\xb6Ih\x1d\x85^\x84\x02\xc0c\xe7@\x85$\xabX?_\x8f|o\x91\x97\xe5}\xa2\xca\x06\xe3#ki\xbb\xab@\x8a$\xab\x10d\x9c\xab!#M\xa8\x86\xbf\xcfL:2^Z\x83\x9b\xd9\xab]\xa0b\xd4\x16\xc4\x7f\x85\xa4f\xa2\x02\xf6^B\xd2uZ\x01\xc8\x91\xf70\xd7!\xe9\xf8Ah)\x13\x02\xa2\x87x\xa0\xa4~V\x1c\xc5\x81\x90\xb6\xcb\x80\x00>\xd45D\xa2\xd9\x0b\xba\xd8\xef\x9e\x91\x9a\xa4}\xa9]\x85\xa0\xe3\x93{\x8b\x84\x84-i[\x05D<\x86\xaao@\x90\xf2\xb1\x0fRKRVO\xaa\xca\xb1\xebI\x8fR?\x85\xa8\xe8\xa8\xd2\xcb@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?@\x8dDkL4\x97\xc0\xfd-\xdc\xb6 \xc7\xab\x011@\x8aDkWa\xfa\x14\x89Z\xc2\xcb\x8f\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x9b@\x8aDkX^\xd6\x95\tX\xd2\x7f\x9a\x00_\x1c\xac\x95\xf5\x9dt\xac\xac\xe8$*\xcf\x08\x8f,\xdc\x8e7#q\xc8\xfb\xb1\xbf@\x8f\xf2\xb1j\xee\x7fK\r)-5\xa5b\x1e\xda\x93\x011@\x95\xf2\xb1j\xee\x7fK[Z\x13aGJ\xc8-\x9d\xccB\xac\x93R_\x82\x08Zw\xffW\x8a"K\x14t\xc1\x89\xe6\xf8\xddKx(\xc9\xc6\xdf>pP\x1e]\xf4\xeb\xf1\x8e\x84\xba^\x1cx\xe4f_w\x90\xed\xe8\xe2F\xa2,\x17\\l\x02y\xd6\xdbX+\x81p\xae\x15\xbdj6C\x8aI4r\x9fM\xdc:\x81\x9f\xf6g\xc0<\x18\xbd\xc7f\x10\xde\xfd\xfc\xa3>\x14\xe9\xf7\x91\xbbo\xcf{\xc9\xa8\xe7\xd3\'u\xe3\xbe\xe7W<\xea\xfc\xdd\xb2^\xfd\xbb\xf0\xdd\x8b\xdf<l\xd3\x1c.7\xf8\xfe\xea!\x92\x90\xf6\xe5\x0f\xaf\x1d\xf8\n\x93\xa1\x96\x91\xc7x\x99]\xa2}\xa9X\xd3<\x0c}\xa8_5\x9a\xc2\xa2\r\xc3O\xd2\x80qk\xe5"\xc2m@\xb5p-\xdcm\xb51h\xdf\xf6\xa4\x87\xa4f\xaa\x05\xd1mc\x8ch*\xe4?\xda\x98\xd2\x9a\xf5UG\xaf\xb57\x14\x96\xd8_\xb57\x0e\x92\xee2K\x06\x93\xd4_@\x85\x1d\tY\x1d\xc9\x90\x9d\x98?\x9b\x8d4\xcf\xf3\xf6\xa5#\x81\xe7\x1a\x00?'
+2025-12-06 16:45:57,244 - hpack.hpack - DEBUG - Decoded 4096, consumed 3 bytes
+2025-12-06 16:45:57,244 - hpack.table - DEBUG - Resizing header table to 4096 from 4096
+2025-12-06 16:45:57,244 - hpack.hpack - DEBUG - Decoded 8, consumed 1 bytes
+2025-12-06 16:45:57,245 - hpack.hpack - DEBUG - Decoded (b':status', b'200'), consumed 1
+2025-12-06 16:45:57,245 - hpack.hpack - DEBUG - Decoded 33, consumed 1 bytes
+2025-12-06 16:45:57,246 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:45:57,246 - hpack.hpack - DEBUG - Decoded (b'date', b'Sat, 06 Dec 2025 13:45:55 GMT'), total consumed 24 bytes, indexed True
+2025-12-06 16:45:57,246 - hpack.hpack - DEBUG - Decoded 31, consumed 1 bytes
+2025-12-06 16:45:57,246 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:45:57,248 - hpack.hpack - DEBUG - Decoded (b'content-type', b'application/json; charset=utf-8'), total consumed 24 bytes, indexed True
+2025-12-06 16:45:57,248 - hpack.hpack - DEBUG - Decoded 54, consumed 1 bytes
+2025-12-06 16:45:57,248 - hpack.hpack - DEBUG - Decoded 7, consumed 1 bytes
+2025-12-06 16:45:57,249 - hpack.hpack - DEBUG - Decoded (b'server', b'cloudflare'), total consumed 9 bytes, indexed True
+2025-12-06 16:45:57,249 - hpack.hpack - DEBUG - Decoded 30, consumed 1 bytes
+2025-12-06 16:45:57,249 - hpack.hpack - DEBUG - Decoded 4, consumed 1 bytes
+2025-12-06 16:45:57,251 - hpack.hpack - DEBUG - Decoded (b'content-range', b'0-0/*'), total consumed 6 bytes, indexed True
+2025-12-06 16:45:57,251 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:45:57,251 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:45:57,252 - hpack.hpack - DEBUG - Decoded (b'cf-ray', b'9a9c39f94ef05bc5-NBO'), total consumed 23 bytes, indexed True
+2025-12-06 16:45:57,252 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:45:57,252 - hpack.hpack - DEBUG - Decoded 6, consumed 1 bytes
+2025-12-06 16:45:57,253 - hpack.hpack - DEBUG - Decoded (b'cf-cache-status', b'DYNAMIC'), total consumed 19 bytes, indexed True
+2025-12-06 16:45:57,253 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:45:57,253 - hpack.hpack - DEBUG - Decoded 3, consumed 1 bytes
+2025-12-06 16:45:57,254 - hpack.hpack - DEBUG - Decoded (b'content-encoding', b'gzip'), total consumed 5 bytes, indexed True
+2025-12-06 16:45:57,254 - hpack.hpack - DEBUG - Decoded 29, consumed 1 bytes
+2025-12-06 16:45:57,254 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:45:57,255 - hpack.hpack - DEBUG - Decoded (b'content-location', b'/users?email=eq.demo%40octavia.com&select=%2A'), total consumed 34 bytes, indexed True
+2025-12-06 16:45:57,255 - hpack.hpack - DEBUG - Decoded 56, consumed 1 bytes
+2025-12-06 16:45:57,255 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:45:57,256 - hpack.hpack - DEBUG - Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), total consumed 34 bytes, indexed True
+2025-12-06 16:45:57,256 - hpack.hpack - DEBUG - Decoded 59, consumed 1 bytes
+2025-12-06 16:45:57,256 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:45:57,257 - hpack.hpack - DEBUG - Decoded (b'vary', b'Accept-Encoding'), total consumed 13 bytes, indexed True
+2025-12-06 16:45:57,257 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:45:57,257 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:45:57,258 - hpack.hpack - DEBUG - Decoded (b'x-content-type-options', b'nosniff'), total consumed 24 bytes, indexed True
+2025-12-06 16:45:57,258 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:45:57,258 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:45:57,258 - hpack.hpack - DEBUG - Decoded (b'content-profile', b'public'), total consumed 19 bytes, indexed True
+2025-12-06 16:45:57,259 - hpack.hpack - DEBUG - Decoded 13, consumed 1 bytes
+2025-12-06 16:45:57,259 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:45:57,259 - hpack.hpack - DEBUG - Decoded (b'sb-gateway-version', <memory at 0x0000023D4E62AB00>), total consumed 17 bytes, indexed True
+2025-12-06 16:45:57,260 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:45:57,260 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:45:57,260 - hpack.hpack - DEBUG - Decoded (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), total consumed 28 bytes, indexed True
+2025-12-06 16:45:57,260 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:45:57,260 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:45:57,261 - hpack.hpack - DEBUG - Decoded (b'sb-request-id', b'019af3e9-77e3-70de-82c8-5d65d5bd97b9'), total consumed 39 bytes, indexed True
+2025-12-06 16:45:57,261 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:45:57,262 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:45:57,262 - hpack.hpack - DEBUG - Decoded (b'x-envoy-attempt-count', <memory at 0x0000023D4E62A440>), total consumed 19 bytes, indexed True
+2025-12-06 16:45:57,262 - hpack.hpack - DEBUG - Decoded 21, consumed 1 bytes
+2025-12-06 16:45:57,263 - hpack.hpack - DEBUG - Decoded 2, consumed 1 bytes
+2025-12-06 16:45:57,263 - hpack.hpack - DEBUG - Decoded (b'x-envoy-upstream-service-time', b'114'), total consumed 26 bytes, indexed True
+2025-12-06 16:45:57,263 - hpack.hpack - DEBUG - Decoded 55, consumed 1 bytes
+2025-12-06 16:45:57,263 - hpack.hpack - DEBUG - Decoded 214, consumed 2 bytes
+2025-12-06 16:45:57,264 - hpack.hpack - DEBUG - Decoded (b'set-cookie', b'__cf_bm=G85VBt5ElIVuxxEl1WvNPwHlt7eUVVI3fzCs7Cb_sOc-1765028755-1.0.1.1-yOiIo2ddMWhNBFO0LZg90aEGzbrF1CZXlLFtNzI5uDhCxilYjIv.bD6k6xOXSQfvqvUSGzYH3mbA65X9SlAdm1qWAywvU2mos34sVT23.4c; path=/; expires=Sat, 06-Dec-25 14:15:55 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None'), total consumed 217 bytes, indexed True
+2025-12-06 16:45:57,264 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:45:57,265 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:45:57,265 - hpack.hpack - DEBUG - Decoded (b'alt-svc', b'h3=":443"; ma=86400'), total consumed 24 bytes, indexed True
+2025-12-06 16:45:57,266 - httpcore.http2 - DEBUG - receive_response_headers.complete return_value=(200, [(b'date', b'Sat, 06 Dec 2025 13:45:55 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'server', b'cloudflare'), (b'content-range', b'0-0/*'), (b'cf-ray', b'9a9c39f94ef05bc5-NBO'), (b'cf-cache-status', b'DYNAMIC'), (b'content-encoding', b'gzip'), (b'content-location', b'/users?email=eq.demo%40octavia.com&select=%2A'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'vary', b'Accept-Encoding'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), (b'sb-request-id', b'019af3e9-77e3-70de-82c8-5d65d5bd97b9'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'114'), (b'set-cookie', b'__cf_bm=G85VBt5ElIVuxxEl1WvNPwHlt7eUVVI3fzCs7Cb_sOc-1765028755-1.0.1.1-yOiIo2ddMWhNBFO0LZg90aEGzbrF1CZXlLFtNzI5uDhCxilYjIv.bD6k6xOXSQfvqvUSGzYH3mbA65X9SlAdm1qWAywvU2mos34sVT23.4c; path=/; expires=Sat, 06-Dec-25 14:15:55 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-12-06 16:45:57,268 - httpx - INFO - HTTP Request: GET https://kkkutnaaqqsodidboevg.supabase.co/rest/v1/users?select=%2A&email=eq.demo%40octavia.com "HTTP/2 200 OK"
+2025-12-06 16:45:57,268 - httpcore.http2 - DEBUG - receive_response_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:45:57,269 - httpcore.http2 - DEBUG - receive_response_body.complete
+2025-12-06 16:45:57,270 - httpcore.http2 - DEBUG - response_closed.started stream_id=1
+2025-12-06 16:45:57,270 - httpcore.http2 - DEBUG - response_closed.complete
+2025-12-06 16:45:57,270 - __main__ - INFO - Supabase query response: data=[{'id': '00affbea-0235-4cac-a1c5-e74b89342dd3', 'email': 'demo@octavia.com', 'name': 'Demo User', 'password_hash': 'sha256:58e47e89db98b49dd78a9dd4cbc974a9:9abc0ba6ab8cf412bdea23d73708e1a7df76c2f2dd7e46ba060c160c83425084', 'is_verified': True, 'verification_token': None, 'verification_token_expires': None, 'credits': 5100, 'created_at': '2025-12-02T21:20:37.924852+00:00', 'updated_at': '2025-12-02T21:20:37.996861+00:00'}] count=None
+2025-12-06 16:45:57,272 - __main__ - INFO - Demo user exists, checking password
+2025-12-06 16:45:57,272 - __main__ - INFO - Password verification result: True
+2025-12-06 16:45:57,272 - __main__ - INFO - JWT token created successfully
+2025-12-06 16:45:57,273 - __main__ - INFO - Demo login successful for user: demo@octavia.com
+2025-12-06 16:45:57,426 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:45:57,426 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:45:57,427 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:45:57,427 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:45:57,427 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:45:57,429 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:45:57,429 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:45:57,429 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:45:57,429 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:45:57,430 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:45:57,430 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:47:02,937 - __main__ - INFO - Demo login endpoint called
+2025-12-06 16:47:02,938 - __main__ - INFO - Attempting demo login for email: demo@octavia.com
+2025-12-06 16:47:02,940 - httpcore.connection - DEBUG - close.started
+2025-12-06 16:47:02,941 - httpcore.connection - DEBUG - close.complete
+2025-12-06 16:47:02,941 - httpcore.connection - DEBUG - connect_tcp.started host='kkkutnaaqqsodidboevg.supabase.co' port=443 local_address=None timeout=120 socket_options=None
+2025-12-06 16:47:02,950 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E6962D0>
+2025-12-06 16:47:02,952 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x0000023D4E5BA330> server_hostname='kkkutnaaqqsodidboevg.supabase.co' timeout=120
+2025-12-06 16:47:02,971 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E696850>
+2025-12-06 16:47:02,972 - httpcore.http2 - DEBUG - send_connection_init.started request=<Request [b'GET']>
+2025-12-06 16:47:02,973 - httpcore.http2 - DEBUG - send_connection_init.complete
+2025-12-06 16:47:02,973 - httpcore.http2 - DEBUG - send_request_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:47:02,974 - hpack.hpack - DEBUG - Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,974 - hpack.hpack - DEBUG - Encoding 2 with 7 bits
+2025-12-06 16:47:02,974 - hpack.hpack - DEBUG - Adding (b':authority', b'kkkutnaaqqsodidboevg.supabase.co') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,975 - hpack.hpack - DEBUG - Encoding 1 with 6 bits
+2025-12-06 16:47:02,975 - hpack.hpack - DEBUG - Encoding 23 with 7 bits
+2025-12-06 16:47:02,976 - hpack.hpack - DEBUG - Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,976 - hpack.hpack - DEBUG - Encoding 7 with 7 bits
+2025-12-06 16:47:02,976 - hpack.hpack - DEBUG - Adding (b':path', b'/rest/v1/users?select=%2A&email=eq.demo%40octavia.com') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,977 - hpack.hpack - DEBUG - Encoding 4 with 6 bits
+2025-12-06 16:47:02,977 - hpack.hpack - DEBUG - Encoding 38 with 7 bits
+2025-12-06 16:47:02,978 - hpack.hpack - DEBUG - Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,978 - hpack.hpack - DEBUG - Encoding 19 with 6 bits
+2025-12-06 16:47:02,978 - hpack.hpack - DEBUG - Encoding 3 with 7 bits
+2025-12-06 16:47:02,978 - hpack.hpack - DEBUG - Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,979 - hpack.hpack - DEBUG - Encoding 16 with 7 bits
+2025-12-06 16:47:02,979 - hpack.hpack - DEBUG - Adding (b'user-agent', b'python-httpx/0.28.1') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,980 - hpack.hpack - DEBUG - Encoding 58 with 6 bits
+2025-12-06 16:47:02,980 - hpack.hpack - DEBUG - Encoding 14 with 7 bits
+2025-12-06 16:47:02,980 - hpack.hpack - DEBUG - Adding (b'x-client-info', b'supabase-py/2.24.0') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,981 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:47:02,981 - hpack.hpack - DEBUG - Encoding 13 with 7 bits
+2025-12-06 16:47:02,981 - hpack.hpack - DEBUG - Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,982 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:47:02,982 - hpack.hpack - DEBUG - Encoding 178 with 7 bits
+2025-12-06 16:47:02,982 - hpack.hpack - DEBUG - Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:True, huffman:True
+2025-12-06 16:47:02,983 - hpack.hpack - DEBUG - Encoding 23 with 4 bits
+2025-12-06 16:47:02,983 - hpack.hpack - DEBUG - Encoding 183 with 7 bits
+2025-12-06 16:47:02,984 - hpack.hpack - DEBUG - Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,984 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:47:02,984 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:47:02,984 - hpack.hpack - DEBUG - Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,986 - hpack.hpack - DEBUG - Encoding 11 with 7 bits
+2025-12-06 16:47:02,986 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:47:02,987 - hpack.hpack - DEBUG - Adding (b'cookie', b'__cf_bm=G85VBt5ElIVuxxEl1WvNPwHlt7eUVVI3fzCs7Cb_sOc-1765028755-1.0.1.1-yOiIo2ddMWhNBFO0LZg90aEGzbrF1CZXlLFtNzI5uDhCxilYjIv.bD6k6xOXSQfvqvUSGzYH3mbA65X9SlAdm1qWAywvU2mos34sVT23.4c') to the header table, sensitive:False, huffman:True
+2025-12-06 16:47:02,988 - hpack.hpack - DEBUG - Encoding 32 with 6 bits
+2025-12-06 16:47:02,988 - hpack.hpack - DEBUG - Encoding 141 with 7 bits
+2025-12-06 16:47:02,989 - hpack.hpack - DEBUG - Encoded header block to b'\x82A\x97\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x99t[X\xe3\x1a\n\xb9\x0f\x87D\xa6b\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe0\xb4\x8c\xd4@^\xcb\xc8ZN\xab@9\x12>\xe6\x1a\xe4=?S\x83\xf9c\xe7\x90z\x8e\xaf\xd2g=KN\x94\xd7\xe5\x80.\'\x97\x0f@\x8a\xf2\xb1(1jJ\xc6\xaaS\xff\x8dE\xb5\x8e1\xa0\xabW\xe9\x81.&\x97\x07@\x85\x1df\xea__\xff3/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf\x1f\x08\xff8\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf@\x8a\x19\x08Z\xd2\xb5v\x1eSP_\x85\xae\xd8\xe81?@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?`\xff\x0e\x8a"K\x14t\xc1\x89\xe6\xf8\xddKx(\xc9\xc6\xdf>pP\x1e]\xf4\xeb\xf1\x8e\x84\xba^\x1cx\xe4f_w\x90\xed\xe8\xe2F\xa2,\x17\\l\x02y\xd6\xdbX+\x81p\xae\x15\xbdj6C\x8aI4r\x9fM\xdc:\x81\x9f\xf6g\xc0<\x18\xbd\xc7f\x10\xde\xfd\xfc\xa3>\x14\xe9\xf7\x91\xbbo\xcf{\xc9\xa8\xe7\xd3\'u\xe3\xbe\xe7W<\xea\xfc\xdd\xb2^\xfd\xbb\xf0\xdd\x8b\xdf<l\xd3\x1c.7\xf8\xfe\xea!\x92\x90\xf6\xe5\x0f\xaf\x1d\xf8\n\x93\xa1\x96\x91\xc7x\x99]\xa2\x7f'
+2025-12-06 16:47:02,990 - httpcore.http2 - DEBUG - send_request_headers.complete
+2025-12-06 16:47:02,991 - httpcore.http2 - DEBUG - send_request_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:47:02,991 - httpcore.http2 - DEBUG - send_request_body.complete
+2025-12-06 16:47:02,992 - httpcore.http2 - DEBUG - receive_response_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:47:02,993 - httpcore.http2 - DEBUG - receive_remote_settings.started
+2025-12-06 16:47:02,993 - httpcore.http2 - DEBUG - receive_remote_settings.complete return_value=<RemoteSettingsChanged changed_settings:{ChangedSetting(setting=3, original_value=None, new_value=100), ChangedSetting(setting=4, original_value=65535, new_value=65536), ChangedSetting(setting=5, original_value=16384, new_value=16777215)}>
+2025-12-06 16:47:03,267 - hpack.hpack - DEBUG - Decoding b'?\xe1\x1f\x88a\x96\xdc4\xfd(\x07\x14\xbeR( \t\xb5\x02\xcd\xc6\x9d\xb8\x00\xa9\x8bF\xff_\x96\x1du\xd0b\r&=LtA\xea\xfbP\x93\x8e\xc4\x150Z\x99V{v\x87%\x07\xb6Ih\x1d\x85^\x84\x02\xc0c\xe7@\x85$\xabX?_\x8f|o\x91\x98\xdfu\xf2\x10\x8d\xc6@\xad\xa6\xee\xaf@\x8a$\xab\x10d\x9c\xab!#M\xa8\x86\xbf\xcfL:2^Z\x83\x9b\xd9\xab]\xa0b\xd4\x16\xc4\x7f\x85\xa4f\xa2\x02\xf6^B\xd2uZ\x01\xc8\x91\xf70\xd7!\xe9\xf8Ah)\x13\x02\xa2\x87x\xa0\xa4~V\x1c\xc5\x81\x90\xb6\xcb\x80\x00>\xd45D\xa2\xd9\x0b\xba\xd8\xef\x9e\x91\x9a\xa4}\xa9]\x85\xa0\xe3\x93{\x8b\x84\x84-i[\x05D<\x86\xaao@\x90\xf2\xb1\x0fRKRVO\xaa\xca\xb1\xebI\x8fR?\x85\xa8\xe8\xa8\xd2\xcb@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?@\x8dDkL4\x97\xc0\xfd-\xdc\xb6 \xc7\xab\x011@\x8aDkWa\xfa\x14\x89Z\xc2\xcb\x8f\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x9b@\x8aDkX^\xd6\x95\tX\xd2\x7f\x99\x00_\x1c\xac\x94k:2<\xb3\xac\xc65\x9fx\x8e\xad)\x066^,\xa3(\x85@\x8f\xf2\xb1j\xee\x7fK\r)-5\xa5b\x1e\xda\x93\x011@\x95\xf2\xb1j\xee\x7fK[Z\x13aGJ\xc8-\x9d\xccB\xac\x93R_\x0258@\x85\x1d\tY\x1d\xc9\x90\x9d\x98?\x9b\x8d4\xcf\xf3\xf6\xa5#\x81\xe7\x1a\x00?'
+2025-12-06 16:47:03,269 - hpack.hpack - DEBUG - Decoded 4096, consumed 3 bytes
+2025-12-06 16:47:03,270 - hpack.table - DEBUG - Resizing header table to 4096 from 4096
+2025-12-06 16:47:03,270 - hpack.hpack - DEBUG - Decoded 8, consumed 1 bytes
+2025-12-06 16:47:03,270 - hpack.hpack - DEBUG - Decoded (b':status', b'200'), consumed 1
+2025-12-06 16:47:03,270 - hpack.hpack - DEBUG - Decoded 33, consumed 1 bytes
+2025-12-06 16:47:03,271 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:47:03,271 - hpack.hpack - DEBUG - Decoded (b'date', b'Sat, 06 Dec 2025 13:47:01 GMT'), total consumed 24 bytes, indexed True
+2025-12-06 16:47:03,271 - hpack.hpack - DEBUG - Decoded 31, consumed 1 bytes
+2025-12-06 16:47:03,272 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:47:03,273 - hpack.hpack - DEBUG - Decoded (b'content-type', b'application/json; charset=utf-8'), total consumed 24 bytes, indexed True
+2025-12-06 16:47:03,273 - hpack.hpack - DEBUG - Decoded 54, consumed 1 bytes
+2025-12-06 16:47:03,273 - hpack.hpack - DEBUG - Decoded 7, consumed 1 bytes
+2025-12-06 16:47:03,274 - hpack.hpack - DEBUG - Decoded (b'server', b'cloudflare'), total consumed 9 bytes, indexed True
+2025-12-06 16:47:03,274 - hpack.hpack - DEBUG - Decoded 30, consumed 1 bytes
+2025-12-06 16:47:03,274 - hpack.hpack - DEBUG - Decoded 4, consumed 1 bytes
+2025-12-06 16:47:03,275 - hpack.hpack - DEBUG - Decoded (b'content-range', b'0-0/*'), total consumed 6 bytes, indexed True
+2025-12-06 16:47:03,275 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:47:03,275 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:47:03,276 - hpack.hpack - DEBUG - Decoded (b'cf-ray', b'9a9c3b979ccc5bc1-NBO'), total consumed 23 bytes, indexed True
+2025-12-06 16:47:03,276 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:47:03,276 - hpack.hpack - DEBUG - Decoded 6, consumed 1 bytes
+2025-12-06 16:47:03,277 - hpack.hpack - DEBUG - Decoded (b'cf-cache-status', b'DYNAMIC'), total consumed 19 bytes, indexed True
+2025-12-06 16:47:03,277 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:47:03,277 - hpack.hpack - DEBUG - Decoded 3, consumed 1 bytes
+2025-12-06 16:47:03,278 - hpack.hpack - DEBUG - Decoded (b'content-encoding', b'gzip'), total consumed 5 bytes, indexed True
+2025-12-06 16:47:03,278 - hpack.hpack - DEBUG - Decoded 29, consumed 1 bytes
+2025-12-06 16:47:03,278 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:47:03,278 - hpack.hpack - DEBUG - Decoded (b'content-location', b'/users?email=eq.demo%40octavia.com&select=%2A'), total consumed 34 bytes, indexed True
+2025-12-06 16:47:03,279 - hpack.hpack - DEBUG - Decoded 56, consumed 1 bytes
+2025-12-06 16:47:03,280 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:47:03,280 - hpack.hpack - DEBUG - Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), total consumed 34 bytes, indexed True
+2025-12-06 16:47:03,280 - hpack.hpack - DEBUG - Decoded 59, consumed 1 bytes
+2025-12-06 16:47:03,281 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:47:03,281 - hpack.hpack - DEBUG - Decoded (b'vary', b'Accept-Encoding'), total consumed 13 bytes, indexed True
+2025-12-06 16:47:03,281 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:47:03,282 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:47:03,282 - hpack.hpack - DEBUG - Decoded (b'x-content-type-options', b'nosniff'), total consumed 24 bytes, indexed True
+2025-12-06 16:47:03,282 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:47:03,283 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:47:03,284 - hpack.hpack - DEBUG - Decoded (b'content-profile', b'public'), total consumed 19 bytes, indexed True
+2025-12-06 16:47:03,285 - hpack.hpack - DEBUG - Decoded 13, consumed 1 bytes
+2025-12-06 16:47:03,285 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:47:03,285 - hpack.hpack - DEBUG - Decoded (b'sb-gateway-version', <memory at 0x0000023D4E62A800>), total consumed 17 bytes, indexed True
+2025-12-06 16:47:03,286 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:47:03,287 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:47:03,288 - hpack.hpack - DEBUG - Decoded (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), total consumed 28 bytes, indexed True
+2025-12-06 16:47:03,289 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:47:03,289 - hpack.hpack - DEBUG - Decoded 25, consumed 1 bytes
+2025-12-06 16:47:03,290 - hpack.hpack - DEBUG - Decoded (b'sb-request-id', b'019af3ea-7ac8-73ba-98c7-fcaa38efae22'), total consumed 38 bytes, indexed True
+2025-12-06 16:47:03,290 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:47:03,290 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:47:03,291 - hpack.hpack - DEBUG - Decoded (b'x-envoy-attempt-count', <memory at 0x0000023D4E6284C0>), total consumed 19 bytes, indexed True
+2025-12-06 16:47:03,291 - hpack.hpack - DEBUG - Decoded 21, consumed 1 bytes
+2025-12-06 16:47:03,291 - hpack.hpack - DEBUG - Decoded 2, consumed 1 bytes
+2025-12-06 16:47:03,292 - hpack.hpack - DEBUG - Decoded (b'x-envoy-upstream-service-time', <memory at 0x0000023D4E62A2C0>), total consumed 26 bytes, indexed True
+2025-12-06 16:47:03,292 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:47:03,292 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:47:03,293 - hpack.hpack - DEBUG - Decoded (b'alt-svc', b'h3=":443"; ma=86400'), total consumed 24 bytes, indexed True
+2025-12-06 16:47:03,293 - httpcore.http2 - DEBUG - receive_response_headers.complete return_value=(200, [(b'date', b'Sat, 06 Dec 2025 13:47:01 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'server', b'cloudflare'), (b'content-range', b'0-0/*'), (b'cf-ray', b'9a9c3b979ccc5bc1-NBO'), (b'cf-cache-status', b'DYNAMIC'), (b'content-encoding', b'gzip'), (b'content-location', b'/users?email=eq.demo%40octavia.com&select=%2A'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'vary', b'Accept-Encoding'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), (b'sb-request-id', b'019af3ea-7ac8-73ba-98c7-fcaa38efae22'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'58'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-12-06 16:47:03,294 - httpx - INFO - HTTP Request: GET https://kkkutnaaqqsodidboevg.supabase.co/rest/v1/users?select=%2A&email=eq.demo%40octavia.com "HTTP/2 200 OK"
+2025-12-06 16:47:03,295 - httpcore.http2 - DEBUG - receive_response_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:47:03,296 - httpcore.http2 - DEBUG - receive_response_body.complete
+2025-12-06 16:47:03,296 - httpcore.http2 - DEBUG - response_closed.started stream_id=1
+2025-12-06 16:47:03,296 - httpcore.http2 - DEBUG - response_closed.complete
+2025-12-06 16:47:03,297 - __main__ - INFO - Supabase query response: data=[{'id': '00affbea-0235-4cac-a1c5-e74b89342dd3', 'email': 'demo@octavia.com', 'name': 'Demo User', 'password_hash': 'sha256:58e47e89db98b49dd78a9dd4cbc974a9:9abc0ba6ab8cf412bdea23d73708e1a7df76c2f2dd7e46ba060c160c83425084', 'is_verified': True, 'verification_token': None, 'verification_token_expires': None, 'credits': 5100, 'created_at': '2025-12-02T21:20:37.924852+00:00', 'updated_at': '2025-12-02T21:20:37.996861+00:00'}] count=None
+2025-12-06 16:47:03,297 - __main__ - INFO - Demo user exists, checking password
+2025-12-06 16:47:03,298 - __main__ - INFO - Password verification result: True
+2025-12-06 16:47:03,298 - __main__ - INFO - JWT token created successfully
+2025-12-06 16:47:03,299 - __main__ - INFO - Demo login successful for user: demo@octavia.com
+2025-12-06 16:47:03,351 - python_multipart.multipart - DEBUG - Calling on_part_begin with no data
+2025-12-06 16:47:03,352 - python_multipart.multipart - DEBUG - Calling on_header_field with data[52:71]
+2025-12-06 16:47:03,352 - python_multipart.multipart - DEBUG - Calling on_header_value with data[73:125]
+2025-12-06 16:47:03,352 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:47:03,354 - python_multipart.multipart - DEBUG - Calling on_header_field with data[127:139]
+2025-12-06 16:47:03,354 - python_multipart.multipart - DEBUG - Calling on_header_value with data[141:151]
+2025-12-06 16:47:03,354 - python_multipart.multipart - DEBUG - Calling on_header_end with no data
+2025-12-06 16:47:03,355 - python_multipart.multipart - DEBUG - Calling on_headers_finished with no data
+2025-12-06 16:47:03,355 - python_multipart.multipart - DEBUG - Calling on_part_data with data[155:268]
+2025-12-06 16:47:03,356 - python_multipart.multipart - DEBUG - Calling on_part_end with no data
+2025-12-06 16:47:03,356 - python_multipart.multipart - DEBUG - Calling on_end with no data
+2025-12-06 16:48:22,837 - httpcore.connection - DEBUG - close.started
+2025-12-06 16:48:22,838 - httpcore.connection - DEBUG - close.complete
+2025-12-06 16:48:22,838 - httpcore.connection - DEBUG - connect_tcp.started host='kkkutnaaqqsodidboevg.supabase.co' port=443 local_address=None timeout=120 socket_options=None
+2025-12-06 16:48:22,853 - httpcore.connection - DEBUG - connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E6A4FD0>
+2025-12-06 16:48:22,854 - httpcore.connection - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x0000023D4E5BA330> server_hostname='kkkutnaaqqsodidboevg.supabase.co' timeout=120
+2025-12-06 16:48:22,867 - httpcore.connection - DEBUG - start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000023D4E6A4C10>
+2025-12-06 16:48:22,867 - httpcore.http2 - DEBUG - send_connection_init.started request=<Request [b'GET']>
+2025-12-06 16:48:22,868 - httpcore.http2 - DEBUG - send_connection_init.complete
+2025-12-06 16:48:22,868 - httpcore.http2 - DEBUG - send_request_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:48:22,869 - hpack.hpack - DEBUG - Adding (b':method', b'GET') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,870 - hpack.hpack - DEBUG - Encoding 2 with 7 bits
+2025-12-06 16:48:22,870 - hpack.hpack - DEBUG - Adding (b':authority', b'kkkutnaaqqsodidboevg.supabase.co') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,870 - hpack.hpack - DEBUG - Encoding 1 with 6 bits
+2025-12-06 16:48:22,871 - hpack.hpack - DEBUG - Encoding 23 with 7 bits
+2025-12-06 16:48:22,871 - hpack.hpack - DEBUG - Adding (b':scheme', b'https') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,871 - hpack.hpack - DEBUG - Encoding 7 with 7 bits
+2025-12-06 16:48:22,872 - hpack.hpack - DEBUG - Adding (b':path', b'/rest/v1/users?select=%2A&id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,872 - hpack.hpack - DEBUG - Encoding 4 with 6 bits
+2025-12-06 16:48:22,872 - hpack.hpack - DEBUG - Encoding 49 with 7 bits
+2025-12-06 16:48:22,873 - hpack.hpack - DEBUG - Adding (b'accept', b'*/*') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,873 - hpack.hpack - DEBUG - Encoding 19 with 6 bits
+2025-12-06 16:48:22,873 - hpack.hpack - DEBUG - Encoding 3 with 7 bits
+2025-12-06 16:48:22,873 - hpack.hpack - DEBUG - Adding (b'accept-encoding', b'gzip, deflate') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,874 - hpack.hpack - DEBUG - Encoding 16 with 7 bits
+2025-12-06 16:48:22,874 - hpack.hpack - DEBUG - Adding (b'user-agent', b'python-httpx/0.28.1') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,875 - hpack.hpack - DEBUG - Encoding 58 with 6 bits
+2025-12-06 16:48:22,875 - hpack.hpack - DEBUG - Encoding 14 with 7 bits
+2025-12-06 16:48:22,876 - hpack.hpack - DEBUG - Adding (b'x-client-info', b'supabase-py/2.24.0') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,876 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:48:22,876 - hpack.hpack - DEBUG - Encoding 13 with 7 bits
+2025-12-06 16:48:22,876 - hpack.hpack - DEBUG - Adding (b'apikey', b'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,877 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:48:22,877 - hpack.hpack - DEBUG - Encoding 178 with 7 bits
+2025-12-06 16:48:22,877 - hpack.hpack - DEBUG - Adding (b'authorization', b'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtra3V0bmFhcXFzb2RpZGJvZXZnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDYyNDYyMiwiZXhwIjoyMDgwMjAwNjIyfQ.XaYnCS2CdFNXwdTPEpvZSXF9avU9ZDfqVo7omGP9wt8') to the header table, sensitive:True, huffman:True
+2025-12-06 16:48:22,878 - hpack.hpack - DEBUG - Encoding 23 with 4 bits
+2025-12-06 16:48:22,878 - hpack.hpack - DEBUG - Encoding 183 with 7 bits
+2025-12-06 16:48:22,878 - hpack.hpack - DEBUG - Adding (b'accept-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,879 - hpack.hpack - DEBUG - Encoding 10 with 7 bits
+2025-12-06 16:48:22,879 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:48:22,879 - hpack.hpack - DEBUG - Adding (b'content-profile', b'public') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,880 - hpack.hpack - DEBUG - Encoding 11 with 7 bits
+2025-12-06 16:48:22,880 - hpack.hpack - DEBUG - Encoding 5 with 7 bits
+2025-12-06 16:48:22,880 - hpack.hpack - DEBUG - Adding (b'cookie', b'__cf_bm=G85VBt5ElIVuxxEl1WvNPwHlt7eUVVI3fzCs7Cb_sOc-1765028755-1.0.1.1-yOiIo2ddMWhNBFO0LZg90aEGzbrF1CZXlLFtNzI5uDhCxilYjIv.bD6k6xOXSQfvqvUSGzYH3mbA65X9SlAdm1qWAywvU2mos34sVT23.4c') to the header table, sensitive:False, huffman:True
+2025-12-06 16:48:22,881 - hpack.hpack - DEBUG - Encoding 32 with 6 bits
+2025-12-06 16:48:22,881 - hpack.hpack - DEBUG - Encoding 141 with 7 bits
+2025-12-06 16:48:22,882 - hpack.hpack - DEBUG - Encoded header block to b'\x82A\x97\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x99t[X\xe3\x1a\n\xb9\x0f\x87D\xb1b\xc2\xa1,w\x0b\x16\xa0\xb6#\xfcAh)\x13\x02\xa2\x87\xe0\xd2@^\xcb\xb6\xf3n2\xe0\x99XO\x80+5(D\xb0\xdbt\x8b6\xd1C+\xc3x\x91\xc7\x1fS\x83\xf9c\xe7\x90z\x8e\xaf\xd2g=KN\x94\xd7\xe5\x80.\'\x97\x0f@\x8a\xf2\xb1(1jJ\xc6\xaaS\xff\x8dE\xb5\x8e1\xa0\xabW\xe9\x81.&\x97\x07@\x85\x1df\xea__\xff3/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf\x1f\x08\xff8\xbaQ\xd8[\x14/\xac\xb3\xc7\x88\x86\xd4l\xb98{\xc8\x1d&\xc8\x8c\x95ml\x97\xb29\x93\xad\x7f\x9coe}r\xfa\xcbY\x19\xd0mF\xcb\xeeO\xcb\xb3\xf3\xa7\x0f\xbf\xdd\xd9\x11\x92\xac\xb4~\x9b#\x99)M\x83g\x88#\xa7\x0c\xe4\xfc\xc3\xee1m\xaf\xf7\x16^\xff\xbf\x9f\xb5d7\x83\x12\x97\xd1\xfb\xbb#\x99*\xd3A*\xfd\xaf\x98\xb8\xcaJ_G\xee\xec\x88\xc9M\x13\xc9{#\x9a7\x90Zo\xf3\xf5\xa6\xff?Z\r\xe0\xdf\xbf\x93\xf8\xc9\xd0\xfe\xb4_\x9b\xc6\x8e\x90\xf8\xd3\xd3\'\xa9v/\xf8>u^\xdc+\xd2a\xd3\xf9\xe2M\xfa\xf0W\xdf\xf7w\xe6\x17\xc7\xdf\x83\xff\xb7\xe5\xed\xc4\xee\x9e\x9cZ\xdf\xf0\x97\xbf@\x8a\x19\x08Z\xd2\xb5v\x1eSP_\x85\xae\xd8\xe81?@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?`\xff\x0e\x8a"K\x14t\xc1\x89\xe6\xf8\xddKx(\xc9\xc6\xdf>pP\x1e]\xf4\xeb\xf1\x8e\x84\xba^\x1cx\xe4f_w\x90\xed\xe8\xe2F\xa2,\x17\\l\x02y\xd6\xdbX+\x81p\xae\x15\xbdj6C\x8aI4r\x9fM\xdc:\x81\x9f\xf6g\xc0<\x18\xbd\xc7f\x10\xde\xfd\xfc\xa3>\x14\xe9\xf7\x91\xbbo\xcf{\xc9\xa8\xe7\xd3\'u\xe3\xbe\xe7W<\xea\xfc\xdd\xb2^\xfd\xbb\xf0\xdd\x8b\xdf<l\xd3\x1c.7\xf8\xfe\xea!\x92\x90\xf6\xe5\x0f\xaf\x1d\xf8\n\x93\xa1\x96\x91\xc7x\x99]\xa2\x7f'
+2025-12-06 16:48:22,883 - httpcore.http2 - DEBUG - send_request_headers.complete
+2025-12-06 16:48:22,883 - httpcore.http2 - DEBUG - send_request_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:48:22,884 - httpcore.http2 - DEBUG - send_request_body.complete
+2025-12-06 16:48:22,884 - httpcore.http2 - DEBUG - receive_response_headers.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:48:22,885 - httpcore.http2 - DEBUG - receive_remote_settings.started
+2025-12-06 16:48:22,885 - httpcore.http2 - DEBUG - receive_remote_settings.complete return_value=<RemoteSettingsChanged changed_settings:{ChangedSetting(setting=3, original_value=None, new_value=100), ChangedSetting(setting=4, original_value=65535, new_value=65536), ChangedSetting(setting=5, original_value=16384, new_value=16777215)}>
+2025-12-06 16:48:23,359 - hpack.hpack - DEBUG - Decoding b'?\xe1\x1f\x88a\x96\xdc4\xfd(\x07\x14\xbeR( \t\xb5\x02\xcd\xc6\x9e\xb8!)\x8bF\xff_\x96\x1du\xd0b\r&=LtA\xea\xfbP\x93\x8e\xc4\x150Z\x99V{v\x87%\x07\xb6Ih\x1d\x85^\x84\x02\xc0c\xe7@\x85$\xabX?_\x8f|o\x91\x99\x1e\x19H\xd4bi\xf9\x16\xd3wW@\x8a$\xab\x10d\x9c\xab!#M\xa8\x86\xbf\xcfL:2^Z\x83\x9b\xd9\xab]\xabb\xd4\x16\xc4\x7f\x86\x92\x02\xf6]\xb7\x9bq\x97\x04\xca\xc2|\x01Y\xa9B%\x86\xdb\xa4Y\xb6\x8a\x19^\x1b\xc4\x8e8\xfe\x10Z\nD\xc0\xa8\xa1x\xa0\xa4~V\x1c\xc5\x81\x90\xb6\xcb\x80\x00>\xd45D\xa2\xd9\x0b\xba\xd8\xef\x9e\x91\x9a\xa4}\xa9]\x85\xa0\xe3\x93{\x8b\x84\x84-i[\x05D<\x86\xaao@\x90\xf2\xb1\x0fRKRVO\xaa\xca\xb1\xebI\x8fR?\x85\xa8\xe8\xa8\xd2\xcb@\x8b!\xeaIjJ\xd5\xd8yMA\x7f\x85\xae\xd8\xe81?@\x8dDkL4\x97\xc0\xfd-\xdc\xb6 \xc7\xab\x011@\x8aDkWa\xfa\x14\x89Z\xc2\xcb\x8f\xeb\xd7\xad\xa9\xa8c\xed\xd9\x07\x90\xd2Fr\xf7\x9b@\x8aDkX^\xd6\x95\tX\xd2\x7f\x9a\x00_\x1c\xac\x965\xa3\x14\x91\xac\xeb\xcd\x89h\xdd\x03KH\x11\xb6\xf9J\xf4bu\xef@\x8f\xf2\xb1j\xee\x7fK\r)-5\xa5b\x1e\xda\x93\x011@\x95\xf2\xb1j\xee\x7fK[Z\x13aGJ\xc8-\x9d\xccB\xac\x93R_\x0255@\x85\x1d\tY\x1d\xc9\x90\x9d\x98?\x9b\x8d4\xcf\xf3\xf6\xa5#\x81\xe7\x1a\x00?'
+2025-12-06 16:48:23,360 - hpack.hpack - DEBUG - Decoded 4096, consumed 3 bytes
+2025-12-06 16:48:23,360 - hpack.table - DEBUG - Resizing header table to 4096 from 4096
+2025-12-06 16:48:23,361 - hpack.hpack - DEBUG - Decoded 8, consumed 1 bytes
+2025-12-06 16:48:23,361 - hpack.hpack - DEBUG - Decoded (b':status', b'200'), consumed 1
+2025-12-06 16:48:23,361 - hpack.hpack - DEBUG - Decoded 33, consumed 1 bytes
+2025-12-06 16:48:23,362 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:48:23,362 - hpack.hpack - DEBUG - Decoded (b'date', b'Sat, 06 Dec 2025 13:48:22 GMT'), total consumed 24 bytes, indexed True
+2025-12-06 16:48:23,363 - hpack.hpack - DEBUG - Decoded 31, consumed 1 bytes
+2025-12-06 16:48:23,363 - hpack.hpack - DEBUG - Decoded 22, consumed 1 bytes
+2025-12-06 16:48:23,363 - hpack.hpack - DEBUG - Decoded (b'content-type', b'application/json; charset=utf-8'), total consumed 24 bytes, indexed True
+2025-12-06 16:48:23,364 - hpack.hpack - DEBUG - Decoded 54, consumed 1 bytes
+2025-12-06 16:48:23,364 - hpack.hpack - DEBUG - Decoded 7, consumed 1 bytes
+2025-12-06 16:48:23,364 - hpack.hpack - DEBUG - Decoded (b'server', b'cloudflare'), total consumed 9 bytes, indexed True
+2025-12-06 16:48:23,365 - hpack.hpack - DEBUG - Decoded 30, consumed 1 bytes
+2025-12-06 16:48:23,365 - hpack.hpack - DEBUG - Decoded 4, consumed 1 bytes
+2025-12-06 16:48:23,365 - hpack.hpack - DEBUG - Decoded (b'content-range', b'0-0/*'), total consumed 6 bytes, indexed True
+2025-12-06 16:48:23,366 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:48:23,366 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:48:23,366 - hpack.hpack - DEBUG - Decoded (b'cf-ray', b'9a9c3d8aec4b249d-NBO'), total consumed 23 bytes, indexed True
+2025-12-06 16:48:23,367 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:48:23,367 - hpack.hpack - DEBUG - Decoded 6, consumed 1 bytes
+2025-12-06 16:48:23,367 - hpack.hpack - DEBUG - Decoded (b'cf-cache-status', b'DYNAMIC'), total consumed 19 bytes, indexed True
+2025-12-06 16:48:23,368 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:48:23,368 - hpack.hpack - DEBUG - Decoded 3, consumed 1 bytes
+2025-12-06 16:48:23,368 - hpack.hpack - DEBUG - Decoded (b'content-encoding', b'gzip'), total consumed 5 bytes, indexed True
+2025-12-06 16:48:23,369 - hpack.hpack - DEBUG - Decoded 29, consumed 1 bytes
+2025-12-06 16:48:23,369 - hpack.hpack - DEBUG - Decoded 43, consumed 1 bytes
+2025-12-06 16:48:23,369 - hpack.hpack - DEBUG - Decoded (b'content-location', b'/users?id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb&select=%2A'), total consumed 45 bytes, indexed True
+2025-12-06 16:48:23,370 - hpack.hpack - DEBUG - Decoded 56, consumed 1 bytes
+2025-12-06 16:48:23,370 - hpack.hpack - DEBUG - Decoded 32, consumed 1 bytes
+2025-12-06 16:48:23,370 - hpack.hpack - DEBUG - Decoded (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), total consumed 34 bytes, indexed True
+2025-12-06 16:48:23,371 - hpack.hpack - DEBUG - Decoded 59, consumed 1 bytes
+2025-12-06 16:48:23,371 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:48:23,371 - hpack.hpack - DEBUG - Decoded (b'vary', b'Accept-Encoding'), total consumed 13 bytes, indexed True
+2025-12-06 16:48:23,372 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:48:23,372 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:48:23,372 - hpack.hpack - DEBUG - Decoded (b'x-content-type-options', b'nosniff'), total consumed 24 bytes, indexed True
+2025-12-06 16:48:23,373 - hpack.hpack - DEBUG - Decoded 11, consumed 1 bytes
+2025-12-06 16:48:23,373 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:48:23,373 - hpack.hpack - DEBUG - Decoded (b'content-profile', b'public'), total consumed 19 bytes, indexed True
+2025-12-06 16:48:23,374 - hpack.hpack - DEBUG - Decoded 13, consumed 1 bytes
+2025-12-06 16:48:23,374 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:48:23,374 - hpack.hpack - DEBUG - Decoded (b'sb-gateway-version', <memory at 0x0000023D4E62AF80>), total consumed 17 bytes, indexed True
+2025-12-06 16:48:23,375 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:48:23,375 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:48:23,375 - hpack.hpack - DEBUG - Decoded (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), total consumed 28 bytes, indexed True
+2025-12-06 16:48:23,375 - hpack.hpack - DEBUG - Decoded 10, consumed 1 bytes
+2025-12-06 16:48:23,375 - hpack.hpack - DEBUG - Decoded 26, consumed 1 bytes
+2025-12-06 16:48:23,377 - hpack.hpack - DEBUG - Decoded (b'sb-request-id', b'019af3eb-b2db-7852-b704-d1a59ee8b278'), total consumed 39 bytes, indexed True
+2025-12-06 16:48:23,377 - hpack.hpack - DEBUG - Decoded 15, consumed 1 bytes
+2025-12-06 16:48:23,377 - hpack.hpack - DEBUG - Decoded 1, consumed 1 bytes
+2025-12-06 16:48:23,378 - hpack.hpack - DEBUG - Decoded (b'x-envoy-attempt-count', <memory at 0x0000023D4E62B100>), total consumed 19 bytes, indexed True
+2025-12-06 16:48:23,378 - hpack.hpack - DEBUG - Decoded 21, consumed 1 bytes
+2025-12-06 16:48:23,378 - hpack.hpack - DEBUG - Decoded 2, consumed 1 bytes
+2025-12-06 16:48:23,379 - hpack.hpack - DEBUG - Decoded (b'x-envoy-upstream-service-time', <memory at 0x0000023D4E62B280>), total consumed 26 bytes, indexed True
+2025-12-06 16:48:23,379 - hpack.hpack - DEBUG - Decoded 5, consumed 1 bytes
+2025-12-06 16:48:23,379 - hpack.hpack - DEBUG - Decoded 16, consumed 1 bytes
+2025-12-06 16:48:23,380 - hpack.hpack - DEBUG - Decoded (b'alt-svc', b'h3=":443"; ma=86400'), total consumed 24 bytes, indexed True
+2025-12-06 16:48:23,380 - httpcore.http2 - DEBUG - receive_response_headers.complete return_value=(200, [(b'date', b'Sat, 06 Dec 2025 13:48:22 GMT'), (b'content-type', b'application/json; charset=utf-8'), (b'server', b'cloudflare'), (b'content-range', b'0-0/*'), (b'cf-ray', b'9a9c3d8aec4b249d-NBO'), (b'cf-cache-status', b'DYNAMIC'), (b'content-encoding', b'gzip'), (b'content-location', b'/users?id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb&select=%2A'), (b'strict-transport-security', b'max-age=31536000; includeSubDomains; preload'), (b'vary', b'Accept-Encoding'), (b'x-content-type-options', b'nosniff'), (b'content-profile', b'public'), (b'sb-gateway-version', b'1'), (b'sb-project-ref', b'kkkutnaaqqsodidboevg'), (b'sb-request-id', b'019af3eb-b2db-7852-b704-d1a59ee8b278'), (b'x-envoy-attempt-count', b'1'), (b'x-envoy-upstream-service-time', b'55'), (b'alt-svc', b'h3=":443"; ma=86400')])
+2025-12-06 16:48:23,381 - httpx - INFO - HTTP Request: GET https://kkkutnaaqqsodidboevg.supabase.co/rest/v1/users?select=%2A&id=eq.58563623-2901-4f12-a57c-54e1f8a8cbbb "HTTP/2 200 OK"
+2025-12-06 16:48:23,382 - httpcore.http2 - DEBUG - receive_response_body.started request=<Request [b'GET']> stream_id=1
+2025-12-06 16:48:23,382 - httpcore.http2 - DEBUG - receive_response_body.complete
+2025-12-06 16:48:23,383 - httpcore.http2 - DEBUG - response_closed.started stream_id=1
+2025-12-06 16:48:23,383 - httpcore.http2 - DEBUG - response_closed.complete
+2025-12-07 14:36:24,825 - numba.core.byteflow - DEBUG - bytecode dump:
+>          0	NOP(arg=None, lineno=1137)
+           2	RESUME(arg=0, lineno=1137)
+           4	LOAD_FAST(arg=0, lineno=1140)
+           6	LOAD_CONST(arg=1, lineno=1140)
+           8	BINARY_SUBSCR(arg=None, lineno=1140)
+          18	STORE_FAST(arg=3, lineno=1140)
+          20	LOAD_FAST(arg=1, lineno=1141)
+          22	UNARY_NEGATIVE(arg=None, lineno=1141)
+          24	LOAD_FAST(arg=3, lineno=1141)
+          26	SWAP(arg=2, lineno=1141)
+          28	COPY(arg=2, lineno=1141)
+          30	COMPARE_OP(arg=1, lineno=1141)
+          36	POP_JUMP_FORWARD_IF_FALSE(arg=6, lineno=1141)
+          38	LOAD_FAST(arg=1, lineno=1141)
+          40	COMPARE_OP(arg=1, lineno=1141)
+          46	POP_JUMP_FORWARD_IF_FALSE(arg=5, lineno=1141)
+          48	JUMP_FORWARD(arg=2, lineno=1141)
+>         50	POP_TOP(arg=None, lineno=1141)
+          52	JUMP_FORWARD(arg=2, lineno=1141)
+>         54	LOAD_CONST(arg=1, lineno=1142)
+          56	STORE_FAST(arg=3, lineno=1142)
+>         58	LOAD_FAST(arg=0, lineno=1144)
+          60	LOAD_CONST(arg=2, lineno=1144)
+          62	BINARY_SUBSCR(arg=None, lineno=1144)
+          72	STORE_FAST(arg=4, lineno=1144)
+          74	LOAD_FAST(arg=1, lineno=1145)
+          76	UNARY_NEGATIVE(arg=None, lineno=1145)
+          78	LOAD_FAST(arg=4, lineno=1145)
+          80	SWAP(arg=2, lineno=1145)
+          82	COPY(arg=2, lineno=1145)
+          84	COMPARE_OP(arg=1, lineno=1145)
+          90	POP_JUMP_FORWARD_IF_FALSE(arg=6, lineno=1145)
+          92	LOAD_FAST(arg=1, lineno=1145)
+          94	COMPARE_OP(arg=1, lineno=1145)
+         100	POP_JUMP_FORWARD_IF_FALSE(arg=5, lineno=1145)
+         102	JUMP_FORWARD(arg=2, lineno=1145)
+>        104	POP_TOP(arg=None, lineno=1145)
+         106	JUMP_FORWARD(arg=2, lineno=1145)
+>        108	LOAD_CONST(arg=1, lineno=1146)
+         110	STORE_FAST(arg=4, lineno=1146)
+>        112	LOAD_FAST(arg=2, lineno=1148)
+         114	POP_JUMP_FORWARD_IF_FALSE(arg=42, lineno=1148)
+         116	LOAD_GLOBAL(arg=1, lineno=1149)
+         128	LOAD_ATTR(arg=1, lineno=1149)
+         138	LOAD_FAST(arg=3, lineno=1149)
+         140	PRECALL(arg=1, lineno=1149)
+         144	CALL(arg=1, lineno=1149)
+         154	LOAD_GLOBAL(arg=1, lineno=1149)
+         166	LOAD_ATTR(arg=1, lineno=1149)
+         176	LOAD_FAST(arg=4, lineno=1149)
+         178	PRECALL(arg=1, lineno=1149)
+         182	CALL(arg=1, lineno=1149)
+         192	COMPARE_OP(arg=3, lineno=1149)
+         198	RETURN_VALUE(arg=None, lineno=1149)
+>        200	LOAD_GLOBAL(arg=1, lineno=1151)
+         212	LOAD_ATTR(arg=2, lineno=1151)
+         222	LOAD_FAST(arg=3, lineno=1151)
+         224	PRECALL(arg=1, lineno=1151)
+         228	CALL(arg=1, lineno=1151)
+         238	LOAD_GLOBAL(arg=1, lineno=1151)
+         250	LOAD_ATTR(arg=2, lineno=1151)
+         260	LOAD_FAST(arg=4, lineno=1151)
+         262	PRECALL(arg=1, lineno=1151)
+         266	CALL(arg=1, lineno=1151)
+         276	COMPARE_OP(arg=3, lineno=1151)
+         282	RETURN_VALUE(arg=None, lineno=1151)
+2025-12-07 14:36:24,832 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=0 nstack_initial=0)])
+2025-12-07 14:36:24,833 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,835 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=0 nstack_initial=0)
+2025-12-07 14:36:24,836 - numba.core.byteflow - DEBUG - dispatch pc=0, inst=NOP(arg=None, lineno=1137)
+2025-12-07 14:36:24,837 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,837 - numba.core.byteflow - DEBUG - dispatch pc=2, inst=RESUME(arg=0, lineno=1137)
+2025-12-07 14:36:24,838 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,839 - numba.core.byteflow - DEBUG - dispatch pc=4, inst=LOAD_FAST(arg=0, lineno=1140)
+2025-12-07 14:36:24,839 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,840 - numba.core.byteflow - DEBUG - dispatch pc=6, inst=LOAD_CONST(arg=1, lineno=1140)
+2025-12-07 14:36:24,840 - numba.core.byteflow - DEBUG - stack ['$x4.0']
+2025-12-07 14:36:24,841 - numba.core.byteflow - DEBUG - dispatch pc=8, inst=BINARY_SUBSCR(arg=None, lineno=1140)
+2025-12-07 14:36:24,841 - numba.core.byteflow - DEBUG - stack ['$x4.0', '$const6.1.1']
+2025-12-07 14:36:24,842 - numba.core.byteflow - DEBUG - dispatch pc=18, inst=STORE_FAST(arg=3, lineno=1140)
+2025-12-07 14:36:24,843 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2']
+2025-12-07 14:36:24,844 - numba.core.byteflow - DEBUG - dispatch pc=20, inst=LOAD_FAST(arg=1, lineno=1141)
+2025-12-07 14:36:24,845 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,846 - numba.core.byteflow - DEBUG - dispatch pc=22, inst=UNARY_NEGATIVE(arg=None, lineno=1141)
+2025-12-07 14:36:24,846 - numba.core.byteflow - DEBUG - stack ['$threshold20.3']
+2025-12-07 14:36:24,848 - numba.core.byteflow - DEBUG - dispatch pc=24, inst=LOAD_FAST(arg=3, lineno=1141)
+2025-12-07 14:36:24,848 - numba.core.byteflow - DEBUG - stack ['$22unary_negative.4']
+2025-12-07 14:36:24,849 - numba.core.byteflow - DEBUG - dispatch pc=26, inst=SWAP(arg=2, lineno=1141)
+2025-12-07 14:36:24,849 - numba.core.byteflow - DEBUG - stack ['$22unary_negative.4', '$x024.5']
+2025-12-07 14:36:24,850 - numba.core.byteflow - DEBUG - dispatch pc=28, inst=COPY(arg=2, lineno=1141)
+2025-12-07 14:36:24,850 - numba.core.byteflow - DEBUG - stack ['$x024.5', '$22unary_negative.4']
+2025-12-07 14:36:24,851 - numba.core.byteflow - DEBUG - dispatch pc=30, inst=COMPARE_OP(arg=1, lineno=1141)
+2025-12-07 14:36:24,851 - numba.core.byteflow - DEBUG - stack ['$x024.5', '$22unary_negative.4', '$x024.5']
+2025-12-07 14:36:24,852 - numba.core.byteflow - DEBUG - dispatch pc=36, inst=POP_JUMP_FORWARD_IF_FALSE(arg=6, lineno=1141)
+2025-12-07 14:36:24,852 - numba.core.byteflow - DEBUG - stack ['$x024.5', '$30compare_op.6']
+2025-12-07 14:36:24,853 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=38, stack=('$x024.5',), blockstack=(), npush=0), Edge(pc=50, stack=('$x024.5',), blockstack=(), npush=0)]
+2025-12-07 14:36:24,854 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=38 nstack_initial=1), State(pc_initial=50 nstack_initial=1)])
+2025-12-07 14:36:24,854 - numba.core.byteflow - DEBUG - stack: ['$phi38.0']
+2025-12-07 14:36:24,856 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=38 nstack_initial=1)
+2025-12-07 14:36:24,856 - numba.core.byteflow - DEBUG - dispatch pc=38, inst=LOAD_FAST(arg=1, lineno=1141)
+2025-12-07 14:36:24,857 - numba.core.byteflow - DEBUG - stack ['$phi38.0']
+2025-12-07 14:36:24,857 - numba.core.byteflow - DEBUG - dispatch pc=40, inst=COMPARE_OP(arg=1, lineno=1141)
+2025-12-07 14:36:24,857 - numba.core.byteflow - DEBUG - stack ['$phi38.0', '$threshold38.1']
+2025-12-07 14:36:24,858 - numba.core.byteflow - DEBUG - dispatch pc=46, inst=POP_JUMP_FORWARD_IF_FALSE(arg=5, lineno=1141)
+2025-12-07 14:36:24,859 - numba.core.byteflow - DEBUG - stack ['$40compare_op.2']
+2025-12-07 14:36:24,860 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=48, stack=(), blockstack=(), npush=0), Edge(pc=58, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,860 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=50 nstack_initial=1), State(pc_initial=48 nstack_initial=0), State(pc_initial=58 nstack_initial=0)])
+2025-12-07 14:36:24,861 - numba.core.byteflow - DEBUG - stack: ['$phi50.0']
+2025-12-07 14:36:24,861 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=50 nstack_initial=1)
+2025-12-07 14:36:24,863 - numba.core.byteflow - DEBUG - dispatch pc=50, inst=POP_TOP(arg=None, lineno=1141)
+2025-12-07 14:36:24,864 - numba.core.byteflow - DEBUG - stack ['$phi50.0']
+2025-12-07 14:36:24,865 - numba.core.byteflow - DEBUG - dispatch pc=52, inst=JUMP_FORWARD(arg=2, lineno=1141)
+2025-12-07 14:36:24,865 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,866 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=58, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,866 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=48 nstack_initial=0), State(pc_initial=58 nstack_initial=0), State(pc_initial=58 nstack_initial=0)])
+2025-12-07 14:36:24,867 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,867 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=48 nstack_initial=0)
+2025-12-07 14:36:24,868 - numba.core.byteflow - DEBUG - dispatch pc=48, inst=JUMP_FORWARD(arg=2, lineno=1141)
+2025-12-07 14:36:24,868 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,869 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=54, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,870 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=58 nstack_initial=0), State(pc_initial=58 nstack_initial=0), State(pc_initial=54 nstack_initial=0)])
+2025-12-07 14:36:24,871 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,871 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=58 nstack_initial=0)
+2025-12-07 14:36:24,872 - numba.core.byteflow - DEBUG - dispatch pc=58, inst=LOAD_FAST(arg=0, lineno=1144)
+2025-12-07 14:36:24,873 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,873 - numba.core.byteflow - DEBUG - dispatch pc=60, inst=LOAD_CONST(arg=2, lineno=1144)
+2025-12-07 14:36:24,874 - numba.core.byteflow - DEBUG - stack ['$x58.0']
+2025-12-07 14:36:24,874 - numba.core.byteflow - DEBUG - dispatch pc=62, inst=BINARY_SUBSCR(arg=None, lineno=1144)
+2025-12-07 14:36:24,875 - numba.core.byteflow - DEBUG - stack ['$x58.0', '$const60.1.2']
+2025-12-07 14:36:24,876 - numba.core.byteflow - DEBUG - dispatch pc=72, inst=STORE_FAST(arg=4, lineno=1144)
+2025-12-07 14:36:24,876 - numba.core.byteflow - DEBUG - stack ['$62binary_subscr.2']
+2025-12-07 14:36:24,877 - numba.core.byteflow - DEBUG - dispatch pc=74, inst=LOAD_FAST(arg=1, lineno=1145)
+2025-12-07 14:36:24,877 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,878 - numba.core.byteflow - DEBUG - dispatch pc=76, inst=UNARY_NEGATIVE(arg=None, lineno=1145)
+2025-12-07 14:36:24,878 - numba.core.byteflow - DEBUG - stack ['$threshold74.3']
+2025-12-07 14:36:24,879 - numba.core.byteflow - DEBUG - dispatch pc=78, inst=LOAD_FAST(arg=4, lineno=1145)
+2025-12-07 14:36:24,879 - numba.core.byteflow - DEBUG - stack ['$76unary_negative.4']
+2025-12-07 14:36:24,880 - numba.core.byteflow - DEBUG - dispatch pc=80, inst=SWAP(arg=2, lineno=1145)
+2025-12-07 14:36:24,880 - numba.core.byteflow - DEBUG - stack ['$76unary_negative.4', '$x178.5']
+2025-12-07 14:36:24,881 - numba.core.byteflow - DEBUG - dispatch pc=82, inst=COPY(arg=2, lineno=1145)
+2025-12-07 14:36:24,882 - numba.core.byteflow - DEBUG - stack ['$x178.5', '$76unary_negative.4']
+2025-12-07 14:36:24,882 - numba.core.byteflow - DEBUG - dispatch pc=84, inst=COMPARE_OP(arg=1, lineno=1145)
+2025-12-07 14:36:24,883 - numba.core.byteflow - DEBUG - stack ['$x178.5', '$76unary_negative.4', '$x178.5']
+2025-12-07 14:36:24,884 - numba.core.byteflow - DEBUG - dispatch pc=90, inst=POP_JUMP_FORWARD_IF_FALSE(arg=6, lineno=1145)
+2025-12-07 14:36:24,884 - numba.core.byteflow - DEBUG - stack ['$x178.5', '$84compare_op.6']
+2025-12-07 14:36:24,885 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=92, stack=('$x178.5',), blockstack=(), npush=0), Edge(pc=104, stack=('$x178.5',), blockstack=(), npush=0)]
+2025-12-07 14:36:24,886 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=58 nstack_initial=0), State(pc_initial=54 nstack_initial=0), State(pc_initial=92 nstack_initial=1), State(pc_initial=104 nstack_initial=1)])
+2025-12-07 14:36:24,886 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=54 nstack_initial=0), State(pc_initial=92 nstack_initial=1), State(pc_initial=104 nstack_initial=1)])
+2025-12-07 14:36:24,887 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,887 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=54 nstack_initial=0)
+2025-12-07 14:36:24,888 - numba.core.byteflow - DEBUG - dispatch pc=54, inst=LOAD_CONST(arg=1, lineno=1142)
+2025-12-07 14:36:24,888 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,889 - numba.core.byteflow - DEBUG - dispatch pc=56, inst=STORE_FAST(arg=3, lineno=1142)
+2025-12-07 14:36:24,889 - numba.core.byteflow - DEBUG - stack ['$const54.0.1']
+2025-12-07 14:36:24,891 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=58, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,891 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=92 nstack_initial=1), State(pc_initial=104 nstack_initial=1), State(pc_initial=58 nstack_initial=0)])
+2025-12-07 14:36:24,892 - numba.core.byteflow - DEBUG - stack: ['$phi92.0']
+2025-12-07 14:36:24,893 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=92 nstack_initial=1)
+2025-12-07 14:36:24,893 - numba.core.byteflow - DEBUG - dispatch pc=92, inst=LOAD_FAST(arg=1, lineno=1145)
+2025-12-07 14:36:24,894 - numba.core.byteflow - DEBUG - stack ['$phi92.0']
+2025-12-07 14:36:24,894 - numba.core.byteflow - DEBUG - dispatch pc=94, inst=COMPARE_OP(arg=1, lineno=1145)
+2025-12-07 14:36:24,895 - numba.core.byteflow - DEBUG - stack ['$phi92.0', '$threshold92.1']
+2025-12-07 14:36:24,896 - numba.core.byteflow - DEBUG - dispatch pc=100, inst=POP_JUMP_FORWARD_IF_FALSE(arg=5, lineno=1145)
+2025-12-07 14:36:24,897 - numba.core.byteflow - DEBUG - stack ['$94compare_op.2']
+2025-12-07 14:36:24,898 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=102, stack=(), blockstack=(), npush=0), Edge(pc=112, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,898 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=104 nstack_initial=1), State(pc_initial=58 nstack_initial=0), State(pc_initial=102 nstack_initial=0), State(pc_initial=112 nstack_initial=0)])
+2025-12-07 14:36:24,899 - numba.core.byteflow - DEBUG - stack: ['$phi104.0']
+2025-12-07 14:36:24,899 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=104 nstack_initial=1)
+2025-12-07 14:36:24,900 - numba.core.byteflow - DEBUG - dispatch pc=104, inst=POP_TOP(arg=None, lineno=1145)
+2025-12-07 14:36:24,900 - numba.core.byteflow - DEBUG - stack ['$phi104.0']
+2025-12-07 14:36:24,900 - numba.core.byteflow - DEBUG - dispatch pc=106, inst=JUMP_FORWARD(arg=2, lineno=1145)
+2025-12-07 14:36:24,901 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,902 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=112, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,902 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=58 nstack_initial=0), State(pc_initial=102 nstack_initial=0), State(pc_initial=112 nstack_initial=0), State(pc_initial=112 nstack_initial=0)])
+2025-12-07 14:36:24,903 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=102 nstack_initial=0), State(pc_initial=112 nstack_initial=0), State(pc_initial=112 nstack_initial=0)])
+2025-12-07 14:36:24,903 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,904 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=102 nstack_initial=0)
+2025-12-07 14:36:24,904 - numba.core.byteflow - DEBUG - dispatch pc=102, inst=JUMP_FORWARD(arg=2, lineno=1145)
+2025-12-07 14:36:24,905 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,905 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=108, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,906 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=112 nstack_initial=0), State(pc_initial=112 nstack_initial=0), State(pc_initial=108 nstack_initial=0)])
+2025-12-07 14:36:24,907 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,907 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=112 nstack_initial=0)
+2025-12-07 14:36:24,908 - numba.core.byteflow - DEBUG - dispatch pc=112, inst=LOAD_FAST(arg=2, lineno=1148)
+2025-12-07 14:36:24,908 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,909 - numba.core.byteflow - DEBUG - dispatch pc=114, inst=POP_JUMP_FORWARD_IF_FALSE(arg=42, lineno=1148)
+2025-12-07 14:36:24,910 - numba.core.byteflow - DEBUG - stack ['$zero_pos112.0']
+2025-12-07 14:36:24,910 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=116, stack=(), blockstack=(), npush=0), Edge(pc=200, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,910 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=112 nstack_initial=0), State(pc_initial=108 nstack_initial=0), State(pc_initial=116 nstack_initial=0), State(pc_initial=200 nstack_initial=0)])
+2025-12-07 14:36:24,912 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=108 nstack_initial=0), State(pc_initial=116 nstack_initial=0), State(pc_initial=200 nstack_initial=0)])
+2025-12-07 14:36:24,913 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,914 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=108 nstack_initial=0)
+2025-12-07 14:36:24,915 - numba.core.byteflow - DEBUG - dispatch pc=108, inst=LOAD_CONST(arg=1, lineno=1146)
+2025-12-07 14:36:24,915 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,916 - numba.core.byteflow - DEBUG - dispatch pc=110, inst=STORE_FAST(arg=4, lineno=1146)
+2025-12-07 14:36:24,916 - numba.core.byteflow - DEBUG - stack ['$const108.0.1']
+2025-12-07 14:36:24,916 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=112, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:24,917 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=116 nstack_initial=0), State(pc_initial=200 nstack_initial=0), State(pc_initial=112 nstack_initial=0)])
+2025-12-07 14:36:24,917 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,918 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=116 nstack_initial=0)
+2025-12-07 14:36:24,918 - numba.core.byteflow - DEBUG - dispatch pc=116, inst=LOAD_GLOBAL(arg=1, lineno=1149)
+2025-12-07 14:36:24,919 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,920 - numba.core.byteflow - DEBUG - dispatch pc=128, inst=LOAD_ATTR(arg=1, lineno=1149)
+2025-12-07 14:36:24,920 - numba.core.byteflow - DEBUG - stack ['$null$116.1', '$116load_global.0']
+2025-12-07 14:36:24,921 - numba.core.byteflow - DEBUG - dispatch pc=138, inst=LOAD_FAST(arg=3, lineno=1149)
+2025-12-07 14:36:24,921 - numba.core.byteflow - DEBUG - stack ['$null$116.1', '$128load_attr.2']
+2025-12-07 14:36:24,921 - numba.core.byteflow - DEBUG - dispatch pc=140, inst=PRECALL(arg=1, lineno=1149)
+2025-12-07 14:36:24,922 - numba.core.byteflow - DEBUG - stack ['$null$116.1', '$128load_attr.2', '$x0138.3']
+2025-12-07 14:36:24,923 - numba.core.byteflow - DEBUG - dispatch pc=144, inst=CALL(arg=1, lineno=1149)
+2025-12-07 14:36:24,923 - numba.core.byteflow - DEBUG - stack ['$null$116.1', '$128load_attr.2', '$x0138.3']
+2025-12-07 14:36:24,924 - numba.core.byteflow - DEBUG - dispatch pc=154, inst=LOAD_GLOBAL(arg=1, lineno=1149)
+2025-12-07 14:36:24,924 - numba.core.byteflow - DEBUG - stack ['$144call.4']
+2025-12-07 14:36:24,926 - numba.core.byteflow - DEBUG - dispatch pc=166, inst=LOAD_ATTR(arg=1, lineno=1149)
+2025-12-07 14:36:24,926 - numba.core.byteflow - DEBUG - stack ['$144call.4', '$null$154.6', '$154load_global.5']
+2025-12-07 14:36:24,927 - numba.core.byteflow - DEBUG - dispatch pc=176, inst=LOAD_FAST(arg=4, lineno=1149)
+2025-12-07 14:36:24,928 - numba.core.byteflow - DEBUG - stack ['$144call.4', '$null$154.6', '$166load_attr.7']
+2025-12-07 14:36:24,928 - numba.core.byteflow - DEBUG - dispatch pc=178, inst=PRECALL(arg=1, lineno=1149)
+2025-12-07 14:36:24,928 - numba.core.byteflow - DEBUG - stack ['$144call.4', '$null$154.6', '$166load_attr.7', '$x1176.8']
+2025-12-07 14:36:24,929 - numba.core.byteflow - DEBUG - dispatch pc=182, inst=CALL(arg=1, lineno=1149)
+2025-12-07 14:36:24,930 - numba.core.byteflow - DEBUG - stack ['$144call.4', '$null$154.6', '$166load_attr.7', '$x1176.8']
+2025-12-07 14:36:24,931 - numba.core.byteflow - DEBUG - dispatch pc=192, inst=COMPARE_OP(arg=3, lineno=1149)
+2025-12-07 14:36:24,931 - numba.core.byteflow - DEBUG - stack ['$144call.4', '$182call.9']
+2025-12-07 14:36:24,932 - numba.core.byteflow - DEBUG - dispatch pc=198, inst=RETURN_VALUE(arg=None, lineno=1149)
+2025-12-07 14:36:24,932 - numba.core.byteflow - DEBUG - stack ['$192compare_op.10']
+2025-12-07 14:36:24,932 - numba.core.byteflow - DEBUG - end state. edges=[]
+2025-12-07 14:36:24,933 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=200 nstack_initial=0), State(pc_initial=112 nstack_initial=0)])
+2025-12-07 14:36:24,933 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:24,934 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=200 nstack_initial=0)
+2025-12-07 14:36:24,934 - numba.core.byteflow - DEBUG - dispatch pc=200, inst=LOAD_GLOBAL(arg=1, lineno=1151)
+2025-12-07 14:36:24,935 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:24,935 - numba.core.byteflow - DEBUG - dispatch pc=212, inst=LOAD_ATTR(arg=2, lineno=1151)
+2025-12-07 14:36:24,936 - numba.core.byteflow - DEBUG - stack ['$null$200.1', '$200load_global.0']
+2025-12-07 14:36:24,937 - numba.core.byteflow - DEBUG - dispatch pc=222, inst=LOAD_FAST(arg=3, lineno=1151)
+2025-12-07 14:36:24,937 - numba.core.byteflow - DEBUG - stack ['$null$200.1', '$212load_attr.2']
+2025-12-07 14:36:24,938 - numba.core.byteflow - DEBUG - dispatch pc=224, inst=PRECALL(arg=1, lineno=1151)
+2025-12-07 14:36:24,938 - numba.core.byteflow - DEBUG - stack ['$null$200.1', '$212load_attr.2', '$x0222.3']
+2025-12-07 14:36:24,939 - numba.core.byteflow - DEBUG - dispatch pc=228, inst=CALL(arg=1, lineno=1151)
+2025-12-07 14:36:24,940 - numba.core.byteflow - DEBUG - stack ['$null$200.1', '$212load_attr.2', '$x0222.3']
+2025-12-07 14:36:24,941 - numba.core.byteflow - DEBUG - dispatch pc=238, inst=LOAD_GLOBAL(arg=1, lineno=1151)
+2025-12-07 14:36:24,941 - numba.core.byteflow - DEBUG - stack ['$228call.4']
+2025-12-07 14:36:24,942 - numba.core.byteflow - DEBUG - dispatch pc=250, inst=LOAD_ATTR(arg=2, lineno=1151)
+2025-12-07 14:36:24,942 - numba.core.byteflow - DEBUG - stack ['$228call.4', '$null$238.6', '$238load_global.5']
+2025-12-07 14:36:24,944 - numba.core.byteflow - DEBUG - dispatch pc=260, inst=LOAD_FAST(arg=4, lineno=1151)
+2025-12-07 14:36:24,945 - numba.core.byteflow - DEBUG - stack ['$228call.4', '$null$238.6', '$250load_attr.7']
+2025-12-07 14:36:24,945 - numba.core.byteflow - DEBUG - dispatch pc=262, inst=PRECALL(arg=1, lineno=1151)
+2025-12-07 14:36:24,946 - numba.core.byteflow - DEBUG - stack ['$228call.4', '$null$238.6', '$250load_attr.7', '$x1260.8']
+2025-12-07 14:36:24,947 - numba.core.byteflow - DEBUG - dispatch pc=266, inst=CALL(arg=1, lineno=1151)
+2025-12-07 14:36:24,947 - numba.core.byteflow - DEBUG - stack ['$228call.4', '$null$238.6', '$250load_attr.7', '$x1260.8']
+2025-12-07 14:36:24,948 - numba.core.byteflow - DEBUG - dispatch pc=276, inst=COMPARE_OP(arg=3, lineno=1151)
+2025-12-07 14:36:24,949 - numba.core.byteflow - DEBUG - stack ['$228call.4', '$266call.9']
+2025-12-07 14:36:24,950 - numba.core.byteflow - DEBUG - dispatch pc=282, inst=RETURN_VALUE(arg=None, lineno=1151)
+2025-12-07 14:36:24,950 - numba.core.byteflow - DEBUG - stack ['$276compare_op.10']
+2025-12-07 14:36:24,951 - numba.core.byteflow - DEBUG - end state. edges=[]
+2025-12-07 14:36:24,951 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=112 nstack_initial=0)])
+2025-12-07 14:36:24,952 - numba.core.byteflow - DEBUG - -------------------------Prune PHIs-------------------------
+2025-12-07 14:36:24,953 - numba.core.byteflow - DEBUG - Used_phis: defaultdict(<class 'set'>,
+            {State(pc_initial=0 nstack_initial=0): set(),
+             State(pc_initial=38 nstack_initial=1): {'$phi38.0'},
+             State(pc_initial=48 nstack_initial=0): set(),
+             State(pc_initial=50 nstack_initial=1): set(),
+             State(pc_initial=54 nstack_initial=0): set(),
+             State(pc_initial=58 nstack_initial=0): set(),
+             State(pc_initial=92 nstack_initial=1): {'$phi92.0'},
+             State(pc_initial=102 nstack_initial=0): set(),
+             State(pc_initial=104 nstack_initial=1): set(),
+             State(pc_initial=108 nstack_initial=0): set(),
+             State(pc_initial=112 nstack_initial=0): set(),
+             State(pc_initial=116 nstack_initial=0): set(),
+             State(pc_initial=200 nstack_initial=0): set()})
+2025-12-07 14:36:24,954 - numba.core.byteflow - DEBUG - defmap: {'$phi104.0': State(pc_initial=58 nstack_initial=0),
+ '$phi38.0': State(pc_initial=0 nstack_initial=0),
+ '$phi50.0': State(pc_initial=0 nstack_initial=0),
+ '$phi92.0': State(pc_initial=58 nstack_initial=0)}
+2025-12-07 14:36:24,956 - numba.core.byteflow - DEBUG - phismap: defaultdict(<class 'set'>,
+            {'$phi104.0': {('$x178.5', State(pc_initial=58 nstack_initial=0))},
+             '$phi38.0': {('$x024.5', State(pc_initial=0 nstack_initial=0))},
+             '$phi50.0': {('$x024.5', State(pc_initial=0 nstack_initial=0))},
+             '$phi92.0': {('$x178.5', State(pc_initial=58 nstack_initial=0))}})
+2025-12-07 14:36:24,957 - numba.core.byteflow - DEBUG - changing phismap: defaultdict(<class 'set'>,
+            {'$phi104.0': {('$x178.5', State(pc_initial=58 nstack_initial=0))},
+             '$phi38.0': {('$x024.5', State(pc_initial=0 nstack_initial=0))},
+             '$phi50.0': {('$x024.5', State(pc_initial=0 nstack_initial=0))},
+             '$phi92.0': {('$x178.5', State(pc_initial=58 nstack_initial=0))}})
+2025-12-07 14:36:24,958 - numba.core.byteflow - DEBUG - keep phismap: {'$phi38.0': {('$x024.5', State(pc_initial=0 nstack_initial=0))},
+ '$phi92.0': {('$x178.5', State(pc_initial=58 nstack_initial=0))}}
+2025-12-07 14:36:24,959 - numba.core.byteflow - DEBUG - new_out: defaultdict(<class 'dict'>,
+            {State(pc_initial=0 nstack_initial=0): {'$phi38.0': '$x024.5'},
+             State(pc_initial=58 nstack_initial=0): {'$phi92.0': '$x178.5'}})
+2025-12-07 14:36:24,960 - numba.core.byteflow - DEBUG - ----------------------DONE Prune PHIs-----------------------
+2025-12-07 14:36:24,961 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=0 nstack_initial=0):
+AdaptBlockInfo(insts=((0, {}), (2, {}), (4, {'res': '$x4.0'}), (6, {'res': '$const6.1.1'}), (8, {'index': '$const6.1.1', 'target': '$x4.0', 'res': '$8binary_subscr.2'}), (10, {}), (12, {}), (14, {}), (16, {}), (18, {'value': '$8binary_subscr.2'}), (20, {'res': '$threshold20.3'}), (22, {'value': '$threshold20.3', 'res': '$22unary_negative.4'}), (24, {'res': '$x024.5'}), (30, {'lhs': '$22unary_negative.4', 'rhs': '$x024.5', 'res': '$30compare_op.6'}), (32, {}), (34, {}), (36, {'pred': '$30compare_op.6'})), outgoing_phis={'$phi38.0': '$x024.5'}, blockstack=(), active_try_block=None, outgoing_edgepushed={38: ('$x024.5',), 50: ('$x024.5',)})
+2025-12-07 14:36:24,962 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=38 nstack_initial=1):
+AdaptBlockInfo(insts=((38, {'res': '$threshold38.1'}), (40, {'lhs': '$phi38.0', 'rhs': '$threshold38.1', 'res': '$40compare_op.2'}), (42, {}), (44, {}), (46, {'pred': '$40compare_op.2'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={48: (), 58: ()})
+2025-12-07 14:36:24,962 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=48 nstack_initial=0):
+AdaptBlockInfo(insts=((48, {}),), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={54: ()})
+2025-12-07 14:36:24,963 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=50 nstack_initial=1):
+AdaptBlockInfo(insts=((52, {}),), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={58: ()})
+2025-12-07 14:36:24,963 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=54 nstack_initial=0):
+AdaptBlockInfo(insts=((54, {'res': '$const54.0.1'}), (56, {'value': '$const54.0.1'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={58: ()})
+2025-12-07 14:36:24,964 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=58 nstack_initial=0):
+AdaptBlockInfo(insts=((58, {'res': '$x58.0'}), (60, {'res': '$const60.1.2'}), (62, {'index': '$const60.1.2', 'target': '$x58.0', 'res': '$62binary_subscr.2'}), (64, {}), (66, {}), (68, {}), (70, {}), (72, {'value': '$62binary_subscr.2'}), (74, {'res': '$threshold74.3'}), (76, {'value': '$threshold74.3', 'res': '$76unary_negative.4'}), (78, {'res': '$x178.5'}), (84, {'lhs': '$76unary_negative.4', 'rhs': '$x178.5', 'res': '$84compare_op.6'}), (86, {}), (88, {}), (90, {'pred': '$84compare_op.6'})), outgoing_phis={'$phi92.0': '$x178.5'}, blockstack=(), active_try_block=None, outgoing_edgepushed={92: ('$x178.5',), 104: ('$x178.5',)})
+2025-12-07 14:36:24,965 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=92 nstack_initial=1):
+AdaptBlockInfo(insts=((92, {'res': '$threshold92.1'}), (94, {'lhs': '$phi92.0', 'rhs': '$threshold92.1', 'res': '$94compare_op.2'}), (96, {}), (98, {}), (100, {'pred': '$94compare_op.2'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={102: (), 112: ()})
+2025-12-07 14:36:24,966 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=102 nstack_initial=0):
+AdaptBlockInfo(insts=((102, {}),), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={108: ()})
+2025-12-07 14:36:24,966 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=104 nstack_initial=1):
+AdaptBlockInfo(insts=((106, {}),), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={112: ()})
+2025-12-07 14:36:24,967 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=108 nstack_initial=0):
+AdaptBlockInfo(insts=((108, {'res': '$const108.0.1'}), (110, {'value': '$const108.0.1'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={112: ()})
+2025-12-07 14:36:24,967 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=112 nstack_initial=0):
+AdaptBlockInfo(insts=((112, {'res': '$zero_pos112.0'}), (114, {'pred': '$zero_pos112.0'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={116: (), 200: ()})
+2025-12-07 14:36:24,968 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=116 nstack_initial=0):
+AdaptBlockInfo(insts=((116, {'idx': 0, 'res': '$116load_global.0'}), (118, {}), (120, {}), (122, {}), (124, {}), (126, {}), (128, {'item': '$116load_global.0', 'res': '$128load_attr.2'}), (130, {}), (132, {}), (134, {}), (136, {}), (138, {'res': '$x0138.3'}), (140, {}), (142, {}), (144, {'func': '$128load_attr.2', 'args': ['$x0138.3'], 'kw_names': None, 'res': '$144call.4'}), (146, {}), (148, {}), (150, {}), (152, {}), (154, {'idx': 0, 'res': '$154load_global.5'}), (156, {}), (158, {}), (160, {}), (162, {}), (164, {}), (166, {'item': '$154load_global.5', 'res': '$166load_attr.7'}), (168, {}), (170, {}), (172, {}), (174, {}), (176, {'res': '$x1176.8'}), (178, {}), (180, {}), (182, {'func': '$166load_attr.7', 'args': ['$x1176.8'], 'kw_names': None, 'res': '$182call.9'}), (184, {}), (186, {}), (188, {}), (190, {}), (192, {'lhs': '$144call.4', 'rhs': '$182call.9', 'res': '$192compare_op.10'}), (194, {}), (196, {}), (198, {'retval': '$192compare_op.10', 'castval': '$198return_value.11'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={})
+2025-12-07 14:36:24,969 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=200 nstack_initial=0):
+AdaptBlockInfo(insts=((200, {'idx': 0, 'res': '$200load_global.0'}), (202, {}), (204, {}), (206, {}), (208, {}), (210, {}), (212, {'item': '$200load_global.0', 'res': '$212load_attr.2'}), (214, {}), (216, {}), (218, {}), (220, {}), (222, {'res': '$x0222.3'}), (224, {}), (226, {}), (228, {'func': '$212load_attr.2', 'args': ['$x0222.3'], 'kw_names': None, 'res': '$228call.4'}), (230, {}), (232, {}), (234, {}), (236, {}), (238, {'idx': 0, 'res': '$238load_global.5'}), (240, {}), (242, {}), (244, {}), (246, {}), (248, {}), (250, {'item': '$238load_global.5', 'res': '$250load_attr.7'}), (252, {}), (254, {}), (256, {}), (258, {}), (260, {'res': '$x1260.8'}), (262, {}), (264, {}), (266, {'func': '$250load_attr.7', 'args': ['$x1260.8'], 'kw_names': None, 'res': '$266call.9'}), (268, {}), (270, {}), (272, {}), (274, {}), (276, {'lhs': '$228call.4', 'rhs': '$266call.9', 'res': '$276compare_op.10'}), (278, {}), (280, {}), (282, {'retval': '$276compare_op.10', 'castval': '$282return_value.11'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={})
+2025-12-07 14:36:24,977 - numba.core.interpreter - DEBUG - label 0:
+    x = arg(0, name=x)                       ['x']
+    threshold = arg(1, name=threshold)       ['threshold']
+    zero_pos = arg(2, name=zero_pos)         ['zero_pos']
+    $const6.1.1 = const(int, 0)              ['$const6.1.1']
+    x0 = getitem(value=x, index=$const6.1.1, fn=<built-in function getitem>) ['$const6.1.1', 'x', 'x0']
+    $22unary_negative.4 = unary(fn=<built-in function neg>, value=threshold) ['$22unary_negative.4', 'threshold']
+    $30compare_op.6 = $22unary_negative.4 <= x0 ['$22unary_negative.4', '$30compare_op.6', 'x0']
+    $bool36 = global(bool: <class 'bool'>)   ['$bool36']
+    $36pred = call $bool36($30compare_op.6, func=$bool36, args=(Var($30compare_op.6, audio.py:1141),), kws=(), vararg=None, varkwarg=None, target=None) ['$30compare_op.6', '$36pred', '$bool36']
+    $phi38.0 = x0                            ['$phi38.0', 'x0']
+    branch $36pred, 38, 50                   ['$36pred']
+label 38:
+    $40compare_op.2 = $phi38.0 <= threshold  ['$40compare_op.2', '$phi38.0', 'threshold']
+    $bool46 = global(bool: <class 'bool'>)   ['$bool46']
+    $46pred = call $bool46($40compare_op.2, func=$bool46, args=(Var($40compare_op.2, audio.py:1141),), kws=(), vararg=None, varkwarg=None, target=None) ['$40compare_op.2', '$46pred', '$bool46']
+    branch $46pred, 48, 58                   ['$46pred']
+label 48:
+    jump 54                                  []
+label 50:
+    jump 58                                  []
+label 54:
+    x0 = const(int, 0)                       ['x0']
+    jump 58                                  []
+label 58:
+    $const60.1.2 = const(int, -1)            ['$const60.1.2']
+    x1 = getitem(value=x, index=$const60.1.2, fn=<built-in function getitem>) ['$const60.1.2', 'x', 'x1']
+    $76unary_negative.4 = unary(fn=<built-in function neg>, value=threshold) ['$76unary_negative.4', 'threshold']
+    $84compare_op.6 = $76unary_negative.4 <= x1 ['$76unary_negative.4', '$84compare_op.6', 'x1']
+    $bool90 = global(bool: <class 'bool'>)   ['$bool90']
+    $90pred = call $bool90($84compare_op.6, func=$bool90, args=(Var($84compare_op.6, audio.py:1145),), kws=(), vararg=None, varkwarg=None, target=None) ['$84compare_op.6', '$90pred', '$bool90']
+    $phi92.0 = x1                            ['$phi92.0', 'x1']
+    branch $90pred, 92, 104                  ['$90pred']
+label 92:
+    $94compare_op.2 = $phi92.0 <= threshold  ['$94compare_op.2', '$phi92.0', 'threshold']
+    $bool100 = global(bool: <class 'bool'>)  ['$bool100']
+    $100pred = call $bool100($94compare_op.2, func=$bool100, args=(Var($94compare_op.2, audio.py:1145),), kws=(), vararg=None, varkwarg=None, target=None) ['$100pred', '$94compare_op.2', '$bool100']
+    branch $100pred, 102, 112                ['$100pred']
+label 102:
+    jump 108                                 []
+label 104:
+    jump 112                                 []
+label 108:
+    x1 = const(int, 0)                       ['x1']
+    jump 112                                 []
+label 112:
+    $bool114 = global(bool: <class 'bool'>)  ['$bool114']
+    $114pred = call $bool114(zero_pos, func=$bool114, args=(Var(zero_pos, audio.py:1137),), kws=(), vararg=None, varkwarg=None, target=None) ['$114pred', '$bool114', 'zero_pos']
+    branch $114pred, 116, 200                ['$114pred']
+label 116:
+    $116load_global.0 = global(np: <module 'numpy' from 'C:\\Users\\onyan\\octavia\\octavia\\backend\\venv\\Lib\\site-packages\\numpy\\__init__.py'>) ['$116load_global.0']
+    $128load_attr.2 = getattr(value=$116load_global.0, attr=signbit) ['$116load_global.0', '$128load_attr.2']
+    $144call.4 = call $128load_attr.2(x0, func=$128load_attr.2, args=[Var(x0, audio.py:1140)], kws=(), vararg=None, varkwarg=None, target=None) ['$128load_attr.2', '$144call.4', 'x0']
+    $154load_global.5 = global(np: <module 'numpy' from 'C:\\Users\\onyan\\octavia\\octavia\\backend\\venv\\Lib\\site-packages\\numpy\\__init__.py'>) ['$154load_global.5']
+    $166load_attr.7 = getattr(value=$154load_global.5, attr=signbit) ['$154load_global.5', '$166load_attr.7']
+    $182call.9 = call $166load_attr.7(x1, func=$166load_attr.7, args=[Var(x1, audio.py:1144)], kws=(), vararg=None, varkwarg=None, target=None) ['$166load_attr.7', '$182call.9', 'x1']
+    $192compare_op.10 = $144call.4 != $182call.9 ['$144call.4', '$182call.9', '$192compare_op.10']
+    $198return_value.11 = cast(value=$192compare_op.10) ['$192compare_op.10', '$198return_value.11']
+    return $198return_value.11               ['$198return_value.11']
+label 200:
+    $200load_global.0 = global(np: <module 'numpy' from 'C:\\Users\\onyan\\octavia\\octavia\\backend\\venv\\Lib\\site-packages\\numpy\\__init__.py'>) ['$200load_global.0']
+    $212load_attr.2 = getattr(value=$200load_global.0, attr=sign) ['$200load_global.0', '$212load_attr.2']
+    $228call.4 = call $212load_attr.2(x0, func=$212load_attr.2, args=[Var(x0, audio.py:1140)], kws=(), vararg=None, varkwarg=None, target=None) ['$212load_attr.2', '$228call.4', 'x0']
+    $238load_global.5 = global(np: <module 'numpy' from 'C:\\Users\\onyan\\octavia\\octavia\\backend\\venv\\Lib\\site-packages\\numpy\\__init__.py'>) ['$238load_global.5']
+    $250load_attr.7 = getattr(value=$238load_global.5, attr=sign) ['$238load_global.5', '$250load_attr.7']
+    $266call.9 = call $250load_attr.7(x1, func=$250load_attr.7, args=[Var(x1, audio.py:1144)], kws=(), vararg=None, varkwarg=None, target=None) ['$250load_attr.7', '$266call.9', 'x1']
+    $276compare_op.10 = $228call.4 != $266call.9 ['$228call.4', '$266call.9', '$276compare_op.10']
+    $282return_value.11 = cast(value=$276compare_op.10) ['$276compare_op.10', '$282return_value.11']
+    return $282return_value.11               ['$282return_value.11']
+
+2025-12-07 14:36:26,637 - numba.core.byteflow - DEBUG - bytecode dump:
+>          0	NOP(arg=None, lineno=1023)
+           2	RESUME(arg=0, lineno=1023)
+           4	LOAD_FAST(arg=0, lineno=1026)
+           6	LOAD_CONST(arg=1, lineno=1026)
+           8	BINARY_SUBSCR(arg=None, lineno=1026)
+          18	LOAD_FAST(arg=0, lineno=1026)
+          20	LOAD_CONST(arg=2, lineno=1026)
+          22	BINARY_SUBSCR(arg=None, lineno=1026)
+          32	COMPARE_OP(arg=4, lineno=1026)
+          38	LOAD_FAST(arg=0, lineno=1026)
+          40	LOAD_CONST(arg=1, lineno=1026)
+          42	BINARY_SUBSCR(arg=None, lineno=1026)
+          52	LOAD_FAST(arg=0, lineno=1026)
+          54	LOAD_CONST(arg=3, lineno=1026)
+          56	BINARY_SUBSCR(arg=None, lineno=1026)
+          66	COMPARE_OP(arg=5, lineno=1026)
+          72	BINARY_OP(arg=1, lineno=1026)
+          76	RETURN_VALUE(arg=None, lineno=1026)
+2025-12-07 14:36:26,638 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=0 nstack_initial=0)])
+2025-12-07 14:36:26,640 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:26,640 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=0 nstack_initial=0)
+2025-12-07 14:36:26,641 - numba.core.byteflow - DEBUG - dispatch pc=0, inst=NOP(arg=None, lineno=1023)
+2025-12-07 14:36:26,641 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:26,641 - numba.core.byteflow - DEBUG - dispatch pc=2, inst=RESUME(arg=0, lineno=1023)
+2025-12-07 14:36:26,642 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:26,642 - numba.core.byteflow - DEBUG - dispatch pc=4, inst=LOAD_FAST(arg=0, lineno=1026)
+2025-12-07 14:36:26,642 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:26,643 - numba.core.byteflow - DEBUG - dispatch pc=6, inst=LOAD_CONST(arg=1, lineno=1026)
+2025-12-07 14:36:26,643 - numba.core.byteflow - DEBUG - stack ['$x4.0']
+2025-12-07 14:36:26,644 - numba.core.byteflow - DEBUG - dispatch pc=8, inst=BINARY_SUBSCR(arg=None, lineno=1026)
+2025-12-07 14:36:26,644 - numba.core.byteflow - DEBUG - stack ['$x4.0', '$const6.1.1']
+2025-12-07 14:36:26,644 - numba.core.byteflow - DEBUG - dispatch pc=18, inst=LOAD_FAST(arg=0, lineno=1026)
+2025-12-07 14:36:26,645 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2']
+2025-12-07 14:36:26,645 - numba.core.byteflow - DEBUG - dispatch pc=20, inst=LOAD_CONST(arg=2, lineno=1026)
+2025-12-07 14:36:26,646 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$x18.3']
+2025-12-07 14:36:26,646 - numba.core.byteflow - DEBUG - dispatch pc=22, inst=BINARY_SUBSCR(arg=None, lineno=1026)
+2025-12-07 14:36:26,646 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$x18.3', '$const20.4.2']
+2025-12-07 14:36:26,647 - numba.core.byteflow - DEBUG - dispatch pc=32, inst=COMPARE_OP(arg=4, lineno=1026)
+2025-12-07 14:36:26,647 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$22binary_subscr.5']
+2025-12-07 14:36:26,648 - numba.core.byteflow - DEBUG - dispatch pc=38, inst=LOAD_FAST(arg=0, lineno=1026)
+2025-12-07 14:36:26,648 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6']
+2025-12-07 14:36:26,649 - numba.core.byteflow - DEBUG - dispatch pc=40, inst=LOAD_CONST(arg=1, lineno=1026)
+2025-12-07 14:36:26,649 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$x38.7']
+2025-12-07 14:36:26,649 - numba.core.byteflow - DEBUG - dispatch pc=42, inst=BINARY_SUBSCR(arg=None, lineno=1026)
+2025-12-07 14:36:26,651 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$x38.7', '$const40.8.1']
+2025-12-07 14:36:26,651 - numba.core.byteflow - DEBUG - dispatch pc=52, inst=LOAD_FAST(arg=0, lineno=1026)
+2025-12-07 14:36:26,651 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9']
+2025-12-07 14:36:26,652 - numba.core.byteflow - DEBUG - dispatch pc=54, inst=LOAD_CONST(arg=3, lineno=1026)
+2025-12-07 14:36:26,652 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9', '$x52.10']
+2025-12-07 14:36:26,653 - numba.core.byteflow - DEBUG - dispatch pc=56, inst=BINARY_SUBSCR(arg=None, lineno=1026)
+2025-12-07 14:36:26,653 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9', '$x52.10', '$const54.11.3']
+2025-12-07 14:36:26,653 - numba.core.byteflow - DEBUG - dispatch pc=66, inst=COMPARE_OP(arg=5, lineno=1026)
+2025-12-07 14:36:26,654 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9', '$56binary_subscr.12']
+2025-12-07 14:36:26,654 - numba.core.byteflow - DEBUG - dispatch pc=72, inst=BINARY_OP(arg=1, lineno=1026)
+2025-12-07 14:36:26,655 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$66compare_op.13']
+2025-12-07 14:36:26,655 - numba.core.byteflow - DEBUG - dispatch pc=76, inst=RETURN_VALUE(arg=None, lineno=1026)
+2025-12-07 14:36:26,656 - numba.core.byteflow - DEBUG - stack ['$binop_and_72.14']
+2025-12-07 14:36:26,656 - numba.core.byteflow - DEBUG - end state. edges=[]
+2025-12-07 14:36:26,657 - numba.core.byteflow - DEBUG - -------------------------Prune PHIs-------------------------
+2025-12-07 14:36:26,657 - numba.core.byteflow - DEBUG - Used_phis: defaultdict(<class 'set'>, {State(pc_initial=0 nstack_initial=0): set()})
+2025-12-07 14:36:26,658 - numba.core.byteflow - DEBUG - defmap: {}
+2025-12-07 14:36:26,658 - numba.core.byteflow - DEBUG - phismap: defaultdict(<class 'set'>, {})
+2025-12-07 14:36:26,659 - numba.core.byteflow - DEBUG - changing phismap: defaultdict(<class 'set'>, {})
+2025-12-07 14:36:26,659 - numba.core.byteflow - DEBUG - keep phismap: {}
+2025-12-07 14:36:26,660 - numba.core.byteflow - DEBUG - new_out: defaultdict(<class 'dict'>, {})
+2025-12-07 14:36:26,660 - numba.core.byteflow - DEBUG - ----------------------DONE Prune PHIs-----------------------
+2025-12-07 14:36:26,660 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=0 nstack_initial=0):
+AdaptBlockInfo(insts=((0, {}), (2, {}), (4, {'res': '$x4.0'}), (6, {'res': '$const6.1.1'}), (8, {'index': '$const6.1.1', 'target': '$x4.0', 'res': '$8binary_subscr.2'}), (10, {}), (12, {}), (14, {}), (16, {}), (18, {'res': '$x18.3'}), (20, {'res': '$const20.4.2'}), (22, {'index': '$const20.4.2', 'target': '$x18.3', 'res': '$22binary_subscr.5'}), (24, {}), (26, {}), (28, {}), (30, {}), (32, {'lhs': '$8binary_subscr.2', 'rhs': '$22binary_subscr.5', 'res': '$32compare_op.6'}), (34, {}), (36, {}), (38, {'res': '$x38.7'}), (40, {'res': '$const40.8.1'}), (42, {'index': '$const40.8.1', 'target': '$x38.7', 'res': '$42binary_subscr.9'}), (44, {}), (46, {}), (48, {}), (50, {}), (52, {'res': '$x52.10'}), (54, {'res': '$const54.11.3'}), (56, {'index': '$const54.11.3', 'target': '$x52.10', 'res': '$56binary_subscr.12'}), (58, {}), (60, {}), (62, {}), (64, {}), (66, {'lhs': '$42binary_subscr.9', 'rhs': '$56binary_subscr.12', 'res': '$66compare_op.13'}), (68, {}), (70, {}), (72, {'op': '&', 'lhs': '$32compare_op.6', 'rhs': '$66compare_op.13', 'res': '$binop_and_72.14'}), (74, {}), (76, {'retval': '$binop_and_72.14', 'castval': '$76return_value.15'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={})
+2025-12-07 14:36:26,663 - numba.core.interpreter - DEBUG - label 0:
+    x = arg(0, name=x)                       ['x']
+    $const6.1.1 = const(int, 0)              ['$const6.1.1']
+    $8binary_subscr.2 = getitem(value=x, index=$const6.1.1, fn=<built-in function getitem>) ['$8binary_subscr.2', '$const6.1.1', 'x']
+    $const20.4.2 = const(int, -1)            ['$const20.4.2']
+    $22binary_subscr.5 = getitem(value=x, index=$const20.4.2, fn=<built-in function getitem>) ['$22binary_subscr.5', '$const20.4.2', 'x']
+    $32compare_op.6 = $8binary_subscr.2 > $22binary_subscr.5 ['$22binary_subscr.5', '$32compare_op.6', '$8binary_subscr.2']
+    $const40.8.1 = const(int, 0)             ['$const40.8.1']
+    $42binary_subscr.9 = getitem(value=x, index=$const40.8.1, fn=<built-in function getitem>) ['$42binary_subscr.9', '$const40.8.1', 'x']
+    $const54.11.3 = const(int, 1)            ['$const54.11.3']
+    $56binary_subscr.12 = getitem(value=x, index=$const54.11.3, fn=<built-in function getitem>) ['$56binary_subscr.12', '$const54.11.3', 'x']
+    $66compare_op.13 = $42binary_subscr.9 >= $56binary_subscr.12 ['$42binary_subscr.9', '$56binary_subscr.12', '$66compare_op.13']
+    $binop_and_72.14 = $32compare_op.6 & $66compare_op.13 ['$32compare_op.6', '$66compare_op.13', '$binop_and_72.14']
+    $76return_value.15 = cast(value=$binop_and_72.14) ['$76return_value.15', '$binop_and_72.14']
+    return $76return_value.15                ['$76return_value.15']
+
+2025-12-07 14:36:26,669 - numba.core.byteflow - DEBUG - bytecode dump:
+>          0	NOP(arg=None, lineno=1029)
+           2	RESUME(arg=0, lineno=1029)
+           4	LOAD_FAST(arg=0, lineno=1032)
+           6	LOAD_CONST(arg=1, lineno=1032)
+           8	BINARY_SUBSCR(arg=None, lineno=1032)
+          18	LOAD_FAST(arg=0, lineno=1032)
+          20	LOAD_CONST(arg=2, lineno=1032)
+          22	BINARY_SUBSCR(arg=None, lineno=1032)
+          32	COMPARE_OP(arg=0, lineno=1032)
+          38	LOAD_FAST(arg=0, lineno=1032)
+          40	LOAD_CONST(arg=1, lineno=1032)
+          42	BINARY_SUBSCR(arg=None, lineno=1032)
+          52	LOAD_FAST(arg=0, lineno=1032)
+          54	LOAD_CONST(arg=3, lineno=1032)
+          56	BINARY_SUBSCR(arg=None, lineno=1032)
+          66	COMPARE_OP(arg=1, lineno=1032)
+          72	BINARY_OP(arg=1, lineno=1032)
+          76	RETURN_VALUE(arg=None, lineno=1032)
+2025-12-07 14:36:26,670 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=0 nstack_initial=0)])
+2025-12-07 14:36:26,671 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:26,671 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=0 nstack_initial=0)
+2025-12-07 14:36:26,671 - numba.core.byteflow - DEBUG - dispatch pc=0, inst=NOP(arg=None, lineno=1029)
+2025-12-07 14:36:26,672 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:26,672 - numba.core.byteflow - DEBUG - dispatch pc=2, inst=RESUME(arg=0, lineno=1029)
+2025-12-07 14:36:26,673 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:26,673 - numba.core.byteflow - DEBUG - dispatch pc=4, inst=LOAD_FAST(arg=0, lineno=1032)
+2025-12-07 14:36:26,674 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:26,674 - numba.core.byteflow - DEBUG - dispatch pc=6, inst=LOAD_CONST(arg=1, lineno=1032)
+2025-12-07 14:36:26,675 - numba.core.byteflow - DEBUG - stack ['$x4.0']
+2025-12-07 14:36:26,676 - numba.core.byteflow - DEBUG - dispatch pc=8, inst=BINARY_SUBSCR(arg=None, lineno=1032)
+2025-12-07 14:36:26,676 - numba.core.byteflow - DEBUG - stack ['$x4.0', '$const6.1.1']
+2025-12-07 14:36:26,676 - numba.core.byteflow - DEBUG - dispatch pc=18, inst=LOAD_FAST(arg=0, lineno=1032)
+2025-12-07 14:36:26,677 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2']
+2025-12-07 14:36:26,677 - numba.core.byteflow - DEBUG - dispatch pc=20, inst=LOAD_CONST(arg=2, lineno=1032)
+2025-12-07 14:36:26,677 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$x18.3']
+2025-12-07 14:36:26,678 - numba.core.byteflow - DEBUG - dispatch pc=22, inst=BINARY_SUBSCR(arg=None, lineno=1032)
+2025-12-07 14:36:26,678 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$x18.3', '$const20.4.2']
+2025-12-07 14:36:26,679 - numba.core.byteflow - DEBUG - dispatch pc=32, inst=COMPARE_OP(arg=0, lineno=1032)
+2025-12-07 14:36:26,679 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$22binary_subscr.5']
+2025-12-07 14:36:26,680 - numba.core.byteflow - DEBUG - dispatch pc=38, inst=LOAD_FAST(arg=0, lineno=1032)
+2025-12-07 14:36:26,680 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6']
+2025-12-07 14:36:26,680 - numba.core.byteflow - DEBUG - dispatch pc=40, inst=LOAD_CONST(arg=1, lineno=1032)
+2025-12-07 14:36:26,681 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$x38.7']
+2025-12-07 14:36:26,681 - numba.core.byteflow - DEBUG - dispatch pc=42, inst=BINARY_SUBSCR(arg=None, lineno=1032)
+2025-12-07 14:36:26,682 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$x38.7', '$const40.8.1']
+2025-12-07 14:36:26,682 - numba.core.byteflow - DEBUG - dispatch pc=52, inst=LOAD_FAST(arg=0, lineno=1032)
+2025-12-07 14:36:26,683 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9']
+2025-12-07 14:36:26,683 - numba.core.byteflow - DEBUG - dispatch pc=54, inst=LOAD_CONST(arg=3, lineno=1032)
+2025-12-07 14:36:26,683 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9', '$x52.10']
+2025-12-07 14:36:26,683 - numba.core.byteflow - DEBUG - dispatch pc=56, inst=BINARY_SUBSCR(arg=None, lineno=1032)
+2025-12-07 14:36:26,684 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9', '$x52.10', '$const54.11.3']
+2025-12-07 14:36:26,684 - numba.core.byteflow - DEBUG - dispatch pc=66, inst=COMPARE_OP(arg=1, lineno=1032)
+2025-12-07 14:36:26,685 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$42binary_subscr.9', '$56binary_subscr.12']
+2025-12-07 14:36:26,685 - numba.core.byteflow - DEBUG - dispatch pc=72, inst=BINARY_OP(arg=1, lineno=1032)
+2025-12-07 14:36:26,685 - numba.core.byteflow - DEBUG - stack ['$32compare_op.6', '$66compare_op.13']
+2025-12-07 14:36:26,686 - numba.core.byteflow - DEBUG - dispatch pc=76, inst=RETURN_VALUE(arg=None, lineno=1032)
+2025-12-07 14:36:26,686 - numba.core.byteflow - DEBUG - stack ['$binop_and_72.14']
+2025-12-07 14:36:26,687 - numba.core.byteflow - DEBUG - end state. edges=[]
+2025-12-07 14:36:26,687 - numba.core.byteflow - DEBUG - -------------------------Prune PHIs-------------------------
+2025-12-07 14:36:26,687 - numba.core.byteflow - DEBUG - Used_phis: defaultdict(<class 'set'>, {State(pc_initial=0 nstack_initial=0): set()})
+2025-12-07 14:36:26,688 - numba.core.byteflow - DEBUG - defmap: {}
+2025-12-07 14:36:26,688 - numba.core.byteflow - DEBUG - phismap: defaultdict(<class 'set'>, {})
+2025-12-07 14:36:26,689 - numba.core.byteflow - DEBUG - changing phismap: defaultdict(<class 'set'>, {})
+2025-12-07 14:36:26,689 - numba.core.byteflow - DEBUG - keep phismap: {}
+2025-12-07 14:36:26,690 - numba.core.byteflow - DEBUG - new_out: defaultdict(<class 'dict'>, {})
+2025-12-07 14:36:26,691 - numba.core.byteflow - DEBUG - ----------------------DONE Prune PHIs-----------------------
+2025-12-07 14:36:26,691 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=0 nstack_initial=0):
+AdaptBlockInfo(insts=((0, {}), (2, {}), (4, {'res': '$x4.0'}), (6, {'res': '$const6.1.1'}), (8, {'index': '$const6.1.1', 'target': '$x4.0', 'res': '$8binary_subscr.2'}), (10, {}), (12, {}), (14, {}), (16, {}), (18, {'res': '$x18.3'}), (20, {'res': '$const20.4.2'}), (22, {'index': '$const20.4.2', 'target': '$x18.3', 'res': '$22binary_subscr.5'}), (24, {}), (26, {}), (28, {}), (30, {}), (32, {'lhs': '$8binary_subscr.2', 'rhs': '$22binary_subscr.5', 'res': '$32compare_op.6'}), (34, {}), (36, {}), (38, {'res': '$x38.7'}), (40, {'res': '$const40.8.1'}), (42, {'index': '$const40.8.1', 'target': '$x38.7', 'res': '$42binary_subscr.9'}), (44, {}), (46, {}), (48, {}), (50, {}), (52, {'res': '$x52.10'}), (54, {'res': '$const54.11.3'}), (56, {'index': '$const54.11.3', 'target': '$x52.10', 'res': '$56binary_subscr.12'}), (58, {}), (60, {}), (62, {}), (64, {}), (66, {'lhs': '$42binary_subscr.9', 'rhs': '$56binary_subscr.12', 'res': '$66compare_op.13'}), (68, {}), (70, {}), (72, {'op': '&', 'lhs': '$32compare_op.6', 'rhs': '$66compare_op.13', 'res': '$binop_and_72.14'}), (74, {}), (76, {'retval': '$binop_and_72.14', 'castval': '$76return_value.15'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={})
+2025-12-07 14:36:26,693 - numba.core.interpreter - DEBUG - label 0:
+    x = arg(0, name=x)                       ['x']
+    $const6.1.1 = const(int, 0)              ['$const6.1.1']
+    $8binary_subscr.2 = getitem(value=x, index=$const6.1.1, fn=<built-in function getitem>) ['$8binary_subscr.2', '$const6.1.1', 'x']
+    $const20.4.2 = const(int, -1)            ['$const20.4.2']
+    $22binary_subscr.5 = getitem(value=x, index=$const20.4.2, fn=<built-in function getitem>) ['$22binary_subscr.5', '$const20.4.2', 'x']
+    $32compare_op.6 = $8binary_subscr.2 < $22binary_subscr.5 ['$22binary_subscr.5', '$32compare_op.6', '$8binary_subscr.2']
+    $const40.8.1 = const(int, 0)             ['$const40.8.1']
+    $42binary_subscr.9 = getitem(value=x, index=$const40.8.1, fn=<built-in function getitem>) ['$42binary_subscr.9', '$const40.8.1', 'x']
+    $const54.11.3 = const(int, 1)            ['$const54.11.3']
+    $56binary_subscr.12 = getitem(value=x, index=$const54.11.3, fn=<built-in function getitem>) ['$56binary_subscr.12', '$const54.11.3', 'x']
+    $66compare_op.13 = $42binary_subscr.9 <= $56binary_subscr.12 ['$42binary_subscr.9', '$56binary_subscr.12', '$66compare_op.13']
+    $binop_and_72.14 = $32compare_op.6 & $66compare_op.13 ['$32compare_op.6', '$66compare_op.13', '$binop_and_72.14']
+    $76return_value.15 = cast(value=$binop_and_72.14) ['$76return_value.15', '$binop_and_72.14']
+    return $76return_value.15                ['$76return_value.15']
+
+2025-12-07 14:36:30,362 - numba.core.byteflow - DEBUG - bytecode dump:
+>          0	NOP(arg=None, lineno=416)
+           2	RESUME(arg=0, lineno=416)
+           4	LOAD_FAST(arg=0, lineno=419)
+           6	LOAD_CONST(arg=1, lineno=419)
+           8	BINARY_SUBSCR(arg=None, lineno=419)
+          18	LOAD_FAST(arg=0, lineno=419)
+          20	LOAD_CONST(arg=2, lineno=419)
+          22	BINARY_SUBSCR(arg=None, lineno=419)
+          32	BINARY_OP(arg=0, lineno=419)
+          36	LOAD_CONST(arg=3, lineno=419)
+          38	LOAD_FAST(arg=0, lineno=419)
+          40	LOAD_CONST(arg=4, lineno=419)
+          42	BINARY_SUBSCR(arg=None, lineno=419)
+          52	BINARY_OP(arg=5, lineno=419)
+          56	BINARY_OP(arg=10, lineno=419)
+          60	STORE_FAST(arg=1, lineno=419)
+          62	LOAD_FAST(arg=0, lineno=420)
+          64	LOAD_CONST(arg=1, lineno=420)
+          66	BINARY_SUBSCR(arg=None, lineno=420)
+          76	LOAD_FAST(arg=0, lineno=420)
+          78	LOAD_CONST(arg=2, lineno=420)
+          80	BINARY_SUBSCR(arg=None, lineno=420)
+          90	BINARY_OP(arg=10, lineno=420)
+          94	LOAD_CONST(arg=3, lineno=420)
+          96	BINARY_OP(arg=11, lineno=420)
+         100	STORE_FAST(arg=2, lineno=420)
+         102	LOAD_GLOBAL(arg=1, lineno=422)
+         114	LOAD_ATTR(arg=1, lineno=422)
+         124	LOAD_FAST(arg=2, lineno=422)
+         126	PRECALL(arg=1, lineno=422)
+         130	CALL(arg=1, lineno=422)
+         140	LOAD_GLOBAL(arg=1, lineno=422)
+         152	LOAD_ATTR(arg=1, lineno=422)
+         162	LOAD_FAST(arg=1, lineno=422)
+         164	PRECALL(arg=1, lineno=422)
+         168	CALL(arg=1, lineno=422)
+         178	COMPARE_OP(arg=5, lineno=422)
+         184	POP_JUMP_FORWARD_IF_FALSE(arg=2, lineno=422)
+         186	LOAD_CONST(arg=4, lineno=425)
+         188	RETURN_VALUE(arg=None, lineno=425)
+>        190	LOAD_FAST(arg=2, lineno=427)
+         192	UNARY_NEGATIVE(arg=None, lineno=427)
+         194	LOAD_FAST(arg=1, lineno=427)
+         196	BINARY_OP(arg=11, lineno=427)
+         200	RETURN_VALUE(arg=None, lineno=427)
+2025-12-07 14:36:30,364 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=0 nstack_initial=0)])
+2025-12-07 14:36:30,364 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:30,366 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=0 nstack_initial=0)
+2025-12-07 14:36:30,367 - numba.core.byteflow - DEBUG - dispatch pc=0, inst=NOP(arg=None, lineno=416)
+2025-12-07 14:36:30,369 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:30,370 - numba.core.byteflow - DEBUG - dispatch pc=2, inst=RESUME(arg=0, lineno=416)
+2025-12-07 14:36:30,371 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:30,372 - numba.core.byteflow - DEBUG - dispatch pc=4, inst=LOAD_FAST(arg=0, lineno=419)
+2025-12-07 14:36:30,373 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:30,374 - numba.core.byteflow - DEBUG - dispatch pc=6, inst=LOAD_CONST(arg=1, lineno=419)
+2025-12-07 14:36:30,374 - numba.core.byteflow - DEBUG - stack ['$x4.0']
+2025-12-07 14:36:30,375 - numba.core.byteflow - DEBUG - dispatch pc=8, inst=BINARY_SUBSCR(arg=None, lineno=419)
+2025-12-07 14:36:30,375 - numba.core.byteflow - DEBUG - stack ['$x4.0', '$const6.1.1']
+2025-12-07 14:36:30,376 - numba.core.byteflow - DEBUG - dispatch pc=18, inst=LOAD_FAST(arg=0, lineno=419)
+2025-12-07 14:36:30,377 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2']
+2025-12-07 14:36:30,377 - numba.core.byteflow - DEBUG - dispatch pc=20, inst=LOAD_CONST(arg=2, lineno=419)
+2025-12-07 14:36:30,378 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$x18.3']
+2025-12-07 14:36:30,379 - numba.core.byteflow - DEBUG - dispatch pc=22, inst=BINARY_SUBSCR(arg=None, lineno=419)
+2025-12-07 14:36:30,380 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$x18.3', '$const20.4.2']
+2025-12-07 14:36:30,381 - numba.core.byteflow - DEBUG - dispatch pc=32, inst=BINARY_OP(arg=0, lineno=419)
+2025-12-07 14:36:30,381 - numba.core.byteflow - DEBUG - stack ['$8binary_subscr.2', '$22binary_subscr.5']
+2025-12-07 14:36:30,382 - numba.core.byteflow - DEBUG - dispatch pc=36, inst=LOAD_CONST(arg=3, lineno=419)
+2025-12-07 14:36:30,383 - numba.core.byteflow - DEBUG - stack ['$binop_add32.6']
+2025-12-07 14:36:30,386 - numba.core.byteflow - DEBUG - dispatch pc=38, inst=LOAD_FAST(arg=0, lineno=419)
+2025-12-07 14:36:30,387 - numba.core.byteflow - DEBUG - stack ['$binop_add32.6', '$const36.7.3']
+2025-12-07 14:36:30,388 - numba.core.byteflow - DEBUG - dispatch pc=40, inst=LOAD_CONST(arg=4, lineno=419)
+2025-12-07 14:36:30,388 - numba.core.byteflow - DEBUG - stack ['$binop_add32.6', '$const36.7.3', '$x38.8']
+2025-12-07 14:36:30,390 - numba.core.byteflow - DEBUG - dispatch pc=42, inst=BINARY_SUBSCR(arg=None, lineno=419)
+2025-12-07 14:36:30,391 - numba.core.byteflow - DEBUG - stack ['$binop_add32.6', '$const36.7.3', '$x38.8', '$const40.9.4']
+2025-12-07 14:36:30,392 - numba.core.byteflow - DEBUG - dispatch pc=52, inst=BINARY_OP(arg=5, lineno=419)
+2025-12-07 14:36:30,392 - numba.core.byteflow - DEBUG - stack ['$binop_add32.6', '$const36.7.3', '$42binary_subscr.10']
+2025-12-07 14:36:30,393 - numba.core.byteflow - DEBUG - dispatch pc=56, inst=BINARY_OP(arg=10, lineno=419)
+2025-12-07 14:36:30,394 - numba.core.byteflow - DEBUG - stack ['$binop_add32.6', '$binop_mul52.11']
+2025-12-07 14:36:30,395 - numba.core.byteflow - DEBUG - dispatch pc=60, inst=STORE_FAST(arg=1, lineno=419)
+2025-12-07 14:36:30,395 - numba.core.byteflow - DEBUG - stack ['$binop_sub56.12']
+2025-12-07 14:36:30,396 - numba.core.byteflow - DEBUG - dispatch pc=62, inst=LOAD_FAST(arg=0, lineno=420)
+2025-12-07 14:36:30,403 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:30,404 - numba.core.byteflow - DEBUG - dispatch pc=64, inst=LOAD_CONST(arg=1, lineno=420)
+2025-12-07 14:36:30,407 - numba.core.byteflow - DEBUG - stack ['$x62.13']
+2025-12-07 14:36:30,408 - numba.core.byteflow - DEBUG - dispatch pc=66, inst=BINARY_SUBSCR(arg=None, lineno=420)
+2025-12-07 14:36:30,409 - numba.core.byteflow - DEBUG - stack ['$x62.13', '$const64.14.1']
+2025-12-07 14:36:30,410 - numba.core.byteflow - DEBUG - dispatch pc=76, inst=LOAD_FAST(arg=0, lineno=420)
+2025-12-07 14:36:30,411 - numba.core.byteflow - DEBUG - stack ['$66binary_subscr.15']
+2025-12-07 14:36:30,411 - numba.core.byteflow - DEBUG - dispatch pc=78, inst=LOAD_CONST(arg=2, lineno=420)
+2025-12-07 14:36:30,412 - numba.core.byteflow - DEBUG - stack ['$66binary_subscr.15', '$x76.16']
+2025-12-07 14:36:30,413 - numba.core.byteflow - DEBUG - dispatch pc=80, inst=BINARY_SUBSCR(arg=None, lineno=420)
+2025-12-07 14:36:30,413 - numba.core.byteflow - DEBUG - stack ['$66binary_subscr.15', '$x76.16', '$const78.17.2']
+2025-12-07 14:36:30,414 - numba.core.byteflow - DEBUG - dispatch pc=90, inst=BINARY_OP(arg=10, lineno=420)
+2025-12-07 14:36:30,414 - numba.core.byteflow - DEBUG - stack ['$66binary_subscr.15', '$80binary_subscr.18']
+2025-12-07 14:36:30,415 - numba.core.byteflow - DEBUG - dispatch pc=94, inst=LOAD_CONST(arg=3, lineno=420)
+2025-12-07 14:36:30,416 - numba.core.byteflow - DEBUG - stack ['$binop_sub90.19']
+2025-12-07 14:36:30,416 - numba.core.byteflow - DEBUG - dispatch pc=96, inst=BINARY_OP(arg=11, lineno=420)
+2025-12-07 14:36:30,417 - numba.core.byteflow - DEBUG - stack ['$binop_sub90.19', '$const94.20.3']
+2025-12-07 14:36:30,417 - numba.core.byteflow - DEBUG - dispatch pc=100, inst=STORE_FAST(arg=2, lineno=420)
+2025-12-07 14:36:30,418 - numba.core.byteflow - DEBUG - stack ['$binop_truediv96.21']
+2025-12-07 14:36:30,419 - numba.core.byteflow - DEBUG - dispatch pc=102, inst=LOAD_GLOBAL(arg=1, lineno=422)
+2025-12-07 14:36:30,420 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:30,421 - numba.core.byteflow - DEBUG - dispatch pc=114, inst=LOAD_ATTR(arg=1, lineno=422)
+2025-12-07 14:36:30,423 - numba.core.byteflow - DEBUG - stack ['$null$102.23', '$102load_global.22']
+2025-12-07 14:36:30,424 - numba.core.byteflow - DEBUG - dispatch pc=124, inst=LOAD_FAST(arg=2, lineno=422)
+2025-12-07 14:36:30,425 - numba.core.byteflow - DEBUG - stack ['$null$102.23', '$114load_attr.24']
+2025-12-07 14:36:30,425 - numba.core.byteflow - DEBUG - dispatch pc=126, inst=PRECALL(arg=1, lineno=422)
+2025-12-07 14:36:30,427 - numba.core.byteflow - DEBUG - stack ['$null$102.23', '$114load_attr.24', '$b124.25']
+2025-12-07 14:36:30,428 - numba.core.byteflow - DEBUG - dispatch pc=130, inst=CALL(arg=1, lineno=422)
+2025-12-07 14:36:30,428 - numba.core.byteflow - DEBUG - stack ['$null$102.23', '$114load_attr.24', '$b124.25']
+2025-12-07 14:36:30,429 - numba.core.byteflow - DEBUG - dispatch pc=140, inst=LOAD_GLOBAL(arg=1, lineno=422)
+2025-12-07 14:36:30,430 - numba.core.byteflow - DEBUG - stack ['$130call.26']
+2025-12-07 14:36:30,431 - numba.core.byteflow - DEBUG - dispatch pc=152, inst=LOAD_ATTR(arg=1, lineno=422)
+2025-12-07 14:36:30,431 - numba.core.byteflow - DEBUG - stack ['$130call.26', '$null$140.28', '$140load_global.27']
+2025-12-07 14:36:30,432 - numba.core.byteflow - DEBUG - dispatch pc=162, inst=LOAD_FAST(arg=1, lineno=422)
+2025-12-07 14:36:30,433 - numba.core.byteflow - DEBUG - stack ['$130call.26', '$null$140.28', '$152load_attr.29']
+2025-12-07 14:36:30,433 - numba.core.byteflow - DEBUG - dispatch pc=164, inst=PRECALL(arg=1, lineno=422)
+2025-12-07 14:36:30,434 - numba.core.byteflow - DEBUG - stack ['$130call.26', '$null$140.28', '$152load_attr.29', '$a162.30']
+2025-12-07 14:36:30,434 - numba.core.byteflow - DEBUG - dispatch pc=168, inst=CALL(arg=1, lineno=422)
+2025-12-07 14:36:30,435 - numba.core.byteflow - DEBUG - stack ['$130call.26', '$null$140.28', '$152load_attr.29', '$a162.30']
+2025-12-07 14:36:30,435 - numba.core.byteflow - DEBUG - dispatch pc=178, inst=COMPARE_OP(arg=5, lineno=422)
+2025-12-07 14:36:30,436 - numba.core.byteflow - DEBUG - stack ['$130call.26', '$168call.31']
+2025-12-07 14:36:30,436 - numba.core.byteflow - DEBUG - dispatch pc=184, inst=POP_JUMP_FORWARD_IF_FALSE(arg=2, lineno=422)
+2025-12-07 14:36:30,437 - numba.core.byteflow - DEBUG - stack ['$178compare_op.32']
+2025-12-07 14:36:30,439 - numba.core.byteflow - DEBUG - end state. edges=[Edge(pc=186, stack=(), blockstack=(), npush=0), Edge(pc=190, stack=(), blockstack=(), npush=0)]
+2025-12-07 14:36:30,440 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=186 nstack_initial=0), State(pc_initial=190 nstack_initial=0)])
+2025-12-07 14:36:30,441 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:30,441 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=186 nstack_initial=0)
+2025-12-07 14:36:30,442 - numba.core.byteflow - DEBUG - dispatch pc=186, inst=LOAD_CONST(arg=4, lineno=425)
+2025-12-07 14:36:30,443 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:30,443 - numba.core.byteflow - DEBUG - dispatch pc=188, inst=RETURN_VALUE(arg=None, lineno=425)
+2025-12-07 14:36:30,444 - numba.core.byteflow - DEBUG - stack ['$const186.0.4']
+2025-12-07 14:36:30,445 - numba.core.byteflow - DEBUG - end state. edges=[]
+2025-12-07 14:36:30,446 - numba.core.byteflow - DEBUG - pending: deque([State(pc_initial=190 nstack_initial=0)])
+2025-12-07 14:36:30,446 - numba.core.byteflow - DEBUG - stack: []
+2025-12-07 14:36:30,448 - numba.core.byteflow - DEBUG - state.pc_initial: State(pc_initial=190 nstack_initial=0)
+2025-12-07 14:36:30,449 - numba.core.byteflow - DEBUG - dispatch pc=190, inst=LOAD_FAST(arg=2, lineno=427)
+2025-12-07 14:36:30,449 - numba.core.byteflow - DEBUG - stack []
+2025-12-07 14:36:30,450 - numba.core.byteflow - DEBUG - dispatch pc=192, inst=UNARY_NEGATIVE(arg=None, lineno=427)
+2025-12-07 14:36:30,450 - numba.core.byteflow - DEBUG - stack ['$b190.0']
+2025-12-07 14:36:30,451 - numba.core.byteflow - DEBUG - dispatch pc=194, inst=LOAD_FAST(arg=1, lineno=427)
+2025-12-07 14:36:30,451 - numba.core.byteflow - DEBUG - stack ['$192unary_negative.1']
+2025-12-07 14:36:30,452 - numba.core.byteflow - DEBUG - dispatch pc=196, inst=BINARY_OP(arg=11, lineno=427)
+2025-12-07 14:36:30,452 - numba.core.byteflow - DEBUG - stack ['$192unary_negative.1', '$a194.2']
+2025-12-07 14:36:30,453 - numba.core.byteflow - DEBUG - dispatch pc=200, inst=RETURN_VALUE(arg=None, lineno=427)
+2025-12-07 14:36:30,454 - numba.core.byteflow - DEBUG - stack ['$binop_truediv196.3']
+2025-12-07 14:36:30,455 - numba.core.byteflow - DEBUG - end state. edges=[]
+2025-12-07 14:36:30,456 - numba.core.byteflow - DEBUG - -------------------------Prune PHIs-------------------------
+2025-12-07 14:36:30,457 - numba.core.byteflow - DEBUG - Used_phis: defaultdict(<class 'set'>,
+            {State(pc_initial=0 nstack_initial=0): set(),
+             State(pc_initial=186 nstack_initial=0): set(),
+             State(pc_initial=190 nstack_initial=0): set()})
+2025-12-07 14:36:30,459 - numba.core.byteflow - DEBUG - defmap: {}
+2025-12-07 14:36:30,461 - numba.core.byteflow - DEBUG - phismap: defaultdict(<class 'set'>, {})
+2025-12-07 14:36:30,463 - numba.core.byteflow - DEBUG - changing phismap: defaultdict(<class 'set'>, {})
+2025-12-07 14:36:30,463 - numba.core.byteflow - DEBUG - keep phismap: {}
+2025-12-07 14:36:30,464 - numba.core.byteflow - DEBUG - new_out: defaultdict(<class 'dict'>, {})
+2025-12-07 14:36:30,465 - numba.core.byteflow - DEBUG - ----------------------DONE Prune PHIs-----------------------
+2025-12-07 14:36:30,465 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=0 nstack_initial=0):
+AdaptBlockInfo(insts=((0, {}), (2, {}), (4, {'res': '$x4.0'}), (6, {'res': '$const6.1.1'}), (8, {'index': '$const6.1.1', 'target': '$x4.0', 'res': '$8binary_subscr.2'}), (10, {}), (12, {}), (14, {}), (16, {}), (18, {'res': '$x18.3'}), (20, {'res': '$const20.4.2'}), (22, {'index': '$const20.4.2', 'target': '$x18.3', 'res': '$22binary_subscr.5'}), (24, {}), (26, {}), (28, {}), (30, {}), (32, {'op': '+', 'lhs': '$8binary_subscr.2', 'rhs': '$22binary_subscr.5', 'res': '$binop_add32.6'}), (34, {}), (36, {'res': '$const36.7.3'}), (38, {'res': '$x38.8'}), (40, {'res': '$const40.9.4'}), (42, {'index': '$const40.9.4', 'target': '$x38.8', 'res': '$42binary_subscr.10'}), (44, {}), (46, {}), (48, {}), (50, {}), (52, {'op': '*', 'lhs': '$const36.7.3', 'rhs': '$42binary_subscr.10', 'res': '$binop_mul52.11'}), (54, {}), (56, {'op': '-', 'lhs': '$binop_add32.6', 'rhs': '$binop_mul52.11', 'res': '$binop_sub56.12'}), (58, {}), (60, {'value': '$binop_sub56.12'}), (62, {'res': '$x62.13'}), (64, {'res': '$const64.14.1'}), (66, {'index': '$const64.14.1', 'target': '$x62.13', 'res': '$66binary_subscr.15'}), (68, {}), (70, {}), (72, {}), (74, {}), (76, {'res': '$x76.16'}), (78, {'res': '$const78.17.2'}), (80, {'index': '$const78.17.2', 'target': '$x76.16', 'res': '$80binary_subscr.18'}), (82, {}), (84, {}), (86, {}), (88, {}), (90, {'op': '-', 'lhs': '$66binary_subscr.15', 'rhs': '$80binary_subscr.18', 'res': '$binop_sub90.19'}), (92, {}), (94, {'res': '$const94.20.3'}), (96, {'op': '/', 'lhs': '$binop_sub90.19', 'rhs': '$const94.20.3', 'res': '$binop_truediv96.21'}), (98, {}), (100, {'value': '$binop_truediv96.21'}), (102, {'idx': 0, 'res': '$102load_global.22'}), (104, {}), (106, {}), (108, {}), (110, {}), (112, {}), (114, {'item': '$102load_global.22', 'res': '$114load_attr.24'}), (116, {}), (118, {}), (120, {}), (122, {}), (124, {'res': '$b124.25'}), (126, {}), (128, {}), (130, {'func': '$114load_attr.24', 'args': ['$b124.25'], 'kw_names': None, 'res': '$130call.26'}), (132, {}), (134, {}), (136, {}), (138, {}), (140, {'idx': 0, 'res': '$140load_global.27'}), (142, {}), (144, {}), (146, {}), (148, {}), (150, {}), (152, {'item': '$140load_global.27', 'res': '$152load_attr.29'}), (154, {}), (156, {}), (158, {}), (160, {}), (162, {'res': '$a162.30'}), (164, {}), (166, {}), (168, {'func': '$152load_attr.29', 'args': ['$a162.30'], 'kw_names': None, 'res': '$168call.31'}), (170, {}), (172, {}), (174, {}), (176, {}), (178, {'lhs': '$130call.26', 'rhs': '$168call.31', 'res': '$178compare_op.32'}), (180, {}), (182, {}), (184, {'pred': '$178compare_op.32'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={186: (), 190: ()})
+2025-12-07 14:36:30,467 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=186 nstack_initial=0):
+AdaptBlockInfo(insts=((186, {'res': '$const186.0.4'}), (188, {'retval': '$const186.0.4', 'castval': '$188return_value.1'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={})
+2025-12-07 14:36:30,467 - numba.core.byteflow - DEBUG - block_infos State(pc_initial=190 nstack_initial=0):
+AdaptBlockInfo(insts=((190, {'res': '$b190.0'}), (192, {'value': '$b190.0', 'res': '$192unary_negative.1'}), (194, {'res': '$a194.2'}), (196, {'op': '/', 'lhs': '$192unary_negative.1', 'rhs': '$a194.2', 'res': '$binop_truediv196.3'}), (198, {}), (200, {'retval': '$binop_truediv196.3', 'castval': '$200return_value.4'})), outgoing_phis={}, blockstack=(), active_try_block=None, outgoing_edgepushed={})
+2025-12-07 14:36:30,470 - numba.core.interpreter - DEBUG - label 0:
+    x = arg(0, name=x)                       ['x']
+    $const6.1.1 = const(int, 1)              ['$const6.1.1']
+    $8binary_subscr.2 = getitem(value=x, index=$const6.1.1, fn=<built-in function getitem>) ['$8binary_subscr.2', '$const6.1.1', 'x']
+    $const20.4.2 = const(int, -1)            ['$const20.4.2']
+    $22binary_subscr.5 = getitem(value=x, index=$const20.4.2, fn=<built-in function getitem>) ['$22binary_subscr.5', '$const20.4.2', 'x']
+    $binop_add32.6 = $8binary_subscr.2 + $22binary_subscr.5 ['$22binary_subscr.5', '$8binary_subscr.2', '$binop_add32.6']
+    $const36.7.3 = const(int, 2)             ['$const36.7.3']
+    $const40.9.4 = const(int, 0)             ['$const40.9.4']
+    $42binary_subscr.10 = getitem(value=x, index=$const40.9.4, fn=<built-in function getitem>) ['$42binary_subscr.10', '$const40.9.4', 'x']
+    $binop_mul52.11 = $const36.7.3 * $42binary_subscr.10 ['$42binary_subscr.10', '$binop_mul52.11', '$const36.7.3']
+    a = $binop_add32.6 - $binop_mul52.11     ['$binop_add32.6', '$binop_mul52.11', 'a']
+    $const64.14.1 = const(int, 1)            ['$const64.14.1']
+    $66binary_subscr.15 = getitem(value=x, index=$const64.14.1, fn=<built-in function getitem>) ['$66binary_subscr.15', '$const64.14.1', 'x']
+    $const78.17.2 = const(int, -1)           ['$const78.17.2']
+    $80binary_subscr.18 = getitem(value=x, index=$const78.17.2, fn=<built-in function getitem>) ['$80binary_subscr.18', '$const78.17.2', 'x']
+    $binop_sub90.19 = $66binary_subscr.15 - $80binary_subscr.18 ['$66binary_subscr.15', '$80binary_subscr.18', '$binop_sub90.19']
+    $const94.20.3 = const(int, 2)            ['$const94.20.3']
+    b = $binop_sub90.19 / $const94.20.3      ['$binop_sub90.19', '$const94.20.3', 'b']
+    $102load_global.22 = global(np: <module 'numpy' from 'C:\\Users\\onyan\\octavia\\octavia\\backend\\venv\\Lib\\site-packages\\numpy\\__init__.py'>) ['$102load_global.22']
+    $114load_attr.24 = getattr(value=$102load_global.22, attr=abs) ['$102load_global.22', '$114load_attr.24']
+    $130call.26 = call $114load_attr.24(b, func=$114load_attr.24, args=[Var(b, pitch.py:420)], kws=(), vararg=None, varkwarg=None, target=None) ['$114load_attr.24', '$130call.26', 'b']
+    $140load_global.27 = global(np: <module 'numpy' from 'C:\\Users\\onyan\\octavia\\octavia\\backend\\venv\\Lib\\site-packages\\numpy\\__init__.py'>) ['$140load_global.27']
+    $152load_attr.29 = getattr(value=$140load_global.27, attr=abs) ['$140load_global.27', '$152load_attr.29']
+    $168call.31 = call $152load_attr.29(a, func=$152load_attr.29, args=[Var(a, pitch.py:419)], kws=(), vararg=None, varkwarg=None, target=None) ['$152load_attr.29', '$168call.31', 'a']
+    $178compare_op.32 = $130call.26 >= $168call.31 ['$130call.26', '$168call.31', '$178compare_op.32']
+    $bool184 = global(bool: <class 'bool'>)  ['$bool184']
+    $184pred = call $bool184($178compare_op.32, func=$bool184, args=(Var($178compare_op.32, pitch.py:422),), kws=(), vararg=None, varkwarg=None, target=None) ['$178compare_op.32', '$184pred', '$bool184']
+    branch $184pred, 186, 190                ['$184pred']
+label 186:
+    $const186.0.4 = const(int, 0)            ['$const186.0.4']
+    $188return_value.1 = cast(value=$const186.0.4) ['$188return_value.1', '$const186.0.4']
+    return $188return_value.1                ['$188return_value.1']
+label 190:
+    $192unary_negative.1 = unary(fn=<built-in function neg>, value=b) ['$192unary_negative.1', 'b']
+    $binop_truediv196.3 = $192unary_negative.1 / a ['$192unary_negative.1', '$binop_truediv196.3', 'a']
+    $200return_value.4 = cast(value=$binop_truediv196.3) ['$200return_value.4', '$binop_truediv196.3']
+    return $200return_value.4                ['$200return_value.4']
+
+2025-12-07 14:36:38,393 - matplotlib - DEBUG - matplotlib data path: C:\Users\onyan\octavia\octavia\backend\venv\Lib\site-packages\matplotlib\mpl-data
+2025-12-07 14:36:38,459 - matplotlib - DEBUG - CONFIGDIR=C:\Users\onyan\.matplotlib
+2025-12-07 14:36:38,462 - matplotlib - DEBUG - interactive is False
+2025-12-07 14:36:38,463 - matplotlib - DEBUG - platform is win32
+2025-12-07 14:36:38,594 - matplotlib - DEBUG - CACHEDIR=C:\Users\onyan\.matplotlib
+2025-12-07 14:36:38,637 - matplotlib.font_manager - DEBUG - Using fontManager instance from C:\Users\onyan\.matplotlib\fontlist-v390.json
+2025-12-07 14:36:40,649 - matplotlib.pyplot - DEBUG - Loaded backend Agg version v2.2.

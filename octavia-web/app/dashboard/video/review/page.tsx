@@ -1,131 +1,341 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Play, RefreshCw, Timer, Save, Sparkles, Download } from "lucide-react";
+import { RefreshCw, Download, AlertCircle, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
 export default function VideoReviewPage() {
+    const searchParams = useSearchParams();
+    const jobId = searchParams.get('jobId');
+    const { toast } = useToast();
+
+    const [jobStatus, setJobStatus] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const getToken = (): string | null => {
+        if (typeof window === 'undefined') return null;
+        const userStr = localStorage.getItem('octavia_user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                return user.token || null;
+            } catch (error) {
+                return null;
+            }
+        }
+        return null;
+    };
+
+    const fetchJobStatus = async () => {
+        if (!jobId) {
+            setError("No job ID provided");
+            setLoading(false);
+            return;
+        }
+
+        const token = getToken();
+        if (!token) {
+            setError("Authentication required");
+            setLoading(false);
+            return;
+        }
+
+        try {
+            // Try the main status endpoint
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/jobs/${jobId}/status`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+
+            if (!response.ok) {
+                // Try the translation routes endpoint
+                const altResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/translate/jobs/${jobId}/status`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                
+                if (!altResponse.ok) {
+                    throw new Error(`Failed to fetch job status: ${response.status}`);
+                }
+                
+                const altData = await altResponse.json();
+                setJobStatus(altData.data || altData);
+                
+                // Check if completed and try to download
+                if (altData.data?.status === 'completed' || altData.status === 'completed') {
+                    await downloadVideo(jobId, token);
+                }
+                return;
+            }
+
+            const data = await response.json();
+            console.log('Job status:', data);
+            setJobStatus(data.data || data);
+
+            // If job is completed, try to download the video
+            if ((data.data?.status === 'completed' || data.status === 'completed') && !videoUrl) {
+                await downloadVideo(jobId, token);
+            }
+
+        } catch (err: any) {
+            console.error('Error:', err);
+            setError(err.message || "Failed to load translation status");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const downloadVideo = async (jobId: string, token: string) => {
+        console.log('Trying to download video for job:', jobId);
+        
+        // Try multiple endpoints
+        const endpoints = [
+            `/api/download/video/${jobId}`,
+            `/api/download/${jobId}`,
+            `/api/translate/download/video/${jobId}`,
+        ];
+
+        for (const endpoint of endpoints) {
+            try {
+                const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${endpoint}`;
+                console.log('Trying:', url);
+                
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    console.log('Success! Blob size:', blob.size);
+                    
+                    if (blob.size > 0) {
+                        const objectUrl = URL.createObjectURL(blob);
+                        setVideoUrl(objectUrl);
+                        console.log('Video loaded successfully');
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.log(`Endpoint ${endpoint} failed:`, err);
+            }
+        }
+        
+        console.log('All download attempts failed');
+        return false;
+    };
+
+    // Cleanup video URL on unmount
+    useEffect(() => {
+        return () => {
+            if (videoUrl && videoUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(videoUrl);
+            }
+        };
+    }, [videoUrl]);
+
+    // Poll for job status
+    useEffect(() => {
+        fetchJobStatus();
+
+        // Poll every 3 seconds if not completed
+        const interval = setInterval(() => {
+            if (!videoUrl && !error) {
+                fetchJobStatus();
+            }
+        }, 3000);
+
+        return () => clearInterval(interval);
+    }, [jobId]);
+
+    const handleDownload = () => {
+        if (videoUrl) {
+            const link = document.createElement('a');
+            link.href = videoUrl;
+            link.download = `translated_video_${jobId}.mp4`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            toast({
+                title: "Download started",
+                description: "Your video is being downloaded.",
+            });
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary-purple" />
+                    <p className="text-slate-400">Loading video translation...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="space-y-8">
+                <div className="glass-panel border-red-500/30 bg-red-500/10 p-8 text-center">
+                    <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-white mb-2">Error</h2>
+                    <p className="text-red-400 mb-4">{error}</p>
+                    <button
+                        onClick={() => window.history.back()}
+                        className="px-4 py-2 bg-red-500/20 border border-red-500/30 text-red-400 rounded hover:bg-red-500/30 transition-colors"
+                    >
+                        Go Back
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const isProcessing = jobStatus?.status === 'processing' || jobStatus?.status === 'pending';
+
+    if (isProcessing) {
+        return (
+            <div className="space-y-8">
+                <div className="glass-panel p-8 text-center">
+                    <RefreshCw className="w-16 h-16 text-blue-400 mx-auto mb-4 animate-spin" />
+                    <h2 className="text-xl font-bold text-white mb-2">Processing Video Translation</h2>
+                    <p className="text-slate-400 mb-4">
+                        {jobStatus?.progress 
+                            ? `Processing... ${jobStatus.progress}% complete`
+                            : 'Your video is being translated...'
+                        }
+                    </p>
+                    {jobStatus?.progress !== undefined && (
+                        <div className="w-full max-w-md mx-auto">
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                                <motion.div
+                                    className="h-full bg-gradient-to-r from-primary-purple to-primary-purple-bright"
+                                    initial={{ width: "0%" }}
+                                    animate={{ width: `${jobStatus.progress}%` }}
+                                    transition={{ duration: 0.5 }}
+                                />
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2">{jobStatus.progress}% complete</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col lg:flex-row gap-8">
-                {/* Left Column: Video Player */}
+                {/* Video Player */}
                 <div className="flex-1 flex flex-col gap-4">
                     <div className="glass-panel p-1">
-                        <div className="relative flex items-center justify-center bg-black bg-cover bg-center aspect-video rounded-lg overflow-hidden group">
-                            {/* Placeholder Background */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-black" />
+                        {videoUrl ? (
+                            <video
+                                controls
+                                autoPlay
+                                className="w-full aspect-video rounded-lg bg-black"
+                                src={videoUrl}
+                            >
+                                Your browser does not support the video tag.
+                            </video>
+                        ) : (
+                            <div className="relative flex items-center justify-center bg-black bg-cover bg-center aspect-video rounded-lg overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-black" />
+                                <div className="relative z-10 text-center p-8">
+                                    <AlertCircle className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+                                    <h2 className="text-white text-xl font-bold mb-2">Video Translation Complete</h2>
+                                    <p className="text-slate-400 mb-4">Your video has been translated successfully.</p>
+                                    <p className="text-slate-500 text-sm">Use the download button to get your video.</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
-                            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors" />
-
-                            <button className="relative z-10 flex shrink-0 items-center justify-center rounded-full size-16 bg-white/10 text-white backdrop-blur-md border border-white/20 hover:scale-110 transition-all shadow-glow">
-                                <Play className="w-8 h-8 fill-current ml-1" />
-                            </button>
-
-                            {/* Controls Overlay */}
-                            <div className="absolute inset-x-0 bottom-0 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent">
-                                <div className="flex h-1 items-center justify-center gap-0 mb-2 cursor-pointer group/timeline">
-                                    <div className="h-1 flex-1 rounded-l-full bg-primary-purple shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-                                    <div className="relative">
-                                        <div className="size-3 rounded-full bg-white ring-4 ring-primary-purple/30 scale-0 group-hover/timeline:scale-100 transition-transform" />
+                    {/* Job Info */}
+                    {jobStatus && (
+                        <div className="glass-card p-4">
+                            <h3 className="text-white font-bold mb-2">Translation Details</h3>
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Job ID:</span>
+                                    <span className="text-white font-mono">{jobId}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-slate-400">Status:</span>
+                                    <span className="text-green-400">Completed</span>
+                                </div>
+                                {jobStatus.target_language && (
+                                    <div className="flex justify-between">
+                                        <span className="text-slate-400">Language:</span>
+                                        <span className="text-white">{jobStatus.target_language.toUpperCase()}</span>
                                     </div>
-                                    <div className="h-1 flex-[3] rounded-r-full bg-white/20" />
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <p className="text-white text-xs font-medium tracking-wide">0:37</p>
-                                    <p className="text-slate-300 text-xs font-medium tracking-wide">2:23</p>
-                                </div>
+                                )}
                             </div>
                         </div>
-                    </div>
-
-                    {/* Preview Controls */}
-                    <div className="flex p-1 bg-white/5 rounded-lg border border-white/10">
-                        <label className="flex-1 cursor-pointer">
-                            <input type="radio" name="preview-mode" value="full" className="peer sr-only" defaultChecked />
-                            <div className="flex items-center justify-center py-2 rounded-md text-sm font-medium text-slate-400 peer-checked:bg-primary-purple/20 peer-checked:text-white peer-checked:shadow-sm transition-all">
-                                Full Preview
-                            </div>
-                        </label>
-                        <label className="flex-1 cursor-pointer">
-                            <input type="radio" name="preview-mode" value="spot1" className="peer sr-only" />
-                            <div className="flex items-center justify-center py-2 rounded-md text-sm font-medium text-slate-400 peer-checked:bg-primary-purple/20 peer-checked:text-white peer-checked:shadow-sm transition-all">
-                                Check Spot 1
-                            </div>
-                        </label>
-                        <label className="flex-1 cursor-pointer">
-                            <input type="radio" name="preview-mode" value="spot2" className="peer sr-only" />
-                            <div className="flex items-center justify-center py-2 rounded-md text-sm font-medium text-slate-400 peer-checked:bg-primary-purple/20 peer-checked:text-white peer-checked:shadow-sm transition-all">
-                                Check Spot 2
-                            </div>
-                        </label>
-                    </div>
+                    )}
                 </div>
 
-                {/* Right Column: Stats & Actions */}
+                {/* Right Column */}
                 <div className="w-full lg:w-96 flex flex-col gap-6">
                     <div className="flex flex-col gap-2">
-                        <h1 className="font-display text-3xl font-black text-white text-glow-purple">Your Translation is Ready!</h1>
-                        <p className="text-slate-400 text-sm">Review the results and download your video.</p>
+                        <h1 className="font-display text-3xl font-black text-white text-glow-purple">
+                            {videoUrl ? 'Your Video is Ready!' : 'Translation Complete'}
+                        </h1>
+                        <p className="text-slate-400 text-sm">
+                            {videoUrl 
+                                ? 'Watch your translated video below and download it.' 
+                                : 'Your video has been processed. Download it now.'}
+                        </p>
                     </div>
 
-                    {/* Stats Grid */}
-                    <div className="flex flex-col gap-3">
-                        <div className="glass-card p-4 flex items-center gap-4">
-                            <div className="flex size-10 items-center justify-center rounded-full bg-green-500/20 text-green-400 shadow-glow">
-                                <RefreshCw className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Sync</p>
-                                <p className="text-white text-lg font-bold">98% Match</p>
-                            </div>
-                        </div>
-                        <div className="glass-card p-4 flex items-center gap-4">
-                            <div className="flex size-10 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 shadow-glow">
-                                <Timer className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Duration</p>
-                                <p className="text-white text-lg font-bold">Exact Match</p>
-                            </div>
-                        </div>
-                        <div className="glass-card p-4 flex items-center gap-4">
-                            <div className="flex size-10 items-center justify-center rounded-full bg-purple-500/20 text-purple-400 shadow-glow">
-                                <Save className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Size</p>
-                                <p className="text-white text-lg font-bold">Optimized</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col gap-4">
-                        <button className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary-purple/30 bg-primary-purple/10 text-primary-purple-bright font-bold hover:bg-primary-purple/20 hover:border-primary-purple/50 transition-all group">
-                            <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                            AI Refine (e.g. 'Softer voice?')
-                        </button>
-
-                        <div className="pt-4 border-t border-white/10 flex flex-col gap-4">
-                            <button className="btn-border-beam w-full group">
-                                <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-3">
-                                    <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
-                                    <span>Download MP4</span>
+                    {/* Download Section */}
+                    <div className="glass-card p-6">
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex size-10 items-center justify-center rounded-full bg-green-500/20 text-green-400 shadow-glow">
+                                    <RefreshCw className="w-5 h-5" />
                                 </div>
-                            </button>
-                            <label className="flex items-center gap-3 cursor-pointer group">
-                                <input type="checkbox" className="form-checkbox rounded border-white/20 bg-white/5 text-primary-purple focus:ring-primary-purple focus:ring-offset-0 size-4 group-hover:border-primary-purple/50 transition-colors" />
-                                <span className="text-sm text-slate-400 group-hover:text-white transition-colors">Include original files in .zip</span>
-                            </label>
+                                <div>
+                                    <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Status</p>
+                                    <p className="text-white text-lg font-bold">Completed</p>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-white/10">
+                                <button
+                                    onClick={handleDownload}
+                                    disabled={!videoUrl}
+                                    className="w-full py-3 rounded-lg bg-gradient-to-r from-primary-purple to-primary-purple-bright text-white font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Download className="w-5 h-5" />
+                                    Download MP4
+                                </button>
+                                {!videoUrl && (
+                                    <p className="text-xs text-red-400 text-center mt-2">
+                                        Video preview not available. Try downloading directly.
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Feedback */}
-                    <div className="pt-4 border-t border-white/10">
-                        <p className="text-sm font-medium text-slate-300 mb-3">Help us improve: Pacing Feedback</p>
-                        <input type="range" min="1" max="100" defaultValue="50" className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-primary-purple" />
-                        <div className="flex justify-between text-xs text-slate-500 mt-2">
-                            <span>Too Slow</span>
-                            <span>Too Fast</span>
+                    {/* Success Message */}
+                    <div className="glass-card p-4 border-green-500/30 bg-green-500/10">
+                        <div className="flex items-start gap-3">
+                            <div className="mt-0.5">
+                                <div className="w-5 h-5 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                                    <span className="text-green-400 text-xs">✓</span>
+                                </div>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-green-400 text-sm font-medium">Translation Complete!</p>
+                                <p className="text-slate-400 text-xs mt-1">
+                                    Your video has been successfully translated.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

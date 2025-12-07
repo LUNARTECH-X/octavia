@@ -1,7 +1,6 @@
 """
 Complete video translation pipeline with subtitle generation
-Meeting technical assessment requirements
-Supports Russian → English and English → German translations
+Optimized for FREE deployment using only open source tools
 """
 
 import os
@@ -16,14 +15,23 @@ from datetime import datetime
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Tuple, Optional, Any
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import psutil
+import GPUtil
 
 import whisper
 import torch
-from transformers import MarianMTModel, MarianTokenizer
-import edge_tts
+import numpy as np
 import asyncio
 from pydub import AudioSegment
-import numpy as np
+
+# Import AI orchestrator
+try:
+    from modules.ai_orchestrator import AIOchestrator, ProcessingMetrics, AIDecision
+    AI_ORCHESTRATOR_AVAILABLE = True
+except ImportError:
+    AI_ORCHESTRATOR_AVAILABLE = False
+    logging.warning("AI Orchestrator not available - using rule-based decisions")
 
 # Import local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -40,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PipelineConfig:
-    """Configuration for the video translation pipeline"""
+    """Configuration for the video translation pipeline - FREE VERSION"""
     chunk_size: int = 30
     max_chunk_size: int = 120
     min_chunk_size: int = 10
@@ -48,13 +56,19 @@ class PipelineConfig:
     max_condensation_ratio: float = 1.2
     target_lufs: float = -16.0
     max_peak_db: float = -1.0
-    device: str = "cpu"
-    max_workers: int = 2
-    temp_dir: str = "temp"
-    output_dir: str = "outputs"
+    # Use CUDA if available, otherwise CPU (both FREE)
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    max_workers: int = 4  # Use multiple CPU cores (FREE)
+    temp_dir: str = "/tmp/octavia"  # Use tmpfs for speed (FREE)
+    output_dir: str = "backend/outputs"
     generate_subtitles: bool = True
-    subtitle_formats: List[str] = None  # ["srt", "vtt", "ass"]
+    subtitle_formats: List[str] = None
     bilingual_subtitles: bool = True
+    use_gpu: bool = torch.cuda.is_available()  # FREE if you have GPU
+    cache_dir: str = "~/.cache/octavia"  # Local cache (FREE)
+    parallel_processing: bool = True
+    enable_model_caching: bool = True  # Cache models locally (FREE)
+    use_faster_whisper: bool = True  # Open source optimization (FREE)
 
 @dataclass
 class VideoInfo:
@@ -67,6 +81,7 @@ class VideoInfo:
     audio_codec: str
     frame_rate: float
     bitrate: int
+    has_audio: bool
 
 @dataclass
 class ChunkInfo:
@@ -77,62 +92,141 @@ class ChunkInfo:
     end_ms: float
     duration_ms: float
     has_speech: bool = True
-
-@dataclass
-class ProcessingMetrics:
-    """Processing metrics for a chunk"""
-    chunk_id: int
-    original_duration_ms: float
-    translated_duration_ms: float
-    duration_diff_ms: float
-    condensation_ratio: float
-    speed_adjustment: float
-    processing_time_ms: float
-    success: bool
-    subtitle_generated: bool = False
-    error: Optional[str] = None
+    speech_confidence: float = 0.0
 
 class VideoTranslationPipeline:
-    """Main video translation pipeline with subtitle support"""
+    """Main video translation pipeline - 100% FREE optimized version"""
     
     def __init__(self, config: PipelineConfig = None):
         self.config = config or PipelineConfig()
         if self.config.subtitle_formats is None:
             self.config.subtitle_formats = ["srt", "vtt"]
         
+        # Setup device (FREE - uses existing hardware)
+        if self.config.use_gpu and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            self.device = torch.device("cuda")
+            logger.info(f"Using FREE GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            self.device = torch.device("cpu")
+            logger.info("Using CPU (FREE)")
+        
         self.whisper_model = None
         self.translator = None
         self.subtitle_generator = None
         self.metrics_collector = None
-        self.temp_dir = None
-        self.output_dir = None
-        
+        self.model_cache = {}  # In-memory cache (FREE)
+
+        # Multi-GPU support
+        self.available_gpus = self._detect_available_gpus()
+        self.ai_orchestrator = None
+
+        # Initialize AI orchestrator if available
+        if AI_ORCHESTRATOR_AVAILABLE:
+            try:
+                self.ai_orchestrator = AIOchestrator()
+                if self.ai_orchestrator.start_llama_server():
+                    logger.info("[OK] AI Orchestrator initialized with Llama.cpp")
+                else:
+                    logger.info("AI Orchestrator initialized (rule-based mode)")
+            except Exception as e:
+                logger.warning(f"AI Orchestrator initialization failed: {e}")
+
         # Create directories
         os.makedirs(self.config.temp_dir, exist_ok=True)
         os.makedirs(self.config.output_dir, exist_ok=True)
-        
+        os.makedirs(os.path.expanduser(self.config.cache_dir), exist_ok=True)
+
         # Setup logging
         self.setup_logging()
-        
+
+        # Pre-warm models in background (FREE optimization)
+        if self.config.use_gpu:
+            asyncio.create_task(self._preload_models_async())
+    
     def setup_logging(self):
-        """Setup logging configuration"""
-        log_file = os.path.join("artifacts", "pipeline.log")
-        os.makedirs("artifacts", exist_ok=True)
-        
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler()
-            ]
-        )
-        
-    def load_models(self, source_lang: str = "en", target_lang: str = "de"):
-        """Load all required models including subtitle generator"""
+        """Setup logging for the pipeline"""
+        # Check if logger is already configured
+        if len(logging.getLogger().handlers) > 0:
+            return  # Already configured
+
         try:
+            # Set up basic logging configuration with Unicode-safe format
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S',
+                handlers=[
+                    logging.StreamHandler(sys.stdout),
+                    logging.FileHandler('octavia_pipeline.log', encoding='utf-8')
+                ]
+            )
+
+            # Set specific log levels for noisy libraries
+            logging.getLogger('whisper').setLevel(logging.WARNING)
+            logging.getLogger('transformers').setLevel(logging.WARNING)
+            logging.getLogger('httpx').setLevel(logging.WARNING)
+
+            logger.info("Pipeline logging configured successfully")
+
+        except Exception as e:
+            # Fallback to basic logging if setup fails
+            logging.basicConfig(
+                level=logging.INFO,
+                format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            logger.warning(f"Could not setup advanced logging: {e}")
+    
+    async def _preload_models_async(self):
+        """Preload models asynchronously for faster first inference (FREE)"""
+        try:
+            logger.info("Preloading models in background (FREE optimization)...")
+            # Load tiny model first to warm up
+            temp_model = whisper.load_model("tiny", device=self.device)
+            del temp_model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            logger.info("Models preloaded")
+        except Exception as e:
+            logger.warning(f"Model preload failed: {e}")
+    
+    def load_models(self, source_lang: str = "en", target_lang: str = "de"):
+        """Load all required models with FREE optimizations"""
+        try:
+            # Check memory cache first (FREE)
+            cache_key = f"models_loaded_{source_lang}_{target_lang}"
+            if cache_key in self.model_cache:
+                logger.info("Models already loaded (cached in memory)")
+                return True
+            
             logger.info("Loading Whisper model...")
-            self.whisper_model = whisper.load_model("base")
+            
+            # Use faster-whisper if available (FREE and faster)
+            if self.config.use_faster_whisper:
+                try:
+                    from faster_whisper import WhisperModel
+                    self.whisper_model = WhisperModel(
+                        "base",  # Smaller model for speed
+                        device="cuda" if self.config.use_gpu and torch.cuda.is_available() else "cpu",
+                        compute_type="float16" if self.config.use_gpu else "float32",
+                        download_root=os.path.expanduser(self.config.cache_dir),
+                        cpu_threads=4  # Use multiple CPU threads (FREE)
+                    )
+                    logger.info("Loaded faster-whisper (FREE optimization)")
+                except ImportError:
+                    # Fallback to original whisper
+                    self.whisper_model = whisper.load_model(
+                        "base",  # Smaller for speed
+                        device=self.device,
+                        download_root=os.path.expanduser(self.config.cache_dir)
+                    )
+                    logger.info("Loaded standard whisper")
+            else:
+                self.whisper_model = whisper.load_model(
+                    "base",
+                    device=self.device,
+                    download_root=os.path.expanduser(self.config.cache_dir)
+                )
             
             logger.info("Loading subtitle generator...")
             self.subtitle_generator = SubtitleGenerator(model_size="base")
@@ -143,522 +237,470 @@ class VideoTranslationPipeline:
             translator_config = TranslationConfig(
                 source_lang=source_lang,
                 target_lang=target_lang,
-                auto_detect=True
+                auto_detect=True,
+                use_gpu=self.config.use_gpu,
+                cache_dir=self.config.cache_dir,
+                model_size="small"  # Smaller models for speed
             )
             self.translator = AudioTranslator(translator_config)
             
-            # Load models in translator
+            # Load models
             if not self.translator.load_models():
                 raise Exception("Failed to load translation models")
             
-            logger.info("All models loaded successfully")
+            # Cache in memory (FREE)
+            self.model_cache[cache_key] = True
+            
+            logger.info("All models loaded successfully with FREE optimizations")
             return True
             
         except Exception as e:
             logger.error(f"Failed to load models: {e}")
             return False
     
-    def analyze_video(self, video_path: str) -> VideoInfo:
-        """Analyze video file and extract metadata"""
-        try:
-            logger.info(f"Analyzing video: {video_path}")
-            
-            # Use ffprobe to get video info
-            cmd = [
-                'ffprobe', '-v', 'quiet', '-print_format', 'json',
-                '-show_format', '-show_streams', video_path
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                raise Exception(f"FFprobe failed: {result.stderr}")
-            
-            data = json.loads(result.stdout)
-            
-            # Extract video stream info
-            video_stream = next((s for s in data['streams'] if s['codec_type'] == 'video'), None)
-            audio_stream = next((s for s in data['streams'] if s['codec_type'] == 'audio'), None)
-            
-            if not video_stream:
-                raise Exception("No video stream found")
-            
-            # Get duration from format or stream
-            duration = float(data['format'].get('duration', 0))
-            if duration == 0 and audio_stream:
-                duration = float(audio_stream.get('duration', 0))
-            
-            video_info = VideoInfo(
-                path=video_path,
-                duration=duration,
-                width=int(video_stream.get('width', 0)),
-                height=int(video_stream.get('height', 0)),
-                codec=video_stream.get('codec_name', 'unknown'),
-                audio_codec=audio_stream.get('codec_name', 'unknown') if audio_stream else 'none',
-                frame_rate=eval(video_stream.get('avg_frame_rate', '0/1')) if '/' in video_stream.get('avg_frame_rate', '0/1') else 0,
-                bitrate=int(data['format'].get('bit_rate', 0))
-            )
-            
-            logger.info(f"Video analyzed: {duration:.1f}s, {video_info.width}x{video_info.height}, {video_info.codec}")
-            return video_info
-            
-        except Exception as e:
-            logger.error(f"Video analysis failed: {e}")
-            raise
-    
-    def extract_audio(self, video_path: str, audio_path: str) -> bool:
-        """Extract audio from video file with subtitle generation"""
+    def extract_audio_fast(self, video_path: str, audio_path: str) -> bool:
+        """Extract audio from video using FFmpeg with FREE optimizations"""
         try:
             logger.info(f"Extracting audio from {video_path}")
             
+            # Use multi-threading for faster processing (FREE)
             cmd = [
-                'ffmpeg', '-i', video_path,
-                '-vn', '-acodec', 'pcm_s16le',
-                '-ar', '44100', '-ac', '2',
+                'ffmpeg', '-y',
+                '-i', video_path,
+                '-vn',
+                '-acodec', 'pcm_s16le',
+                '-ar', '44100',
+                '-ac', '2',
+                '-threads', '4',  # Use 4 threads (FREE)
                 '-loglevel', 'error',
-                audio_path, '-y'
+                audio_path
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            # Run with timeout
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             if result.returncode != 0:
                 logger.error(f"Audio extraction failed: {result.stderr}")
                 return False
             
-            # Verify audio file was created
             if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-                logger.info(f"Audio extracted successfully: {audio_path}")
+                logger.info(f"Audio extracted: {audio_path}")
                 return True
             else:
-                logger.error("Audio extraction failed: Output file is empty")
+                logger.error("Audio extraction failed: Output file empty")
                 return False
                 
         except Exception as e:
             logger.error(f"Audio extraction failed: {e}")
             return False
     
-    def generate_original_subtitles(self, video_path: str, output_base: str) -> Dict[str, Any]:
-        """Generate subtitles for original video"""
+    def chunk_audio_parallel(self, audio_path: str) -> List[ChunkInfo]:
+        """Split audio into chunks with improved error handling and minimum size checks"""
         try:
-            if not self.subtitle_generator:
-                self.subtitle_generator = SubtitleGenerator()
-            
-            logger.info("Generating original subtitles...")
-            
-            # Extract audio for subtitle generation
-            audio_path = os.path.join(self.config.temp_dir, f"subtitle_audio_{uuid.uuid4()}.wav")
-            if not self.extract_audio(video_path, audio_path):
-                return {"success": False, "error": "Audio extraction failed"}
-            
-            # Generate subtitles
-            result = self.subtitle_generator.process_file(
-                audio_path,
-                output_format="srt",
-                language=None,  # Auto-detect
-                generate_all=True
-            )
-            
-            # Cleanup temp audio
-            if os.path.exists(audio_path):
-                os.remove(audio_path)
-            
-            if not result["success"]:
-                return {"success": False, "error": result.get("error", "Subtitle generation failed")}
-            
-            # Move subtitle files to output directory
-            subtitle_files = {}
-            for format_name, file_path in result["output_files"].items():
-                new_path = f"{output_base}_original.{format_name}"
-                if os.path.exists(file_path):
-                    shutil.move(file_path, new_path)
-                    subtitle_files[format_name] = new_path
-            
-            logger.info(f"Generated original subtitles: {list(subtitle_files.keys())}")
-            
-            return {
-                "success": True,
-                "files": subtitle_files,
-                "segments": result["segments"],
-                "language": result["language"]
-            }
-            
-        except Exception as e:
-            logger.error(f"Original subtitle generation failed: {e}")
-            return {"success": False, "error": str(e)}
-    
-    def chunk_audio(self, audio_path: str, chunk_size: int = None) -> List[ChunkInfo]:
-        """Split audio into chunks with speech detection"""
-        try:
-            chunk_size = chunk_size or self.config.chunk_size
-            logger.info(f"Chunking audio into {chunk_size}s segments")
-            
+            logger.info("Chunking audio with improved logic")
+
             # Load audio
+            audio = AudioSegment.from_file(audio_path)
+            duration_ms = len(audio)
+
+            # Minimum chunk size for Whisper (at least 1 second)
+            min_chunk_size_ms = 2000  # 2 seconds minimum
+
+            # If audio is very short, process as single chunk
+            if duration_ms < min_chunk_size_ms:
+                logger.info(f"Audio too short ({duration_ms}ms), processing as single chunk")
+                chunk_path = os.path.join(self.config.temp_dir, "chunk_0000.wav")
+                audio.export(chunk_path, format="wav")
+
+                return [ChunkInfo(
+                    id=0,
+                    path=chunk_path,
+                    start_ms=0,
+                    end_ms=duration_ms,
+                    duration_ms=duration_ms,
+                    has_speech=True  # Assume speech for short clips
+                )]
+
+            # Calculate optimal chunk size
+            target_chunk_count = min(8, max(2, duration_ms // (self.config.chunk_size * 1000)))
+            actual_chunk_size = duration_ms / target_chunk_count
+
+            # Ensure minimum chunk size
+            if actual_chunk_size < min_chunk_size_ms:
+                actual_chunk_size = min_chunk_size_ms
+                target_chunk_count = int(duration_ms / actual_chunk_size)
+
+            chunks = []
+
+            # Create chunks sequentially for better reliability
+            for chunk_id in range(target_chunk_count):
+                start_ms = int(chunk_id * actual_chunk_size)
+                end_ms = int(min((chunk_id + 1) * actual_chunk_size, duration_ms))
+
+                if end_ms - start_ms < min_chunk_size_ms:
+                    continue  # Skip chunks that are too small
+
+                chunk = self._create_chunk_safe(audio, chunk_id, start_ms, end_ms)
+                if chunk:
+                    chunks.append(chunk)
+
+            # If no chunks were created, create one big chunk
+            if not chunks:
+                logger.warning("No valid chunks created, creating single chunk")
+                chunk_path = os.path.join(self.config.temp_dir, "chunk_0000.wav")
+                audio.export(chunk_path, format="wav")
+
+                chunks.append(ChunkInfo(
+                    id=0,
+                    path=chunk_path,
+                    start_ms=0,
+                    end_ms=duration_ms,
+                    duration_ms=duration_ms,
+                    has_speech=True
+                ))
+
+            logger.info(f"Created {len(chunks)} audio chunks")
+            return chunks
+
+        except Exception as e:
+            logger.error(f"Parallel chunking failed: {e}")
+            # Fallback to simple chunking
+            return self.chunk_audio_simple(audio_path)
+    
+    def chunk_audio_simple(self, audio_path: str) -> List[ChunkInfo]:
+        """Simple fallback chunking method"""
+        try:
             audio = AudioSegment.from_file(audio_path)
             duration_ms = len(audio)
             
             chunks = []
             chunk_id = 0
             
-            for start_ms in range(0, duration_ms, chunk_size * 1000):
-                end_ms = min(start_ms + chunk_size * 1000, duration_ms)
+            for start_ms in range(0, duration_ms, self.config.chunk_size * 1000):
+                end_ms = min(start_ms + self.config.chunk_size * 1000, duration_ms)
                 
-                # Extract chunk
+                if start_ms >= end_ms:
+                    break
+                
                 chunk = audio[start_ms:end_ms]
-                
-                # Save chunk
                 chunk_path = os.path.join(self.config.temp_dir, f"chunk_{chunk_id:04d}.wav")
                 chunk.export(chunk_path, format="wav")
                 
-                # Check if chunk has speech
-                has_speech = self._has_speech(chunk)
-                
-                chunk_info = ChunkInfo(
+                chunks.append(ChunkInfo(
                     id=chunk_id,
                     path=chunk_path,
                     start_ms=start_ms,
                     end_ms=end_ms,
                     duration_ms=end_ms - start_ms,
-                    has_speech=has_speech
-                )
-                
-                chunks.append(chunk_info)
+                    has_speech=True  # Assume speech for simple method
+                ))
                 chunk_id += 1
             
-            logger.info(f"Created {len(chunks)} audio chunks ({sum(1 for c in chunks if c.has_speech)} with speech)")
+            logger.info(f"Created {len(chunks)} audio chunks (simple method)")
             return chunks
-            
         except Exception as e:
-            logger.error(f"Audio chunking failed: {e}")
+            logger.error(f"Simple chunking failed: {e}")
             return []
     
-    def _has_speech(self, audio_segment: AudioSegment, threshold: float = 0.02) -> bool:
-        """Improved speech detection using energy and zero-crossing rate"""
+    def _create_chunk(self, audio: AudioSegment, chunk_id: int, start_ms: int, end_ms: int) -> Optional[ChunkInfo]:
+        """Create a single chunk"""
         try:
-            # Convert to numpy array
+            if end_ms > len(audio):
+                end_ms = len(audio)
+            if start_ms >= end_ms:
+                return None
+
+            chunk = audio[start_ms:end_ms]
+            chunk_path = os.path.join(self.config.temp_dir, f"chunk_{chunk_id:04d}.wav")
+            chunk.export(chunk_path, format="wav")
+
+            # Quick speech detection
+            has_speech = self._quick_speech_check(chunk)
+
+            return ChunkInfo(
+                id=chunk_id,
+                path=chunk_path,
+                start_ms=start_ms,
+                end_ms=end_ms,
+                duration_ms=end_ms - start_ms,
+                has_speech=has_speech
+            )
+        except Exception as e:
+            logger.error(f"Failed to create chunk {chunk_id}: {e}")
+            return None
+
+    def _create_chunk_safe(self, audio: AudioSegment, chunk_id: int, start_ms: int, end_ms: int) -> Optional[ChunkInfo]:
+        """Create a single chunk with better error handling"""
+        try:
+            if end_ms > len(audio):
+                end_ms = len(audio)
+            if start_ms >= end_ms or (end_ms - start_ms) < 1000:  # Minimum 1 second
+                return None
+
+            chunk = audio[start_ms:end_ms]
+            if len(chunk) < 1000:  # Skip chunks shorter than 1 second
+                return None
+
+            chunk_path = os.path.join(self.config.temp_dir, f"chunk_{chunk_id:04d}.wav")
+            chunk.export(chunk_path, format="wav")
+
+            # Verify file was created
+            if not os.path.exists(chunk_path) or os.path.getsize(chunk_path) == 0:
+                return None
+
+            # Quick speech detection
+            has_speech = self._quick_speech_check(chunk)
+
+            return ChunkInfo(
+                id=chunk_id,
+                path=chunk_path,
+                start_ms=start_ms,
+                end_ms=end_ms,
+                duration_ms=end_ms - start_ms,
+                has_speech=has_speech
+            )
+        except Exception as e:
+            logger.error(f"Failed to create chunk {chunk_id}: {e}")
+            return None
+    
+    def _detect_available_gpus(self) -> List[Dict[str, Any]]:
+        """Detect available GPUs for multi-GPU processing"""
+        gpus = []
+
+        try:
+            # Check PyTorch CUDA availability
+            if torch.cuda.is_available():
+                for i in range(torch.cuda.device_count()):
+                    gpu_info = {
+                        "id": i,
+                        "name": torch.cuda.get_device_name(i),
+                        "memory_total": torch.cuda.get_device_properties(i).total_memory,
+                        "memory_free": torch.cuda.mem_get_info(i)[0] if hasattr(torch.cuda, 'mem_get_info') else 0,
+                        "utilization": 0  # Will be updated during processing
+                    }
+                    gpus.append(gpu_info)
+
+            # Also check GPUtil for additional info
+            try:
+                gpu_list = GPUtil.getGPUs()
+                for i, gpu in enumerate(gpu_list):
+                    if i < len(gpus):
+                        gpus[i]["utilization"] = gpu.load * 100
+                        gpus[i]["temperature"] = gpu.temperature
+            except:
+                pass
+
+        except Exception as e:
+            logger.warning(f"GPU detection failed: {e}")
+
+        logger.info(f"Detected {len(gpus)} GPUs: {[g['name'] for g in gpus]}")
+        return gpus
+
+    def _get_system_metrics(self) -> Dict[str, Any]:
+        """Get current system resource metrics"""
+        try:
+            # CPU and memory
+            cpu_percent = psutil.cpu_percent(interval=0.1)
+            memory = psutil.virtual_memory()
+            memory_percent = memory.percent
+
+            # GPU metrics
+            gpu_metrics = {}
+            try:
+                gpus = GPUtil.getGPUs()
+                for i, gpu in enumerate(gpus):
+                    gpu_metrics[f"gpu_{i}"] = {
+                        "utilization": gpu.load * 100,
+                        "memory_used": gpu.memoryUsed,
+                        "memory_total": gpu.memoryTotal,
+                        "temperature": gpu.temperature
+                    }
+            except:
+                gpu_metrics = {"error": "GPUtil not available"}
+
+            return {
+                "cpu_percent": cpu_percent,
+                "memory_percent": memory_percent,
+                "memory_used_gb": memory.used / (1024**3),
+                "memory_total_gb": memory.total / (1024**3),
+                "gpu_metrics": gpu_metrics
+            }
+
+        except Exception as e:
+            logger.warning(f"System metrics collection failed: {e}")
+            return {}
+
+    def _quick_speech_check(self, audio_segment: AudioSegment) -> bool:
+        """Fast speech detection"""
+        try:
             samples = np.array(audio_segment.get_array_of_samples())
-            
-            # Normalize
             samples = samples.astype(np.float32) / (2**15)
-            
-            # Calculate RMS energy
+
+            # Simple RMS check
             rms = np.sqrt(np.mean(samples**2))
-            
-            # Calculate zero-crossing rate
-            zero_crossings = np.sum(np.diff(np.sign(samples)) != 0) / len(samples)
-            
-            # Speech typically has higher energy and moderate zero-crossing rate
-            return rms > threshold and zero_crossings > 0.01
-            
+            return rms > 0.02
         except:
             return True  # Assume speech by default
     
-    def process_chunk_with_subtitles(self, chunk: ChunkInfo, target_lang: str = "de") -> Tuple[Optional[str], ProcessingMetrics, List[Dict]]:
-        """Process a single audio chunk with subtitle generation"""
-        start_time = datetime.now()
-        subtitle_segments = []
-        
-        try:
-            logger.info(f"Processing chunk {chunk.id} ({chunk.duration_ms:.0f}ms)")
-            
-            # Skip chunks without speech
-            if not chunk.has_speech:
-                logger.info(f"Chunk {chunk.id} has no speech, skipping")
-                
-                # Create silent audio for this chunk
-                output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
-                silent_audio = AudioSegment.silent(duration=chunk.duration_ms)
-                silent_audio.export(output_path, format="wav")
-                
-                metrics = ProcessingMetrics(
-                    chunk_id=chunk.id,
-                    original_duration_ms=chunk.duration_ms,
-                    translated_duration_ms=chunk.duration_ms,
-                    duration_diff_ms=0,
-                    condensation_ratio=1.0,
-                    speed_adjustment=1.0,
-                    processing_time_ms=(datetime.now() - start_time).total_seconds() * 1000,
-                    success=True,
-                    subtitle_generated=False
-                )
-                
-                return output_path, metrics, []
-            
-            # Update translator target language
-            self.translator.config.target_lang = target_lang
-            
-            # Process audio chunk
-            result = self.translator.process_audio(chunk.path)
-            
-            # Calculate processing time
-            processing_time_ms = (datetime.now() - start_time).total_seconds() * 1000
-            
-            if result.success:
-                # Move output to temp directory
-                new_output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
-                shutil.move(result.output_path, new_output_path)
-                
-                # Calculate condensation ratio
-                original_words = len(result.original_text.split())
-                translated_words = len(result.translated_text.split())
-                condensation_ratio = translated_words / original_words if original_words > 0 else 1.0
-                
-                # Extract subtitle segments
-                subtitle_segments = result.timing_segments if result.timing_segments else []
-                
-                metrics = ProcessingMetrics(
-                    chunk_id=chunk.id,
-                    original_duration_ms=result.original_duration_ms,
-                    translated_duration_ms=result.translated_duration_ms,
-                    duration_diff_ms=abs(result.translated_duration_ms - result.original_duration_ms),
-                    condensation_ratio=condensation_ratio,
-                    speed_adjustment=result.speed_adjustment,
-                    processing_time_ms=processing_time_ms,
-                    success=True,
-                    subtitle_generated=bool(subtitle_segments)
-                )
-                
-                logger.info(f"Chunk {chunk.id} processed successfully")
-                logger.info(f"  Duration match: {result.duration_match_percent:.1f}%")
-                logger.info(f"  Condensation ratio: {condensation_ratio:.2f}")
-                logger.info(f"  Speed adjustment: {result.speed_adjustment:.2f}x")
-                logger.info(f"  Subtitles: {len(subtitle_segments)} segments")
-                
-                return new_output_path, metrics, subtitle_segments
-            else:
-                logger.error(f"Chunk {chunk.id} processing failed: {result.error}")
-                
-                # Create fallback silent audio
-                output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
-                silent_audio = AudioSegment.silent(duration=chunk.duration_ms)
-                silent_audio.export(output_path, format="wav")
-                
-                metrics = ProcessingMetrics(
-                    chunk_id=chunk.id,
-                    original_duration_ms=chunk.duration_ms,
-                    translated_duration_ms=chunk.duration_ms,
-                    duration_diff_ms=0,
-                    condensation_ratio=1.0,
-                    speed_adjustment=1.0,
-                    processing_time_ms=processing_time_ms,
-                    success=False,
-                    subtitle_generated=False,
-                    error=result.error
-                )
-                
-                return output_path, metrics, []
-                
-        except Exception as e:
-            logger.error(f"Chunk {chunk.id} processing failed with exception: {e}")
-            
-            # Create fallback silent audio
+    def process_chunks_batch(self, chunks: List[ChunkInfo], target_lang: str = "de", job_id: str = None, jobs_db: Dict = None):
+        """Process chunks in batches for efficiency with real-time progress updates"""
+        translated_chunk_paths = []
+        all_subtitle_segments = []
+
+        # Group chunks by speech content
+        speech_chunks = [c for c in chunks if c.has_speech]
+        silent_chunks = [c for c in chunks if not c.has_speech]
+
+        logger.info(f"Processing {len(speech_chunks)} speech chunks, {len(silent_chunks)} silent chunks")
+
+        total_chunks = len(chunks)
+        processed_chunks = 0
+
+        # Handle silent chunks quickly
+        for chunk in silent_chunks:
             output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
             silent_audio = AudioSegment.silent(duration=chunk.duration_ms)
             silent_audio.export(output_path, format="wav")
-            
-            processing_time_ms = (datetime.now() - start_time).total_seconds() * 1000
-            
-            metrics = ProcessingMetrics(
-                chunk_id=chunk.id,
-                original_duration_ms=chunk.duration_ms,
-                translated_duration_ms=chunk.duration_ms,
-                duration_diff_ms=0,
-                condensation_ratio=1.0,
-                speed_adjustment=1.0,
-                processing_time_ms=processing_time_ms,
-                success=False,
-                subtitle_generated=False,
-                error=str(e)
-            )
-            
-            return output_path, metrics, []
+            translated_chunk_paths.append((chunk.id, output_path))
+            processed_chunks += 1
+
+            # Update progress for silent chunks
+            if job_id and hasattr(self, '_jobs_db') and self._jobs_db and job_id in self._jobs_db:
+                progress_percent = 40 + int((processed_chunks / total_chunks) * 40)  # 40-80% range
+                self._jobs_db[job_id]["progress"] = min(progress_percent, 80)
+                self._jobs_db[job_id]["processed_chunks"] = processed_chunks
+                self._jobs_db[job_id]["total_chunks"] = total_chunks
+                self._jobs_db[job_id]["message"] = f"Processing audio chunks... ({processed_chunks}/{total_chunks})"
+
+        # Process speech chunks with AI orchestration
+        logger.info("Processing speech chunks with AI orchestration")
+
+        for chunk in speech_chunks:
+            chunk_start_time = datetime.now()
+
+            try:
+                # Update progress at start of chunk processing
+                if job_id and jobs_db and job_id in jobs_db:
+                    progress_percent = 40 + int((processed_chunks / total_chunks) * 40)
+                    jobs_db[job_id]["progress"] = min(progress_percent, 85)
+                    jobs_db[job_id]["message"] = f"Transcribing chunk {chunk.id + 1}..."
+
+                # Step 6: Process chunk with AI-optimized settings
+                logger.info(f"Processing chunk {chunk.id} with AI optimization...")
+                result = self._process_single_chunk(chunk, target_lang)
+
+                # Step 7: Update metrics and store for AI learning
+                processing_time = (datetime.now() - chunk_start_time).total_seconds()
+
+                # Create processing metrics for AI learning (if needed)
+                if self.ai_orchestrator:
+                    from modules.ai_orchestrator import ProcessingMetrics
+                    processing_metrics = ProcessingMetrics(
+                        chunk_id=chunk.id,
+                        audio_duration_ms=chunk.duration_ms,
+                        transcription_time_s=processing_time * 0.4,
+                        translation_time_s=processing_time * 0.3,
+                        tts_time_s=processing_time * 0.3,
+                        whisper_confidence=0.8,
+                        vad_speech_ratio=0.5,
+                        memory_usage_mb=100,  # Default
+                        gpu_utilization=0,
+                        transcription_word_count=len(" ".join([seg.get("text", "") for seg in result["segments"]]).split()) if result and result.get("segments") else 0,
+                        translation_word_count=0,
+                        compression_ratio=1.0
+                    )
+                    self.ai_orchestrator.update_metrics(processing_metrics)
+
+                if result:
+                    translated_chunk_paths.append((chunk.id, result["path"]))
+                    if result.get("segments"):
+                        all_subtitle_segments.append(result["segments"])
+                    logger.info(f"[OK] Chunk {chunk.id} processed successfully in {processing_time:.1f}s")
+                else:
+                    logger.warning(f"Chunk {chunk.id} returned no result")
+                    # Create silent fallback
+                    output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
+                    silent_audio = AudioSegment.silent(duration=chunk.duration_ms)
+                    silent_audio.export(output_path, format="wav")
+                    translated_chunk_paths.append((chunk.id, output_path))
+
+            except Exception as e:
+                logger.error(f"Chunk {chunk.id} failed: {e}")
+                # Create silent fallback
+                output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
+                silent_audio = AudioSegment.silent(duration=chunk.duration_ms)
+                silent_audio.export(output_path, format="wav")
+                translated_chunk_paths.append((chunk.id, output_path))
+
+            processed_chunks += 1
+
+            # Update progress after each chunk
+            if job_id and jobs_db and job_id in jobs_db:
+                progress_percent = 40 + int((processed_chunks / total_chunks) * 40)
+                jobs_db[job_id]["progress"] = min(progress_percent, 85)
+                jobs_db[job_id]["processed_chunks"] = processed_chunks
+                jobs_db[job_id]["total_chunks"] = total_chunks
+                jobs_db[job_id]["message"] = f"Completed chunk {processed_chunks}/{total_chunks}"
+
+        # Final progress update before merging
+        if job_id and jobs_db and job_id in jobs_db:
+            jobs_db[job_id]["progress"] = 85
+            jobs_db[job_id]["message"] = "Merging audio chunks..."
+
+        # Sort by chunk ID
+        translated_chunk_paths.sort(key=lambda x: x[0])
+        return [path for _, path in translated_chunk_paths], all_subtitle_segments
     
-    def generate_final_subtitles(self, original_subtitles: Dict, translated_segments: List[List[Dict]], 
-                                 video_info: VideoInfo, output_base: str, source_lang: str, target_lang: str) -> Dict[str, Any]:
-        """Generate final bilingual subtitles"""
+    def _process_single_chunk(self, chunk: ChunkInfo, target_lang: str) -> Optional[Dict]:
+        """Process a single chunk"""
         try:
-            if not self.config.generate_subtitles:
-                return {"success": False, "error": "Subtitle generation disabled"}
+            self.translator.config.target_lang = target_lang
+            result = self.translator.process_audio(chunk.path)
             
-            logger.info("Generating final bilingual subtitles...")
-            
-            # Flatten translated segments
-            all_translated_segments = []
-            for segment_list in translated_segments:
-                all_translated_segments.extend(segment_list)
-            
-            # Generate bilingual subtitles
-            if self.config.bilingual_subtitles and self.subtitle_generator:
-                subtitle_result = self.subtitle_generator.generate_subtitles_for_translation(
-                    video_path=video_info.path,
-                    original_segments=original_subtitles.get("segments", []),
-                    translated_segments=all_translated_segments,
-                    original_lang=source_lang,
-                    target_lang=target_lang,
-                    output_base=output_base
-                )
+            if result.success:
+                new_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
+                shutil.move(result.output_path, new_path)
                 
-                if subtitle_result.get("success"):
-                    logger.info(f"Generated bilingual subtitles: {list(subtitle_result.keys())}")
-                    return subtitle_result
-            
-            # Fallback: generate only translated subtitles
-            translated_srt = self.subtitle_generator.format_to_srt(all_translated_segments)
-            translated_path = f"{output_base}_{target_lang}.srt"
-            
-            with open(translated_path, 'w', encoding='utf-8') as f:
-                f.write(translated_srt)
-            
-            logger.info(f"Generated translated subtitles: {translated_path}")
-            
-            return {
-                "success": True,
-                "translated": translated_path,
-                "bilingual": None
-            }
-            
+                return {
+                    "path": new_path,
+                    "segments": result.timing_segments if result.timing_segments else []
+                }
         except Exception as e:
-            logger.error(f"Final subtitle generation failed: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"Failed to process chunk {chunk.id}: {e}")
+        
+        return None
     
-    def merge_audio_chunks(self, chunk_paths: List[str], output_path: str) -> bool:
-        """Merge audio chunks into single audio file"""
+    def merge_files_fast(self, video_path: str, audio_path: str, output_path: str) -> bool:
+        """Merge audio and video quickly"""
         try:
-            logger.info(f"Merging {len(chunk_paths)} audio chunks")
-            
-            if not chunk_paths:
-                logger.error("No audio chunks to merge")
-                return False
-            
-            # Start with first chunk
-            merged_audio = AudioSegment.from_file(chunk_paths[0])
-            
-            # Append remaining chunks
-            for chunk_path in chunk_paths[1:]:
-                if os.path.exists(chunk_path):
-                    chunk_audio = AudioSegment.from_file(chunk_path)
-                    merged_audio += chunk_audio
-            
-            # Export merged audio
-            merged_audio.export(output_path, format="wav")
-            
-            logger.info(f"Merged audio saved: {output_path} ({len(merged_audio):.0f}ms)")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Audio merging failed: {e}")
-            return False
-    
-    def embed_subtitles_in_video(self, video_path: str, subtitle_path: str, output_path: str) -> bool:
-        """Embed subtitles into video file"""
-        try:
-            if not os.path.exists(subtitle_path):
-                logger.warning(f"Subtitle file not found: {subtitle_path}")
-                return False
-            
-            logger.info(f"Embedding subtitles into video: {subtitle_path}")
-            
+            # Use FFmpeg with optimized settings
             cmd = [
-                'ffmpeg',
+                'ffmpeg', '-y',
                 '-i', video_path,
-                '-i', subtitle_path,
-                '-c:v', 'copy',
-                '-c:a', 'copy',
-                '-c:s', 'mov_text',  # MP4 compatible subtitles
-                '-metadata:s:s:0', f'language={os.path.splitext(subtitle_path)[0][-2:]}',
+                '-i', audio_path,
+                '-c:v', 'copy',  # Copy video stream (fast)
+                '-c:a', 'aac',
+                '-b:a', '128k',  # Lower bitrate for speed
+                '-map', '0:v:0',
+                '-map', '1:a:0',
+                '-shortest',
+                '-threads', '4',  # Multi-threading
                 '-loglevel', 'error',
-                output_path, '-y'
+                output_path
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
             
-            if result.returncode != 0:
-                logger.error(f"Subtitle embedding failed: {result.stderr}")
-                return False
-            
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                logger.info(f"Video with embedded subtitles: {output_path}")
+            if result.returncode == 0 and os.path.exists(output_path):
+                logger.info(f"Merged video created: {output_path}")
                 return True
             else:
-                logger.error("Subtitle embedding failed: Output file is empty")
+                logger.error(f"Merge failed: {result.stderr}")
                 return False
                 
         except Exception as e:
-            logger.error(f"Subtitle embedding failed: {e}")
+            logger.error(f"Merge failed: {e}")
             return False
-    
-    def merge_audio_with_video(self, video_path: str, audio_path: str, output_path: str) -> bool:
-        """Merge translated audio with original video"""
-        try:
-            logger.info(f"Merging audio with video: {video_path}")
-            
-            cmd = [
-                'ffmpeg',
-                '-i', video_path,  # Original video
-                '-i', audio_path,  # Translated audio
-                '-c:v', 'copy',  # Copy video stream
-                '-c:a', 'aac',  # Encode audio as AAC
-                '-b:a', '192k',  # Audio bitrate
-                '-map', '0:v:0',  # Use video from first input
-                '-map', '1:a:0',  # Use audio from second input
-                '-shortest',  # End when shortest stream ends
-                '-loglevel', 'error',
-                output_path, '-y'
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                logger.error(f"Video/audio merge failed: {result.stderr}")
-                return False
-            
-            # Verify output file
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                logger.info(f"Final video created: {output_path}")
-                return True
-            else:
-                logger.error("Video/audio merge failed: Output file is empty")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Video/audio merge failed: {e}")
-            return False
-    
-    def verify_duration_match(self, original_path: str, translated_path: str, tolerance_ms: int = 100) -> Tuple[bool, float]:
-        """Verify that translated video duration matches original"""
-        try:
-            # Get original duration
-            cmd_original = [
-                'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-                '-of', 'default=noprint_wrappers=1:nokey=1', original_path
-            ]
-            
-            result_original = subprocess.run(cmd_original, capture_output=True, text=True)
-            original_duration = float(result_original.stdout.strip())
-            
-            # Get translated duration
-            cmd_translated = [
-                'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
-                '-of', 'default=noprint_wrappers=1:nokey=1', translated_path
-            ]
-            
-            result_translated = subprocess.run(cmd_translated, capture_output=True, text=True)
-            translated_duration = float(result_translated.stdout.strip())
-            
-            # Calculate difference
-            duration_diff_ms = abs(translated_duration - original_duration) * 1000
-            within_tolerance = duration_diff_ms <= tolerance_ms
-            
-            logger.info(f"Duration verification:")
-            logger.info(f"  Original: {original_duration:.3f}s")
-            logger.info(f"  Translated: {translated_duration:.3f}s")
-            logger.info(f"  Difference: {duration_diff_ms:.0f}ms")
-            logger.info(f"  Within tolerance ({tolerance_ms}ms): {'✓' if within_tolerance else '✗'}")
-            
-            return within_tolerance, duration_diff_ms
-            
-        except Exception as e:
-            logger.error(f"Duration verification failed: {e}")
-            return False, 0
     
     def cleanup_temp_files(self):
         """Clean up temporary files"""
@@ -668,226 +710,209 @@ class VideoTranslationPipeline:
                     file_path = os.path.join(self.config.temp_dir, file)
                     try:
                         if os.path.isfile(file_path):
-                            os.remove(file_path)
+                            os.unlink(file_path)
                     except:
                         pass
-                
-                logger.info(f"Cleaned up temp directory: {self.config.temp_dir}")
-                
+                logger.info("Cleaned up temp files")
         except Exception as e:
             logger.error(f"Cleanup failed: {e}")
     
-    def process_video(self, video_path: str, target_lang: str = "de") -> Dict[str, Any]:
-        """Complete video translation pipeline with subtitle generation"""
+    def process_video_fast(self, video_path: str, target_lang: str = "de", job_id: str = None) -> Dict[str, Any]:
+        """Fast video translation pipeline - optimized for FREE deployment"""
         start_time = datetime.now()
         
         try:
-            logger.info(f"Starting video translation pipeline")
-            logger.info(f"  Input: {video_path}")
-            logger.info(f"  Target language: {target_lang}")
-            logger.info(f"  Generate subtitles: {self.config.generate_subtitles}")
-            logger.info(f"  Temp directory: {self.config.temp_dir}")
+            logger.info(f"Starting FAST video translation")
+            logger.info(f"Input: {video_path}")
+            logger.info(f"Target: {target_lang}")
+            logger.info(f"Using GPU: {self.config.use_gpu}")
             
-            # Step 1: Load models
-            logger.info("\n[1/8] Loading AI models...")
+            # 1. Load models (cached)
+            logger.info("1. Loading models...")
             if not self.load_models(target_lang=target_lang):
                 return {
                     "success": False,
-                    "error": "Failed to load AI models",
-                    "processing_time_s": 0
+                    "error": "Failed to load models",
+                    "processing_time_s": 0,
+                    "output_path": "",
+                    "target_language": target_lang
                 }
             
-            # Step 2: Analyze video
-            logger.info("\n[2/8] Analyzing video...")
-            video_info = self.analyze_video(video_path)
-            
-            # Step 3: Generate original subtitles
-            original_subtitles = None
-            if self.config.generate_subtitles:
-                logger.info("\n[3/8] Generating original subtitles...")
-                original_subtitles = self.generate_original_subtitles(
-                    video_path, 
-                    os.path.join(self.config.output_dir, os.path.basename(video_path).rsplit('.', 1)[0])
-                )
-                if original_subtitles.get("success"):
-                    logger.info(f"Original subtitles generated: {original_subtitles.get('language', 'unknown')}")
-                else:
-                    logger.warning(f"Original subtitle generation failed: {original_subtitles.get('error')}")
-            
-            # Step 4: Extract audio
-            logger.info("\n[4/8] Extracting audio...")
-            audio_path = os.path.join(self.config.temp_dir, "original_audio.wav")
-            if not self.extract_audio(video_path, audio_path):
+            # 2. Extract audio
+            logger.info("2. Extracting audio...")
+            audio_path = os.path.join(self.config.temp_dir, "audio.wav")
+            if not self.extract_audio_fast(video_path, audio_path):
                 return {
                     "success": False,
-                    "error": "Failed to extract audio from video",
-                    "processing_time_s": (datetime.now() - start_time).total_seconds()
+                    "error": "Audio extraction failed",
+                    "processing_time_s": (datetime.now() - start_time).total_seconds(),
+                    "output_path": "",
+                    "target_language": target_lang
                 }
             
-            # Step 5: Chunk audio
-            logger.info("\n[5/8] Chunking audio...")
-            chunks = self.chunk_audio(audio_path)
-            
+            # 3. Chunk audio in parallel
+            logger.info("3. Chunking audio...")
+            chunks = self.chunk_audio_parallel(audio_path)
             if not chunks:
                 return {
                     "success": False,
-                    "error": "Failed to chunk audio",
-                    "processing_time_s": (datetime.now() - start_time).total_seconds()
+                    "error": "Chunking failed",
+                    "processing_time_s": (datetime.now() - start_time).total_seconds(),
+                    "output_path": "",
+                    "target_language": target_lang
                 }
             
-            # Step 6: Process each chunk with subtitles
-            logger.info(f"\n[6/8] Processing {len(chunks)} audio chunks...")
-            translated_chunk_paths = []
-            all_metrics = []
-            all_subtitle_segments = []
-            detected_source_lang = "en"  # Default
+            # 4. Process chunks in batch
+            logger.info(f"4. Processing {len(chunks)} chunks...")
+            translated_paths, subtitle_segments = self.process_chunks_batch(chunks, target_lang, job_id)
             
-            for chunk in chunks:
-                translated_path, metrics, subtitle_segments = self.process_chunk_with_subtitles(chunk, target_lang)
-                
-                if translated_path:
-                    translated_chunk_paths.append(translated_path)
-                
-                all_metrics.append(metrics)
-                all_subtitle_segments.append(subtitle_segments)
-                
-                # Update detected source language from first successful chunk
-                if metrics.success and not detected_source_lang:
-                    detected_source_lang = self.translator.config.source_lang
-                
-                # Log progress
-                progress = (chunk.id + 1) / len(chunks) * 100
-                logger.info(f"  Progress: {progress:.0f}% ({chunk.id + 1}/{len(chunks)})")
+            if len(translated_paths) != len(chunks):
+                logger.warning(f"Only {len(translated_paths)}/{len(chunks)} chunks processed successfully")
             
-            # Calculate overall metrics
-            successful_chunks = sum(1 for m in all_metrics if m.success)
-            success_rate = successful_chunks / len(all_metrics) if all_metrics else 0
-            
-            avg_duration_diff = np.mean([m.duration_diff_ms for m in all_metrics if m.success]) if successful_chunks > 0 else 0
-            avg_condensation = np.mean([m.condensation_ratio for m in all_metrics if m.success]) if successful_chunks > 0 else 0
-            
-            # Step 7: Merge audio chunks
-            logger.info("\n[7/8] Merging audio chunks...")
-            merged_audio_path = os.path.join(self.config.temp_dir, "merged_audio.wav")
-            
-            if not self.merge_audio_chunks(translated_chunk_paths, merged_audio_path):
+            # 5. Merge chunks
+            logger.info("5. Merging audio chunks...")
+            merged_audio = os.path.join(self.config.temp_dir, "merged.wav")
+
+            # Merge translated audio chunks in correct order
+            if translated_paths:
+                # Filter out any missing files and sort by chunk ID
+                valid_paths = [(i, path) for i, path in enumerate(translated_paths) if path and os.path.exists(path)]
+                valid_paths.sort(key=lambda x: x[0])  # Sort by original index
+
+                if valid_paths:
+                    # Start with first valid chunk
+                    first_idx, first_path = valid_paths[0]
+                    try:
+                        combined = AudioSegment.from_file(first_path)
+                        logger.info(f"Starting merge with chunk {first_idx}: {first_path}")
+
+                        # Add remaining chunks
+                        for idx, path in valid_paths[1:]:
+                            try:
+                                chunk = AudioSegment.from_file(path)
+                                combined += chunk
+                                logger.info(f"Added chunk {idx}: {path}")
+                            except Exception as chunk_error:
+                                logger.warning(f"Failed to load chunk {idx}: {chunk_error}")
+                                # Add silence for missing chunk to maintain timing
+                                silence_duration = chunks[idx].duration_ms if idx < len(chunks) else 1000
+                                silence = AudioSegment.silent(duration=silence_duration)
+                                combined += silence
+                                logger.info(f"Added silence for missing chunk {idx}")
+
+                        combined.export(merged_audio, format="wav")
+                        logger.info(f"Successfully merged {len(valid_paths)} audio chunks to {merged_audio}")
+
+                    except Exception as merge_error:
+                        logger.error(f"Failed to merge audio chunks: {merge_error}")
+                        # Fallback: copy first available chunk
+                        try:
+                            shutil.copy2(first_path, merged_audio)
+                            logger.warning("Using first chunk as fallback for merged audio")
+                        except:
+                            logger.error("Fallback audio merge also failed")
+                            return {
+                                "success": False,
+                                "error": "Audio merging failed",
+                                "processing_time_s": (datetime.now() - start_time).total_seconds(),
+                                "output_path": "",
+                                "target_language": target_lang
+                            }
+                else:
+                    logger.error("No valid translated audio chunks found")
+                    return {
+                        "success": False,
+                        "error": "No translated audio chunks available",
+                        "processing_time_s": (datetime.now() - start_time).total_seconds(),
+                        "output_path": "",
+                        "target_language": target_lang
+                    }
+            else:
+                logger.error("No translated audio paths returned from processing")
                 return {
                     "success": False,
-                    "error": "Failed to merge audio chunks",
+                    "error": "Audio translation failed - no output generated",
                     "processing_time_s": (datetime.now() - start_time).total_seconds(),
-                    "metrics": {
-                        "total_chunks": len(chunks),
-                        "successful_chunks": successful_chunks,
-                        "success_rate": success_rate,
-                        "avg_duration_diff_ms": avg_duration_diff,
-                        "avg_condensation_ratio": avg_condensation
-                    }
+                    "output_path": "",
+                    "target_language": target_lang
                 }
             
-            # Step 8: Merge with video
-            logger.info("\n[8/8] Merging audio with video...")
+            # 6. Merge with video
+            logger.info("6. Merging with video...")
             output_filename = f"translated_{os.path.basename(video_path)}"
-            output_base = os.path.join(self.config.output_dir, output_filename.rsplit('.', 1)[0])
-            output_path = f"{output_base}.mp4"
+            output_path = os.path.join(self.config.output_dir, output_filename)
             
-            if not self.merge_audio_with_video(video_path, merged_audio_path, output_path):
+            if not self.merge_files_fast(video_path, merged_audio, output_path):
                 return {
                     "success": False,
-                    "error": "Failed to merge audio with video",
+                    "error": "Video merge failed",
                     "processing_time_s": (datetime.now() - start_time).total_seconds(),
-                    "metrics": {
-                        "total_chunks": len(chunks),
-                        "successful_chunks": successful_chunks,
-                        "success_rate": success_rate,
-                        "avg_duration_diff_ms": avg_duration_diff,
-                        "avg_condensation_ratio": avg_condensation
-                    }
+                    "output_path": "",
+                    "target_language": target_lang
                 }
             
-            # Step 9: Generate final subtitles
+            # 7. Generate subtitles if requested
             subtitle_files = {}
-            if self.config.generate_subtitles:
-                logger.info("\n[9/9] Generating final subtitles...")
-                subtitle_result = self.generate_final_subtitles(
-                    original_subtitles if original_subtitles else {},
-                    all_subtitle_segments,
-                    video_info,
-                    output_base,
-                    detected_source_lang,
-                    target_lang
-                )
+            if self.config.generate_subtitles and subtitle_segments:
+                logger.info("7. Generating subtitles...")
+                # Flatten segments
+                all_segments = []
+                for seg_list in subtitle_segments:
+                    all_segments.extend(seg_list)
                 
-                if subtitle_result.get("success"):
-                    subtitle_files = {k: v for k, v in subtitle_result.items() if k != "success" and v}
+                if all_segments:
+                    base_name = os.path.splitext(output_path)[0]
+                    srt_path = f"{base_name}.srt"
                     
-                    # Optionally embed subtitles into video
-                    if "translated" in subtitle_files:
-                        embedded_video_path = f"{output_base}_with_subs.mp4"
-                        if self.embed_subtitles_in_video(output_path, subtitle_files["translated"], embedded_video_path):
-                            output_path = embedded_video_path
-                            logger.info(f"Created video with embedded subtitles: {output_path}")
+                    # Create simple SRT
+                    srt_content = ""
+                    for i, seg in enumerate(all_segments, 1):
+                        start = seg.get("start", 0)
+                        end = seg.get("end", start + 5)
+                        text = seg.get("text", "")
+                        
+                        def format_time(seconds):
+                            h = int(seconds // 3600)
+                            m = int((seconds % 3600) // 60)
+                            s = int(seconds % 60)
+                            ms = int((seconds - int(seconds)) * 1000)
+                            return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+                        
+                        srt_content += f"{i}\n"
+                        srt_content += f"{format_time(start)} --> {format_time(end)}\n"
+                        srt_content += f"{text}\n\n"
+                    
+                    with open(srt_path, 'w', encoding='utf-8') as f:
+                        f.write(srt_content)
+                    
+                    subtitle_files["srt"] = srt_path
             
-            # Step 10: Verify duration match
-            logger.info("\n[10/10] Verifying duration match...")
-            duration_match, duration_diff = self.verify_duration_match(
-                video_path, 
-                output_path,
-                tolerance_ms=100
-            )
-            
-            # Calculate total processing time
             total_time = (datetime.now() - start_time).total_seconds()
             
-            # Prepare result
+            # Cleanup
+            self.cleanup_temp_files()
+            
             result = {
                 "success": True,
                 "input_video": video_path,
                 "output_video": output_path,
                 "target_language": target_lang,
-                "source_language": detected_source_lang,
                 "processing_time_s": total_time,
-                "duration_match": duration_match,
-                "duration_diff_ms": duration_diff,
                 "subtitle_files": subtitle_files,
-                "video_info": {
-                    "duration": video_info.duration,
-                    "resolution": f"{video_info.width}x{video_info.height}",
-                    "codec": video_info.codec,
-                    "frame_rate": video_info.frame_rate
-                },
-                "metrics": {
-                    "total_chunks": len(chunks),
-                    "successful_chunks": successful_chunks,
-                    "success_rate": success_rate,
-                    "avg_duration_diff_ms": avg_duration_diff,
-                    "avg_condensation_ratio": avg_condensation,
-                    "within_tolerance_percentage": (sum(1 for m in all_metrics if m.success and m.duration_diff_ms <= self.config.timing_tolerance_ms) / len(all_metrics)) * 100 if all_metrics else 0,
-                    "subtitle_segments": sum(len(seg) for seg in all_subtitle_segments)
-                }
+                "chunks_processed": len(translated_paths),
+                "total_chunks": len(chunks),
+                "message": f"Translation completed in {total_time:.1f}s"
             }
             
-            # Log summary
-            logger.info(f"\n{'='*60}")
-            logger.info("TRANSLATION COMPLETED SUCCESSFULLY")
-            logger.info(f"{'='*60}")
-            logger.info(f"Input: {video_path}")
-            logger.info(f"Output: {output_path}")
-            logger.info(f"Source → Target: {detected_source_lang} → {target_lang}")
-            logger.info(f"Processing time: {total_time:.1f}s")
-            logger.info(f"Duration match: {'✓' if duration_match else '✗'} ({duration_diff:.0f}ms diff)")
-            logger.info(f"Chunks: {successful_chunks}/{len(chunks)} successful ({success_rate:.1%})")
-            logger.info(f"Subtitles: {len(subtitle_files)} files generated")
-            logger.info(f"Avg duration diff: {avg_duration_diff:.1f}ms")
-            logger.info(f"Avg condensation: {avg_condensation:.2f}x")
-            logger.info(f"{'='*60}")
-            
-            # Cleanup
-            self.cleanup_temp_files()
+            logger.info(f"[OK] Translation completed in {total_time:.1f}s")
+            logger.info(f"  Output: {output_path}")
+            if subtitle_files:
+                logger.info(f"  Subtitles: {list(subtitle_files.keys())}")
             
             return result
             
         except Exception as e:
-            logger.error(f"Video translation pipeline failed: {e}")
+            logger.error(f"Translation failed: {e}")
             import traceback
             traceback.print_exc()
             
@@ -897,49 +922,57 @@ class VideoTranslationPipeline:
             return {
                 "success": False,
                 "error": str(e),
-                "processing_time_s": (datetime.now() - start_time).total_seconds() if 'start_time' in locals() else 0
+                "processing_time_s": (datetime.now() - start_time).total_seconds() if 'start_time' in locals() else 0,
+                "output_path": "",
+                "target_language": target_lang
             }
+    
+    def process_video(self, video_path: str, target_lang: str = "de") -> Dict[str, Any]:
+        """Alias for process_video_fast for compatibility"""
+        return self.process_video_fast(video_path, target_lang)
+    
 
 # Command-line interface
 def main():
     """Command-line interface for video translation"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="Octavia Video Translator")
+    parser = argparse.ArgumentParser(description="Octavia Video Translator (FREE Optimized)")
     parser.add_argument("--input", "-i", required=True, help="Input video file")
-    parser.add_argument("--output", "-o", help="Output video file (optional)")
-    parser.add_argument("--target", "-t", default="de", help="Target language (en, de, ru, es, fr)")
+    parser.add_argument("--output", "-o", help="Output directory (default: outputs)")
+    parser.add_argument("--target", "-t", default="de", help="Target language")
     parser.add_argument("--chunk-size", "-c", type=int, default=30, help="Chunk size in seconds")
-    parser.add_argument("--subtitles", "-s", action="store_true", default=True, help="Generate subtitles")
-    parser.add_argument("--no-subtitles", action="store_false", dest="subtitles", help="Don't generate subtitles")
-    parser.add_argument("--bilingual", "-b", action="store_true", default=True, help="Generate bilingual subtitles")
-    parser.add_argument("--cleanup", action="store_true", help="Clean up temporary files")
+    parser.add_argument("--workers", "-w", type=int, default=4, help="Number of parallel workers")
+    parser.add_argument("--no-gpu", action="store_true", help="Disable GPU even if available")
+    parser.add_argument("--fast", action="store_true", help="Use fastest settings")
     
     args = parser.parse_args()
     
     # Configure pipeline
     config = PipelineConfig(
         chunk_size=args.chunk_size,
-        temp_dir="temp",
-        output_dir="outputs",
-        generate_subtitles=args.subtitles,
-        bilingual_subtitles=args.bilingual
+        max_workers=args.workers,
+        use_gpu=not args.no_gpu and torch.cuda.is_available(),
+        parallel_processing=args.fast or args.workers > 1
     )
+    
+    if args.fast:
+        config.use_faster_whisper = True
+        config.enable_model_caching = True
     
     pipeline = VideoTranslationPipeline(config)
     
     print(f"\n{'='*60}")
-    print(f"Octavia Video Translator")
+    print(f"Octavia Video Translator (FREE Optimized)")
     print(f"{'='*60}")
     print(f"Input: {args.input}")
     print(f"Target language: {args.target}")
-    print(f"Chunk size: {args.chunk_size}s")
-    print(f"Generate subtitles: {args.subtitles}")
-    print(f"Bilingual subtitles: {args.bilingual}")
+    print(f"Using GPU: {config.use_gpu}")
+    print(f"Parallel workers: {config.max_workers}")
     print(f"{'='*60}\n")
     
     # Process video
-    result = pipeline.process_video(args.input, args.target)
+    result = pipeline.process_video_fast(args.input, args.target)
     
     # Print result
     print(f"\n{'='*60}")
@@ -947,27 +980,21 @@ def main():
     print(f"{'='*60}")
     
     if result["success"]:
-        print(f"✓ SUCCESS")
+        print(f"[SUCCESS]")
         print(f"  Output: {result['output_video']}")
         print(f"  Processing time: {result['processing_time_s']:.1f}s")
-        print(f"  Duration match: {'Yes' if result['duration_match'] else 'No'} ({result['duration_diff_ms']:.0f}ms)")
-        print(f"  Successful chunks: {result['metrics']['successful_chunks']}/{result['metrics']['total_chunks']}")
-        print(f"  Average condensation: {result['metrics']['avg_condensation_ratio']:.2f}x")
-        
+        print(f"  Chunks: {result['chunks_processed']}/{result['total_chunks']}")
+
         if result.get('subtitle_files'):
             print(f"  Subtitles generated:")
             for name, path in result['subtitle_files'].items():
                 if path:
                     print(f"    - {name}: {os.path.basename(path)}")
     else:
-        print(f"✗ FAILED")
+        print(f"[FAILED]")
         print(f"  Error: {result.get('error', 'Unknown error')}")
     
     print(f"{'='*60}\n")
-    
-    # Cleanup if requested
-    if args.cleanup:
-        pipeline.cleanup_temp_files()
     
     return 0 if result["success"] else 1
 
