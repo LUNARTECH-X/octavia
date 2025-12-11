@@ -2864,3 +2864,396 @@ Error opening output files: Invalid argument
 2025-12-07 01:12:41,468 - modules.pipeline - INFO - Cleaned up temp files
 2025-12-07 01:12:41,468 - modules.pipeline - INFO - [OK] Translation completed in 502.2s
 2025-12-07 01:12:41,469 - modules.pipeline - INFO -   Output: backend/outputs\translated_sample_30s_en.mp4
+2025-12-09 12:55:47,684 - modules.pipeline - INFO - Using CPU (FREE)
+2025-12-09 12:55:47,688 - modules.pipeline - INFO - Detected 0 GPUs: []
+2025-12-09 12:55:47,689 - modules.ai_orchestrator - WARNING - No Llama model found - AI orchestration disabled
+2025-12-09 12:55:47,690 - modules.ai_orchestrator - WARNING - Llama model not available - using rule-based decisions
+2025-12-09 12:55:47,690 - modules.pipeline - INFO - AI Orchestrator initialized (rule-based mode)
+2025-12-09 12:55:47,692 - modules.pipeline - INFO - Starting FAST video translation
+2025-12-09 12:55:47,692 - modules.pipeline - INFO - Input: backend/test_samples/sample_30s_en.mp4
+2025-12-09 12:55:47,692 - modules.pipeline - INFO - Target: es
+2025-12-09 12:55:47,693 - modules.pipeline - INFO - Using GPU: False
+2025-12-09 12:55:47,693 - modules.pipeline - INFO - 1. Loading models...
+2025-12-09 12:55:47,693 - modules.pipeline - INFO - Loading Whisper model...
+2025-12-09 12:55:50,421 - modules.pipeline - INFO - Loaded faster-whisper (FREE optimization)
+2025-12-09 12:55:50,421 - modules.pipeline - INFO - Loading subtitle generator...
+2025-12-09 12:55:51,926 - modules.audio_translator - INFO - Loading Whisper model (optimized for speed)...
+2025-12-09 12:55:53,194 - modules.audio_translator - INFO - [OK] Loaded faster-whisper base model (CPU)
+2025-12-09 12:55:53,194 - modules.audio_translator - INFO - Loading translation model...
+2025-12-09 12:55:57,674 - modules.audio_translator - INFO - [OK] Models loaded successfully: faster-whisper base + Helsinki-NLP/opus-mt-en-es (CPU)
+2025-12-09 12:55:57,674 - modules.pipeline - INFO - All models loaded successfully with FREE optimizations
+2025-12-09 12:55:57,675 - modules.pipeline - INFO - 2. Extracting audio...
+2025-12-09 12:55:57,675 - modules.pipeline - INFO - Extracting audio from backend/test_samples/sample_30s_en.mp4
+2025-12-09 12:55:59,023 - modules.pipeline - INFO - Audio extracted: /tmp/octavia_test\audio.wav
+2025-12-09 12:55:59,024 - modules.pipeline - INFO - 3. Chunking audio...
+2025-12-09 12:55:59,024 - modules.pipeline - INFO - Chunking audio with improved logic
+2025-12-09 12:55:59,379 - modules.pipeline - INFO - Created 8 audio chunks
+2025-12-09 12:55:59,387 - modules.pipeline - INFO - 4. Processing 8 chunks...
+2025-12-09 12:55:59,388 - modules.pipeline - INFO - Processing 8 speech chunks, 0 silent chunks
+2025-12-09 12:55:59,388 - modules.pipeline - INFO - Processing speech chunks with AI orchestration
+2025-12-09 12:55:59,389 - modules.pipeline - INFO - Processing chunk 0 with AI optimization...
+2025-12-09 12:55:59,390 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:56:03,731 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0000_preprocessed.wav
+2025-12-09 12:56:03,731 - modules.audio_translator - INFO - Processing audio: chunk_0000_preprocessed.wav
+2025-12-09 12:56:03,759 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:56:03,766 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0000.wav (5308448 bytes)
+2025-12-09 12:56:04,073 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:56:04,074 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:56:04,501 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:56:09,520 - modules.audio_translator - INFO - Transcription successful: 406 chars, 0 segments
+2025-12-09 12:56:09,522 - modules.audio_translator - INFO - Transcribed: 406 characters, 0 segments in en
+2025-12-09 12:56:09,522 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:56:09,522 - modules.audio_translator - INFO - Translating text: 'The future is no longer on the horizon. It's here. Artificial intelligence is reshaping industries, ...'
+2025-12-09 12:56:09,523 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:56:12,871 - modules.audio_translator - INFO - Pipeline translation result: 'El futuro ya no está en el horizonte. Está aquí. La inteligencia artificial está remodelando las ind...'
+2025-12-09 12:56:12,872 - modules.audio_translator - INFO - Translation completed: 406 chars to 443 chars
+2025-12-09 12:56:12,872 - modules.audio_translator - INFO - Speed capped at 1.10x for quality
+2025-12-09 12:56:12,873 - modules.audio_translator - INFO - Frame-accurate speed: 34.077s speech in 30.093s to speed: 1.10x
+2025-12-09 12:56:12,874 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:56:12,874 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 1.10x)...
+2025-12-09 12:56:12,874 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:56:12,897 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:56:12,928 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:56:22,322 - modules.audio_translator - INFO - gTTS audio generated: 35520ms duration
+2025-12-09 12:56:23,313 - modules.audio_translator - INFO - Applied speed adjustment: 1.10x
+2025-12-09 12:56:23,327 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125612.wav (32309ms)
+2025-12-09 12:56:23,328 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:56:24,554 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:56:24,565 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:56:24,600 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 32309ms to 30093ms
+2025-12-09 12:56:24,601 - modules.audio_translator - INFO - Applying precise speed adjustment: 1.074x
+2025-12-09 12:56:25,350 - modules.audio_translator - INFO - Precise speed result: 32309ms to 30086ms (ratio: 0.931)
+2025-12-09 12:56:25,355 - modules.audio_translator - INFO - Duration correction applied: 30086ms (diff: 7ms)
+2025-12-09 12:56:25,356 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±7ms (within 200ms tolerance)
+2025-12-09 12:56:25,356 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:56:25,428 - modules.audio_translator - INFO - Quality validation: 0.59 (SNR: 5.3dB, Sync: 100.0%)
+2025-12-09 12:56:25,430 - modules.audio_translator - WARNING - Quality validation failed: 0.59
+2025-12-09 12:56:25,431 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:56:25,431 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:56:25,432 - modules.audio_translator - INFO - Translation completed in 26.0s
+2025-12-09 12:56:25,432 - modules.audio_translator - INFO - Duration match: 100.0% (2216ms diff)
+2025-12-09 12:56:25,432 - modules.audio_translator - INFO - Speed adjustment: 1.10x
+2025-12-09 12:56:25,433 - modules.audio_translator - INFO - Output: translated_20251209_125612.wav
+2025-12-09 12:56:25,439 - modules.pipeline - INFO - [OK] Chunk 0 processed successfully in 26.1s
+2025-12-09 12:56:25,439 - modules.pipeline - INFO - Processing chunk 1 with AI optimization...
+2025-12-09 12:56:25,440 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:56:31,215 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0001_preprocessed.wav
+2025-12-09 12:56:31,216 - modules.audio_translator - INFO - Processing audio: chunk_0001_preprocessed.wav
+2025-12-09 12:56:31,226 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:56:31,236 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0001.wav (5308448 bytes)
+2025-12-09 12:56:31,530 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:56:31,531 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:56:32,063 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:56:37,943 - modules.audio_translator - INFO - Transcription successful: 372 chars, 0 segments
+2025-12-09 12:56:37,944 - modules.audio_translator - INFO - Transcribed: 372 characters, 0 segments in en
+2025-12-09 12:56:37,944 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:56:37,944 - modules.audio_translator - INFO - Translating text: 'Valley to Shanghai, from GCC to Europe. Every country, every industry is racing to build their AI ca...'
+2025-12-09 12:56:37,945 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:56:41,249 - modules.audio_translator - INFO - Pipeline translation result: 'Valle a Shanghai, desde GCC a Europa. Cada país, cada industria está compitiendo para construir sus ...'
+2025-12-09 12:56:41,250 - modules.audio_translator - INFO - Translation completed: 372 chars to 402 chars
+2025-12-09 12:56:41,251 - modules.audio_translator - INFO - Frame-accurate speed: 30.923s speech in 30.093s to speed: 1.00x
+2025-12-09 12:56:41,251 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:56:41,251 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 1.00x)...
+2025-12-09 12:56:41,251 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:56:41,262 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:56:41,262 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:56:53,560 - modules.audio_translator - INFO - gTTS audio generated: 38664ms duration
+2025-12-09 12:56:53,578 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125641.wav (38664ms)
+2025-12-09 12:56:53,579 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:56:54,846 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:56:54,855 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:56:54,882 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 38664ms to 30093ms
+2025-12-09 12:56:54,884 - modules.audio_translator - INFO - Applying precise speed adjustment: 1.285x
+2025-12-09 12:56:55,566 - modules.audio_translator - INFO - Precise speed result: 38664ms to 30094ms (ratio: 0.778)
+2025-12-09 12:56:55,576 - modules.audio_translator - INFO - Duration correction applied: 30094ms (diff: 1ms)
+2025-12-09 12:56:55,577 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±1ms (within 200ms tolerance)
+2025-12-09 12:56:55,577 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:56:55,634 - modules.audio_translator - INFO - Quality validation: 0.57 (SNR: 4.0dB, Sync: 100.0%)
+2025-12-09 12:56:55,635 - modules.audio_translator - WARNING - Quality validation failed: 0.57
+2025-12-09 12:56:55,636 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:56:55,636 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:56:55,636 - modules.audio_translator - INFO - Translation completed in 30.2s
+2025-12-09 12:56:55,637 - modules.audio_translator - INFO - Duration match: 100.0% (8571ms diff)
+2025-12-09 12:56:55,637 - modules.audio_translator - INFO - Speed adjustment: 1.00x
+2025-12-09 12:56:55,637 - modules.audio_translator - INFO - Output: translated_20251209_125641.wav
+2025-12-09 12:56:55,643 - modules.pipeline - INFO - [OK] Chunk 1 processed successfully in 30.2s
+2025-12-09 12:56:55,643 - modules.pipeline - INFO - Processing chunk 2 with AI optimization...
+2025-12-09 12:56:55,643 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:57:00,484 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0002_preprocessed.wav
+2025-12-09 12:57:00,484 - modules.audio_translator - INFO - Processing audio: chunk_0002_preprocessed.wav
+2025-12-09 12:57:00,489 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:57:00,494 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0002.wav (5308448 bytes)
+2025-12-09 12:57:00,745 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:57:00,746 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:57:01,144 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:57:09,393 - modules.audio_translator - INFO - Transcription successful: 404 chars, 0 segments
+2025-12-09 12:57:09,394 - modules.audio_translator - INFO - Transcribed: 404 characters, 0 segments in en
+2025-12-09 12:57:09,394 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:57:09,395 - modules.audio_translator - INFO - Translating text: 'with execution, making the impossible inevitable. Today, 95% of companies are struggling, paralyzed ...'
+2025-12-09 12:57:09,395 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:57:12,836 - modules.audio_translator - INFO - Pipeline translation result: 'Con la ejecución, haciendo inevitable lo imposible. Hoy, 95% de las empresas están luchando, paraliz...'
+2025-12-09 12:57:12,837 - modules.audio_translator - INFO - Translation completed: 404 chars to 443 chars
+2025-12-09 12:57:12,837 - modules.audio_translator - INFO - Speed capped at 1.10x for quality
+2025-12-09 12:57:12,838 - modules.audio_translator - INFO - Frame-accurate speed: 34.077s speech in 30.093s to speed: 1.10x
+2025-12-09 12:57:12,838 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:57:12,838 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 1.10x)...
+2025-12-09 12:57:12,839 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:57:12,846 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:57:12,846 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:57:21,445 - modules.audio_translator - INFO - gTTS audio generated: 37320ms duration
+2025-12-09 12:57:22,370 - modules.audio_translator - INFO - Applied speed adjustment: 1.10x
+2025-12-09 12:57:22,384 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125712.wav (33944ms)
+2025-12-09 12:57:22,385 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:57:23,398 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:57:23,410 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:57:23,442 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 33944ms to 30093ms
+2025-12-09 12:57:23,442 - modules.audio_translator - INFO - Applying precise speed adjustment: 1.128x
+2025-12-09 12:57:24,162 - modules.audio_translator - INFO - Precise speed result: 33944ms to 30097ms (ratio: 0.887)
+2025-12-09 12:57:24,169 - modules.audio_translator - INFO - Duration correction applied: 30097ms (diff: 4ms)
+2025-12-09 12:57:24,170 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±4ms (within 200ms tolerance)
+2025-12-09 12:57:24,170 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:57:24,217 - modules.audio_translator - INFO - Quality validation: 0.59 (SNR: 5.6dB, Sync: 100.0%)
+2025-12-09 12:57:24,219 - modules.audio_translator - WARNING - Quality validation failed: 0.59
+2025-12-09 12:57:24,220 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:57:24,220 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:57:24,220 - modules.audio_translator - INFO - Translation completed in 28.6s
+2025-12-09 12:57:24,221 - modules.audio_translator - INFO - Duration match: 100.0% (3851ms diff)
+2025-12-09 12:57:24,221 - modules.audio_translator - INFO - Speed adjustment: 1.10x
+2025-12-09 12:57:24,222 - modules.audio_translator - INFO - Output: translated_20251209_125712.wav
+2025-12-09 12:57:24,226 - modules.pipeline - INFO - [OK] Chunk 2 processed successfully in 28.6s
+2025-12-09 12:57:24,226 - modules.pipeline - INFO - Processing chunk 3 with AI optimization...
+2025-12-09 12:57:24,227 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:57:29,596 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0003_preprocessed.wav
+2025-12-09 12:57:29,596 - modules.audio_translator - INFO - Processing audio: chunk_0003_preprocessed.wav
+2025-12-09 12:57:29,603 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:57:29,610 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0003.wav (5308452 bytes)
+2025-12-09 12:57:29,828 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:57:29,829 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:57:30,189 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:57:36,592 - modules.audio_translator - INFO - Transcription successful: 452 chars, 0 segments
+2025-12-09 12:57:36,593 - modules.audio_translator - INFO - Transcribed: 452 characters, 0 segments in en
+2025-12-09 12:57:36,593 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:57:36,594 - modules.audio_translator - INFO - Translating text: 'to turn you into a world-class 10X AI engineer in just three to six months. This is your gateway to ...'
+2025-12-09 12:57:36,594 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:57:41,050 - modules.audio_translator - INFO - Pipeline translation result: 'Para convertirte en un ingeniero de inteligencia artificial de clase mundial en solo tres o seis mes...'
+2025-12-09 12:57:41,050 - modules.audio_translator - INFO - Translation completed: 452 chars to 618 chars
+2025-12-09 12:57:41,052 - modules.audio_translator - INFO - Text needs condensation...
+2025-12-09 12:57:41,052 - modules.audio_translator - INFO - Condensed: 95 words to 46 words (ratio: 0.54)
+2025-12-09 12:57:41,052 - modules.audio_translator - INFO - Condensation applied: ratio 0.54
+2025-12-09 12:57:41,053 - modules.audio_translator - INFO - Frame-accurate speed: 25.538s speech in 30.093s to speed: 0.85x
+2025-12-09 12:57:41,053 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:57:41,053 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 0.85x)...
+2025-12-09 12:57:41,054 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:57:41,067 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:57:41,067 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:57:49,523 - modules.audio_translator - INFO - gTTS audio generated: 27288ms duration
+2025-12-09 12:57:49,523 - modules.audio_translator - INFO - Applied speed adjustment: 0.85x
+2025-12-09 12:57:49,536 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125741.wav (32104ms)
+2025-12-09 12:57:49,537 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:57:50,636 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:57:50,645 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:57:50,675 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 32104ms to 30093ms
+2025-12-09 12:57:50,676 - modules.audio_translator - INFO - Applying precise speed adjustment: 1.067x
+2025-12-09 12:57:51,426 - modules.audio_translator - INFO - Precise speed result: 32104ms to 30092ms (ratio: 0.937)
+2025-12-09 12:57:51,432 - modules.audio_translator - INFO - Duration correction applied: 30092ms (diff: 1ms)
+2025-12-09 12:57:51,432 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±1ms (within 200ms tolerance)
+2025-12-09 12:57:51,433 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:57:51,503 - modules.audio_translator - INFO - Quality validation: 0.58 (SNR: 4.6dB, Sync: 100.0%)
+2025-12-09 12:57:51,503 - modules.audio_translator - WARNING - Quality validation failed: 0.58
+2025-12-09 12:57:51,504 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:57:51,504 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:57:51,505 - modules.audio_translator - INFO - Translation completed in 27.3s
+2025-12-09 12:57:51,506 - modules.audio_translator - INFO - Duration match: 100.0% (2011ms diff)
+2025-12-09 12:57:51,506 - modules.audio_translator - INFO - Speed adjustment: 0.85x
+2025-12-09 12:57:51,507 - modules.audio_translator - INFO - Output: translated_20251209_125741.wav
+2025-12-09 12:57:51,512 - modules.pipeline - INFO - [OK] Chunk 3 processed successfully in 27.3s
+2025-12-09 12:57:51,513 - modules.pipeline - INFO - Processing chunk 4 with AI optimization...
+2025-12-09 12:57:51,513 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:57:57,113 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0004_preprocessed.wav
+2025-12-09 12:57:57,114 - modules.audio_translator - INFO - Processing audio: chunk_0004_preprocessed.wav
+2025-12-09 12:57:57,120 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:57:57,127 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0004.wav (5308448 bytes)
+2025-12-09 12:57:57,374 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:57:57,376 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:57:57,890 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:58:03,830 - modules.audio_translator - INFO - Transcription successful: 431 chars, 0 segments
+2025-12-09 12:58:03,831 - modules.audio_translator - INFO - Transcribed: 431 characters, 0 segments in en
+2025-12-09 12:58:03,831 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:58:03,832 - modules.audio_translator - INFO - Translating text: 'equipped to create, innovate, and deliver impactful solutions for industry challenges. This is not j...'
+2025-12-09 12:58:03,832 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:58:07,348 - modules.audio_translator - INFO - Pipeline translation result: 'equipado para crear, innovar y ofrecer soluciones impactantes para los desafíos de la industria. Est...'
+2025-12-09 12:58:07,348 - modules.audio_translator - INFO - Translation completed: 431 chars to 494 chars
+2025-12-09 12:58:07,349 - modules.audio_translator - INFO - Speed capped at 1.10x for quality
+2025-12-09 12:58:07,349 - modules.audio_translator - INFO - Frame-accurate speed: 38.000s speech in 30.093s to speed: 1.10x
+2025-12-09 12:58:07,349 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:58:07,350 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 1.10x)...
+2025-12-09 12:58:07,350 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:58:07,357 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:58:07,358 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:58:15,655 - modules.audio_translator - INFO - gTTS audio generated: 38952ms duration
+2025-12-09 12:58:16,636 - modules.audio_translator - INFO - Applied speed adjustment: 1.10x
+2025-12-09 12:58:16,650 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125807.wav (35426ms)
+2025-12-09 12:58:16,651 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:58:17,911 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:58:17,920 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:58:17,950 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 35426ms to 30093ms
+2025-12-09 12:58:17,952 - modules.audio_translator - INFO - Applying precise speed adjustment: 1.177x
+2025-12-09 12:58:18,639 - modules.audio_translator - INFO - Precise speed result: 35426ms to 30100ms (ratio: 0.850)
+2025-12-09 12:58:18,662 - modules.audio_translator - INFO - Duration correction applied: 30100ms (diff: 7ms)
+2025-12-09 12:58:18,663 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±7ms (within 200ms tolerance)
+2025-12-09 12:58:18,663 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:58:18,716 - modules.audio_translator - INFO - Quality validation: 0.59 (SNR: 5.3dB, Sync: 100.0%)
+2025-12-09 12:58:18,717 - modules.audio_translator - WARNING - Quality validation failed: 0.59
+2025-12-09 12:58:18,718 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:58:18,718 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:58:18,719 - modules.audio_translator - INFO - Translation completed in 27.2s
+2025-12-09 12:58:18,719 - modules.audio_translator - INFO - Duration match: 100.0% (5333ms diff)
+2025-12-09 12:58:18,719 - modules.audio_translator - INFO - Speed adjustment: 1.10x
+2025-12-09 12:58:18,720 - modules.audio_translator - INFO - Output: translated_20251209_125807.wav
+2025-12-09 12:58:18,724 - modules.pipeline - INFO - [OK] Chunk 4 processed successfully in 27.2s
+2025-12-09 12:58:18,726 - modules.pipeline - INFO - Processing chunk 5 with AI optimization...
+2025-12-09 12:58:18,726 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:58:23,478 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0005_preprocessed.wav
+2025-12-09 12:58:23,478 - modules.audio_translator - INFO - Processing audio: chunk_0005_preprocessed.wav
+2025-12-09 12:58:23,491 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:58:23,496 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0005.wav (5308448 bytes)
+2025-12-09 12:58:23,701 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:58:23,702 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:58:24,097 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:58:29,682 - modules.audio_translator - INFO - Transcription successful: 558 chars, 0 segments
+2025-12-09 12:58:29,684 - modules.audio_translator - INFO - Transcribed: 558 characters, 0 segments in en
+2025-12-09 12:58:29,684 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:58:29,684 - modules.audio_translator - INFO - Translating text: 'just LLMs, but the math and statistics that underpin the field. You'll master GANs, VAEs, Transforme...'
+2025-12-09 12:58:29,685 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:58:33,884 - modules.audio_translator - INFO - Pipeline translation result: 'Sólo LLMs, pero las matemáticas y estadísticas que sustentan el campo. Usted va a dominar GANs, VAEs...'
+2025-12-09 12:58:33,885 - modules.audio_translator - INFO - Translation completed: 558 chars to 625 chars
+2025-12-09 12:58:33,885 - modules.audio_translator - INFO - Speed capped at 1.10x for quality
+2025-12-09 12:58:33,885 - modules.audio_translator - INFO - Frame-accurate speed: 48.077s speech in 30.093s to speed: 1.10x
+2025-12-09 12:58:33,887 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:58:33,887 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 1.10x)...
+2025-12-09 12:58:33,887 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:58:33,894 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:58:33,894 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:58:48,581 - modules.audio_translator - INFO - gTTS audio generated: 51600ms duration
+2025-12-09 12:58:49,687 - modules.audio_translator - INFO - Applied speed adjustment: 1.10x
+2025-12-09 12:58:49,704 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125833.wav (46934ms)
+2025-12-09 12:58:49,705 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:58:51,043 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:58:51,057 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:58:51,088 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 46934ms to 30093ms
+2025-12-09 12:58:51,088 - modules.audio_translator - INFO - Applying precise speed adjustment: 1.560x
+2025-12-09 12:58:51,666 - modules.audio_translator - INFO - Precise speed result: 46934ms to 30088ms (ratio: 0.641)
+2025-12-09 12:58:51,672 - modules.audio_translator - INFO - Duration correction applied: 30088ms (diff: 5ms)
+2025-12-09 12:58:51,672 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±5ms (within 200ms tolerance)
+2025-12-09 12:58:51,673 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:58:51,717 - modules.audio_translator - INFO - Quality validation: 0.56 (SNR: 3.6dB, Sync: 100.0%)
+2025-12-09 12:58:51,719 - modules.audio_translator - WARNING - Quality validation failed: 0.56
+2025-12-09 12:58:51,720 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:58:51,720 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:58:51,720 - modules.audio_translator - INFO - Translation completed in 33.0s
+2025-12-09 12:58:51,721 - modules.audio_translator - INFO - Duration match: 100.0% (16841ms diff)
+2025-12-09 12:58:51,721 - modules.audio_translator - INFO - Speed adjustment: 1.10x
+2025-12-09 12:58:51,721 - modules.audio_translator - INFO - Output: translated_20251209_125833.wav
+2025-12-09 12:58:51,726 - modules.pipeline - INFO - [OK] Chunk 5 processed successfully in 33.0s
+2025-12-09 12:58:51,727 - modules.pipeline - INFO - Processing chunk 6 with AI optimization...
+2025-12-09 12:58:51,727 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:58:55,647 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0006_preprocessed.wav
+2025-12-09 12:58:55,647 - modules.audio_translator - INFO - Processing audio: chunk_0006_preprocessed.wav
+2025-12-09 12:58:55,655 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:58:55,661 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0006.wav (5308452 bytes)
+2025-12-09 12:58:55,854 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:58:55,855 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:58:56,292 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:59:01,581 - modules.audio_translator - INFO - Transcription successful: 470 chars, 0 segments
+2025-12-09 12:59:01,582 - modules.audio_translator - INFO - Transcribed: 470 characters, 0 segments in en
+2025-12-09 12:59:01,582 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:59:01,582 - modules.audio_translator - INFO - Translating text: 'With a single goal in mind, we've designed this bootcamp to systematically produce AI engineers capa...'
+2025-12-09 12:59:01,583 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:59:04,757 - modules.audio_translator - INFO - Pipeline translation result: 'Con un único objetivo en mente, hemos diseñado este campo de entrenamiento para producir sistemática...'
+2025-12-09 12:59:04,757 - modules.audio_translator - INFO - Translation completed: 470 chars to 544 chars
+2025-12-09 12:59:04,758 - modules.audio_translator - INFO - Speed capped at 1.10x for quality
+2025-12-09 12:59:04,758 - modules.audio_translator - INFO - Frame-accurate speed: 41.846s speech in 30.093s to speed: 1.10x
+2025-12-09 12:59:04,758 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:59:04,759 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 1.10x)...
+2025-12-09 12:59:04,759 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:59:04,767 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:59:04,767 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:59:14,377 - modules.audio_translator - INFO - gTTS audio generated: 42912ms duration
+2025-12-09 12:59:15,188 - modules.audio_translator - INFO - Applied speed adjustment: 1.10x
+2025-12-09 12:59:15,211 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125904.wav (39026ms)
+2025-12-09 12:59:15,221 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:59:16,446 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:59:16,457 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:59:16,495 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 39026ms to 30093ms
+2025-12-09 12:59:16,496 - modules.audio_translator - INFO - Applying precise speed adjustment: 1.297x
+2025-12-09 12:59:17,103 - modules.audio_translator - INFO - Precise speed result: 39026ms to 30091ms (ratio: 0.771)
+2025-12-09 12:59:17,109 - modules.audio_translator - INFO - Duration correction applied: 30091ms (diff: 2ms)
+2025-12-09 12:59:17,109 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±2ms (within 200ms tolerance)
+2025-12-09 12:59:17,109 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:59:17,163 - modules.audio_translator - INFO - Quality validation: 0.58 (SNR: 4.6dB, Sync: 100.0%)
+2025-12-09 12:59:17,164 - modules.audio_translator - WARNING - Quality validation failed: 0.58
+2025-12-09 12:59:17,164 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:59:17,164 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:59:17,165 - modules.audio_translator - INFO - Translation completed in 25.4s
+2025-12-09 12:59:17,165 - modules.audio_translator - INFO - Duration match: 100.0% (8933ms diff)
+2025-12-09 12:59:17,165 - modules.audio_translator - INFO - Speed adjustment: 1.10x
+2025-12-09 12:59:17,166 - modules.audio_translator - INFO - Output: translated_20251209_125904.wav
+2025-12-09 12:59:17,171 - modules.pipeline - INFO - [OK] Chunk 6 processed successfully in 25.4s
+2025-12-09 12:59:17,171 - modules.pipeline - INFO - Processing chunk 7 with AI optimization...
+2025-12-09 12:59:17,172 - modules.audio_translator - INFO - Preprocessing audio: normalization and de-noising
+2025-12-09 12:59:21,327 - modules.audio_translator - INFO - Audio preprocessing successful: chunk_0007_preprocessed.wav
+2025-12-09 12:59:21,328 - modules.audio_translator - INFO - Processing audio: chunk_0007_preprocessed.wav
+2025-12-09 12:59:21,340 - modules.audio_translator - INFO - Original duration: 30093ms
+2025-12-09 12:59:21,347 - modules.audio_translator - INFO - Transcribing audio file: /tmp/octavia_test\chunk_0007.wav (5308448 bytes)
+2025-12-09 12:59:21,539 - modules.audio_translator - ERROR - Language detection failed: 'Tensor' object has no attribute 'astype'
+2025-12-09 12:59:21,539 - modules.audio_translator - INFO - Transcribing audio in en...
+2025-12-09 12:59:21,989 - faster_whisper - INFO - Processing audio with duration 00:30.093
+2025-12-09 12:59:25,827 - modules.audio_translator - INFO - Transcription successful: 230 chars, 0 segments
+2025-12-09 12:59:25,828 - modules.audio_translator - INFO - Transcribed: 230 characters, 0 segments in en
+2025-12-09 12:59:25,829 - modules.audio_translator - INFO - Translating from en to es...
+2025-12-09 12:59:25,829 - modules.audio_translator - INFO - Translating text: 'This is your opportunity to gain the tools, mentorship, and expertise to lead innovation and shape t...'
+2025-12-09 12:59:25,829 - modules.audio_translator - INFO - Attempting translation with pipeline...
+2025-12-09 12:59:28,018 - modules.audio_translator - INFO - Pipeline translation result: 'Esta es su oportunidad de ganar las herramientas, mentoría y experiencia para liderar la innovación ...'
+2025-12-09 12:59:28,019 - modules.audio_translator - INFO - Translation completed: 230 chars to 267 chars
+2025-12-09 12:59:28,019 - modules.audio_translator - INFO - Frame-accurate speed: 20.538s speech in 30.093s to speed: 0.85x
+2025-12-09 12:59:28,019 - modules.audio_translator - INFO - Selected voice model: es-ES-ElviraNeural for es (rate: 13 chars/sec)
+2025-12-09 12:59:28,020 - modules.audio_translator - INFO - Generating speech with gTTS (speed: 0.85x)...
+2025-12-09 12:59:28,020 - modules.audio_translator - INFO - Generating speech with Coqui TTS for language: es
+2025-12-09 12:59:28,029 - modules.audio_translator - WARNING - Coqui TTS failed: 'tacotron2-DDC_ph', falling back to gTTS
+2025-12-09 12:59:28,030 - modules.audio_translator - INFO - Generating speech with gTTS for language: es
+2025-12-09 12:59:34,966 - modules.audio_translator - INFO - gTTS audio generated: 20856ms duration
+2025-12-09 12:59:34,967 - modules.audio_translator - INFO - Applied speed adjustment: 0.85x
+2025-12-09 12:59:34,976 - modules.audio_translator - INFO - Speech synthesized successfully: translated_20251209_125928.wav (24536ms)
+2025-12-09 12:59:34,976 - modules.audio_translator - INFO - Applying gain consistency and compression...
+2025-12-09 12:59:35,794 - modules.audio_translator - INFO - Gain consistency applied (target LUFS: -16.0)
+2025-12-09 12:59:35,802 - modules.audio_translator - INFO - Gain consistency applied
+2025-12-09 12:59:35,828 - modules.audio_translator - INFO - Applying frame-accurate duration correction: 24536ms to 30093ms
+2025-12-09 12:59:35,829 - modules.audio_translator - INFO - Applying precise speed adjustment: 0.815x
+2025-12-09 12:59:36,437 - modules.audio_translator - INFO - Precise speed result: 24536ms to 30100ms (ratio: 1.227)
+2025-12-09 12:59:36,442 - modules.audio_translator - INFO - Duration correction applied: 30100ms (diff: 7ms)
+2025-12-09 12:59:36,442 - modules.audio_translator - INFO - [OK] Lip-sync precision achieved: ±7ms (within 200ms tolerance)
+2025-12-09 12:59:36,442 - modules.audio_translator - INFO - Running final quality validation with 5 random spots...
+2025-12-09 12:59:36,488 - modules.audio_translator - INFO - Quality validation: 0.60 (SNR: 6.2dB, Sync: 100.0%)
+2025-12-09 12:59:36,490 - modules.audio_translator - WARNING - Quality validation failed: 0.60
+2025-12-09 12:59:36,490 - modules.audio_translator - WARNING - Recommendation: Low signal quality - consider increasing normalization strength
+2025-12-09 12:59:36,490 - modules.audio_translator - WARNING - Recommendation: Overall quality below threshold - consider adjusting parameters
+2025-12-09 12:59:36,491 - modules.audio_translator - INFO - Translation completed in 19.3s
+2025-12-09 12:59:36,491 - modules.audio_translator - INFO - Duration match: 100.0% (5557ms diff)
+2025-12-09 12:59:36,491 - modules.audio_translator - INFO - Speed adjustment: 0.85x
+2025-12-09 12:59:36,492 - modules.audio_translator - INFO - Output: translated_20251209_125928.wav
+2025-12-09 12:59:36,494 - modules.pipeline - INFO - [OK] Chunk 7 processed successfully in 19.3s
+2025-12-09 12:59:36,495 - modules.pipeline - INFO - 5. Merging audio chunks...
+2025-12-09 12:59:36,499 - modules.pipeline - INFO - Starting merge with chunk 0: /tmp/octavia_test\translated_chunk_0000.wav
+2025-12-09 12:59:36,504 - modules.pipeline - INFO - Added chunk 1: /tmp/octavia_test\translated_chunk_0001.wav
+2025-12-09 12:59:36,511 - modules.pipeline - INFO - Added chunk 2: /tmp/octavia_test\translated_chunk_0002.wav
+2025-12-09 12:59:36,517 - modules.pipeline - INFO - Added chunk 3: /tmp/octavia_test\translated_chunk_0003.wav
+2025-12-09 12:59:36,525 - modules.pipeline - INFO - Added chunk 4: /tmp/octavia_test\translated_chunk_0004.wav
+2025-12-09 12:59:36,534 - modules.pipeline - INFO - Added chunk 5: /tmp/octavia_test\translated_chunk_0005.wav
+2025-12-09 12:59:36,544 - modules.pipeline - INFO - Added chunk 6: /tmp/octavia_test\translated_chunk_0006.wav
+2025-12-09 12:59:36,553 - modules.pipeline - INFO - Added chunk 7: /tmp/octavia_test\translated_chunk_0007.wav
+2025-12-09 12:59:36,574 - modules.pipeline - INFO - Successfully merged 8 audio chunks to /tmp/octavia_test\merged.wav
+2025-12-09 12:59:36,575 - modules.pipeline - INFO - 6. Merging with video...
+2025-12-09 12:59:44,766 - modules.pipeline - INFO - Merged video created: backend/outputs\translated_sample_30s_en.mp4
+2025-12-09 12:59:44,794 - modules.pipeline - INFO - Cleaned up temp files
+2025-12-09 12:59:44,794 - modules.pipeline - INFO - [OK] Translation completed in 237.1s
+2025-12-09 12:59:44,794 - modules.pipeline - INFO -   Output: backend/outputs\translated_sample_30s_en.mp4

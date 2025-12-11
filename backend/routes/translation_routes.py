@@ -1,3 +1,5 @@
+
+
 """
 API routes for translation features
 """
@@ -16,6 +18,7 @@ from modules.pipeline import VideoTranslationPipeline
 
 # Import shared dependencies
 from shared_dependencies import User, get_current_user, supabase
+import os
 
 router = APIRouter(prefix="/api/translate", tags=["translation"])
 
@@ -28,6 +31,8 @@ class SubtitleTranslationQuery(BaseModel):
     targetLanguage: str = "es"
     format: str = "srt"
 
+    
+
 @router.post("/subtitle-file")
 async def translate_subtitle_file(
     current_user: User = Depends(get_current_user),  # Authentication required
@@ -38,9 +43,12 @@ async def translate_subtitle_file(
 ):
     """Translate existing subtitle file to another language"""
     try:
-        # Check credits (5 credits for subtitle translation) - temporarily disabled for testing
-        # if current_user.credits < 5:
-        #     raise HTTPException(400, "Insufficient credits. You need at least 5 credits to translate subtitles.")
+        DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+        is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
+        # Only check credits for real users
+        if not is_demo_user:
+            if current_user.credits < 5:
+                raise HTTPException(400, "Insufficient credits. You need at least 5 credits to translate subtitles.")
 
         # Save uploaded subtitle file
         file_id = str(uuid.uuid4())
@@ -51,8 +59,13 @@ async def translate_subtitle_file(
             content = await file.read()
             f.write(content)
 
-        # Deduct credits - temporarily disabled for testing
-        # supabase.table("users").update({"credits": current_user.credits - 5}).eq("id", current_user.id).execute()
+        # Disable all credit checks and Supabase updates for demo user
+        if is_demo_user:
+            pass
+        else:
+            if current_user.credits < 5:
+                raise HTTPException(400, "Insufficient credits. You need at least 5 credits to translate subtitles.")
+            supabase.table("users").update({"credits": current_user.credits - 5}).eq("id", current_user.id).execute()
 
         # Perform actual subtitle translation
         print("DEBUG: Starting subtitle translation")
@@ -87,7 +100,7 @@ async def translate_subtitle_file(
             "target_language": targetLanguage,
             "segment_count": result["segment_count"],
             "output_path": output_filename,
-            "remaining_credits": current_user.credits
+            "remaining_credits": current_user.credits if not is_demo_user else 5000
         }
 
     except HTTPException:
@@ -105,9 +118,12 @@ async def generate_subtitles(
 ):
     """Generate subtitles from video/audio file"""
     try:
-        # Check credits (1 credit for subtitle generation)
-        if current_user.credits < 1:
-            raise HTTPException(400, "Insufficient credits. Need at least 1 credit.")
+        DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+        is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
+        # Only check credits for real users
+        if not is_demo_user:
+            if current_user.credits < 1:
+                raise HTTPException(400, "Insufficient credits. Need at least 1 credit.")
 
         # Save uploaded file
         file_id = str(uuid.uuid4())
@@ -118,8 +134,13 @@ async def generate_subtitles(
             content = await file.read()
             f.write(content)
 
-        # Deduct credits
-        supabase.table("users").update({"credits": current_user.credits - 1}).eq("id", current_user.id).execute()
+        # Disable all credit checks and Supabase updates for demo user
+        if is_demo_user:
+            pass
+        else:
+            if current_user.credits < 1:
+                raise HTTPException(400, "Insufficient credits. Need at least 1 credit.")
+            supabase.table("users").update({"credits": current_user.credits - 1}).eq("id", current_user.id).execute()
 
         # Create job entry
         job_id = str(uuid.uuid4())
@@ -151,7 +172,7 @@ async def generate_subtitles(
             "job_id": job_id,
             "message": "Subtitle generation started in background",
             "status_url": f"/api/jobs/{job_id}/status",
-            "remaining_credits": current_user.credits - 1
+            "remaining_credits": current_user.credits - 1 if not is_demo_user else 5000
         }
 
     except HTTPException:
@@ -159,10 +180,84 @@ async def generate_subtitles(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Subtitle generation failed: {str(e)}")
 
+# Place the /api/translate/audio endpoint after the video endpoint
+@router.post("/audio")
+async def translate_audio(
+    current_user: User = Depends(get_current_user),
+    file: UploadFile = File(...),
+    source_lang: str = Form("auto"),
+    target_lang: str = Form("es"),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """Translate audio file to another language (audio-only translation)"""
+    try:
+        DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+        is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
+        # Only check credits for real users
+        if not is_demo_user:
+            if current_user.credits < 5:
+                raise HTTPException(400, "Insufficient credits. You need at least 5 credits to translate audio.")
+
+        # Save uploaded audio file
+        file_id = str(uuid.uuid4())
+        file_ext = os.path.splitext(file.filename)[1]
+        file_path = f"temp_{file_id}{file_ext}"
+
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+
+        # Disable all credit checks and Supabase updates for demo user
+        if is_demo_user:
+            pass
+        else:
+            supabase.table("users").update({"credits": current_user.credits - 5}).eq("id", current_user.id).execute()
+
+        # Create job entry
+        job_id = str(uuid.uuid4())
+        translation_jobs[job_id] = {
+            "id": job_id,
+            "type": "audio",
+            "status": "processing",
+            "progress": 0,
+            "file_path": file_path,
+            "source_lang": source_lang,
+            "target_lang": target_lang,
+            "user_id": current_user.id,
+            "user_email": current_user.email,
+            "created_at": datetime.utcnow().isoformat(),
+            "message": "Starting audio translation..."
+        }
+
+        # Process in background
+        background_tasks.add_task(
+            process_audio_translation_job,
+            job_id,
+            file_path,
+            source_lang,
+            target_lang,
+            current_user.id
+        )
+
+        return {
+            "success": True,
+            "job_id": job_id,
+            "message": "Audio translation started",
+            "status_url": f"/api/jobs/{job_id}/status",
+            "remaining_credits": current_user.credits - 5 if not is_demo_user else 5000
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Audio translation failed: {str(e)}")
+
 @router.get("/download/subtitles/{file_id}")
 async def download_subtitle_file(file_id: str):
     """Download translated subtitle file by file_id"""
     try:
+        DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+        # is_demo_user logic for future-proofing, not currently used
         output_dir = "backend/outputs/subtitles"
         filename = os.path.join(output_dir, f"subtitles_{file_id}.srt")
         if os.path.exists(filename):
@@ -196,9 +291,9 @@ async def process_video_enhanced_job(job_id, file_path, target_language, chunk_s
 
         # Update job with results
         # Ensure we have a proper output path - if result doesn't provide one, create a standard one
-        output_path = result.get("output_path")
+        output_path = result.get("output_path") or result.get("output_video")
         if not output_path:
-            # Create a standard output path if the pipeline didn't provide one
+            # Create a standard output path matching pipeline's actual output location
             output_path = f"backend/outputs/translated_video_{job_id}.mp4"
             # Create a placeholder file to ensure the path exists
             try:
@@ -335,6 +430,8 @@ async def process_subtitle_job(job_id, file_path, language, format, user_id):
 @router.get("/jobs/{job_id}/status")
 async def get_job_status(job_id: str, current_user: User = Depends(get_current_user)):
     """Get status of a translation job"""
+    DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+    is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
     # Check both translation_jobs and jobs_db (from app.py)
     job = None
     job_source = None
@@ -343,14 +440,17 @@ async def get_job_status(job_id: str, current_user: User = Depends(get_current_u
         job = translation_jobs[job_id]
         job_source = "translation_jobs"
     else:
-        try:
-            # Import jobs_db from app.py
-            from app import jobs_db
-            if job_id in jobs_db:
-                job = jobs_db[job_id]
-                job_source = "jobs_db"
-        except ImportError:
-            pass  # jobs_db not available
+        # Try to access jobs_db from the global app context to avoid import issues
+        import sys
+        jobs_db = None
+        for module_name, module in sys.modules.items():
+            if module_name == 'app' and hasattr(module, 'jobs_db'):
+                jobs_db = module.jobs_db
+                break
+
+        if jobs_db and job_id in jobs_db:
+            job = jobs_db[job_id]
+            job_source = "jobs_db"
 
     if not job:
         # Enhanced error response with debugging information
@@ -448,6 +548,8 @@ async def get_job_status(job_id: str, current_user: User = Depends(get_current_u
 @router.get("/jobs/history")
 async def get_user_job_history(current_user: User = Depends(get_current_user)):
     """Get user's job history"""
+    DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+    is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
     user_jobs = []
 
     # Get jobs from translation_jobs
@@ -510,9 +612,12 @@ async def translate_video(
 ):
     """Basic video translation - direct processing"""
     try:
-        # Check credits (10 credits for video translation)
-        if current_user.credits < 10:
-            raise HTTPException(400, "Insufficient credits. You need at least 10 credits to translate videos.")
+        DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+        is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
+        # Only check credits for real users
+        if not is_demo_user:
+            if current_user.credits < 10:
+                raise HTTPException(400, "Insufficient credits. You need at least 10 credits to translate videos.")
 
         # Validate file
         if not file.filename:
@@ -538,23 +643,54 @@ async def translate_video(
             os.remove(file_path)
             raise HTTPException(400, "File too large. Maximum size is 500MB.")
 
-        # Deduct credits
-        supabase.table("users").update({"credits": current_user.credits - 10}).eq("id", current_user.id).execute()
+        # Disable all credit checks and Supabase updates for demo user
+        if is_demo_user:
+            pass
+        else:
+            supabase.table("users").update({"credits": current_user.credits - 10}).eq("id", current_user.id).execute()
 
-        # Create job entry
+        # Create job entry - use global jobs_db to ensure download endpoints can find it
         job_id = str(uuid.uuid4())
-        translation_jobs[job_id] = {
-            "id": job_id,
-            "type": "video",
-            "status": "processing",
-            "progress": 0,
-            "file_path": file_path,
-            "target_language": target_language,
-            "original_filename": file.filename,
-            "user_id": current_user.id,
-            "user_email": current_user.email,
-            "created_at": datetime.utcnow().isoformat()
-        }
+
+        # Access jobs_db from the global app context to avoid import issues
+        import sys
+        jobs_db = None
+        for module_name, module in sys.modules.items():
+            if module_name == 'app' and hasattr(module, 'jobs_db'):
+                jobs_db = module.jobs_db
+                break
+
+        if jobs_db is not None:
+            jobs_db[job_id] = {
+                "id": job_id,
+                "type": "video",
+                "status": "processing",
+                "progress": 0,
+                "file_path": file_path,
+                "target_language": target_language,
+                "original_filename": file.filename,
+                "user_id": current_user.id,
+                "user_email": current_user.email,
+                "created_at": datetime.utcnow().isoformat(),
+                "message": "Starting video translation..."
+            }
+            print(f"Created video job {job_id} in global jobs_db")
+        else:
+            # Fallback to local storage if jobs_db not accessible
+            translation_jobs[job_id] = {
+                "id": job_id,
+                "type": "video",
+                "status": "processing",
+                "progress": 0,
+                "file_path": file_path,
+                "target_language": target_language,
+                "original_filename": file.filename,
+                "user_id": current_user.id,
+                "user_email": current_user.email,
+                "created_at": datetime.utcnow().isoformat(),
+                "message": "Starting video translation..."
+            }
+            print(f"Created video job {job_id} in local translation_jobs (fallback)")
 
         # Process in background
         background_tasks.add_task(
@@ -570,7 +706,7 @@ async def translate_video(
             "job_id": job_id,
             "message": "Video translation started",
             "status_url": f"/api/jobs/{job_id}/status",
-            "remaining_credits": current_user.credits - 10
+            "remaining_credits": current_user.credits - 10 if not is_demo_user else 5000
         }
 
     except HTTPException:
@@ -578,15 +714,40 @@ async def translate_video(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Video translation failed: {str(e)}")
 
-async def process_audio_translation_job(job_id: str, file_path: str, target_lang: str, user_id: str):
+async def process_audio_translation_job(job_id: str, file_path: str, source_lang: str, target_lang: str, user_id: str):
     """Background task for audio translation"""
+    import os
+    DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+    # Try to get the user email if possible
+    user_email = translation_jobs[job_id].get("user_email", "")
+    is_demo_user = DEMO_MODE and user_email == "demo@octavia.com"
+
+    if is_demo_user:
+        # Simulate a successful translation for demo user
+        translation_jobs[job_id].update({
+            "status": "completed",
+            "progress": 100,
+            "result": {
+                "download_url": f"/api/download/audio/{job_id}",
+                "duration_match_percent": 100,
+                "speed_adjustment": 1.0
+            },
+            "completed_at": datetime.utcnow().isoformat(),
+            "output_path": file_path,
+            "message": "Demo audio translation complete. (No real processing performed)"
+        })
+        # Optionally, remove the temp file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return
+
     try:
         # Update job status
         translation_jobs[job_id]["progress"] = 10
 
         # Initialize translator with config
         from modules.audio_translator import TranslationConfig
-        config = TranslationConfig(source_lang="en", target_lang=target_lang)  # Assume English source
+        config = TranslationConfig(source_lang=source_lang, target_lang=target_lang)
         translator = AudioTranslator(config)
 
         # Update progress
@@ -635,60 +796,102 @@ async def process_audio_translation_job(job_id: str, file_path: str, target_lang
             print(f"Failed to refund credits: {refund_error}")
 
 async def process_video_job(job_id, file_path, target_language, user_id):
-    """Background task for basic video translation"""
+    """Background task for FULL video translation with AI pipeline"""
     try:
-        # Update job status
-        translation_jobs[job_id]["progress"] = 10
-        translation_jobs[job_id]["message"] = "Initializing translation pipeline..."
+        print(f"Starting FULL AI video translation job {job_id}")
 
-        # Initialize pipeline
-        pipeline = VideoTranslationPipeline()
-        if not pipeline.load_models():
-            raise Exception("Failed to load AI models")
+        # Update job status in jobs_db - access via sys.modules to avoid import issues
+        import sys
+        jobs_db = None
+        for module_name, module in sys.modules.items():
+            if module_name == 'app' and hasattr(module, 'jobs_db'):
+                jobs_db = module.jobs_db
+                break
 
-        # Update progress
-        translation_jobs[job_id]["progress"] = 30
-        translation_jobs[job_id]["message"] = "Pipeline ready. Starting translation..."
+        if jobs_db is None:
+            raise Exception("Cannot access jobs_db from app module")
 
-        # Process video
-        result = pipeline.process_video(file_path, target_language)
+        jobs_db[job_id]["progress"] = 10
+        jobs_db[job_id]["message"] = "Loading AI models..."
 
-        if not result or not result.get("success"):
-            raise Exception(result.get("error", "Video processing failed"))
+        # FULL AI PIPELINE: Use the complete video translation pipeline
+        from modules.pipeline import VideoTranslationPipeline, PipelineConfig
 
-        # Update job with results
-        result_with_target = {
-            **result,
-            "target_language": target_language
-        }
+        # Configure pipeline for full processing
+        config = PipelineConfig(
+            chunk_size=30,  # Process in 30-second chunks
+            use_gpu=False,  # Use CPU for broader compatibility
+            temp_dir="/tmp/octavia_video",
+            output_dir="backend/backend/outputs"  # Output to the requested directory
+        )
 
-        # Ensure we have a proper output path - if result doesn't provide one, create a standard one
-        output_path = result.get("output_path")
-        if not output_path:
-            # Create a standard output path if the pipeline didn't provide one
-            output_path = f"backend/outputs/translated_video_{job_id}.mp4"
-            # Create a placeholder file to ensure the path exists
+        pipeline = VideoTranslationPipeline(config)
+
+        jobs_db[job_id]["progress"] = 20
+        jobs_db[job_id]["message"] = "AI models loaded. Starting video processing..."
+
+        # Process the video with full AI pipeline
+        result = pipeline.process_video_fast(file_path, target_language)
+
+        if result.get("success"):
+            output_path = result.get("output_video") or result.get("output_path")
+            if not output_path:
+                # Fallback output path
+                output_path = f"backend/backend/outputs/translated_video_{job_id}.mp4"
+
+            jobs_db[job_id]["progress"] = 90
+            jobs_db[job_id]["message"] = "Finalizing translation..."
+
+            # Update job with successful results
+            jobs_db[job_id].update({
+                "status": "completed",
+                "progress": 100,
+                "result": {
+                    "success": True,
+                    "output_path": output_path,
+                    "target_language": target_language,
+                    "chunks_processed": result.get("chunks_processed", 0),
+                    "total_chunks": result.get("total_chunks", 0),
+                    "processing_time_s": result.get("processing_time_s", 0),
+                    "message": "Video translation completed with full AI processing"
+                },
+                "completed_at": datetime.utcnow().isoformat(),
+                "output_path": output_path,
+                "output_video": output_path
+            })
+
+            print(f"Video translation job {job_id} completed successfully - output: {output_path}")
+            print(f"Processed {result.get('chunks_processed', 0)}/{result.get('total_chunks', 0)} chunks")
+            print(f"Total processing time: {result.get('processing_time_s', 0)} seconds")
+
+        else:
+            # Handle pipeline failure
+            error_msg = result.get("error", "Video translation pipeline failed")
+            print(f"Video translation pipeline failed: {error_msg}")
+
+            jobs_db[job_id].update({
+                "status": "failed",
+                "error": error_msg,
+                "failed_at": datetime.utcnow().isoformat(),
+                "result": {
+                    "success": False,
+                    "error": error_msg,
+                    "output_path": None,
+                    "target_language": target_language
+                }
+            })
+
+            # Refund credits on failure
             try:
-                os.makedirs(os.path.dirname(output_path), exist_ok=True)
-                with open(output_path, "wb") as f:
-                    f.write(b"Video translation completed - content will be available shortly")
-            except Exception as e:
-                print(f"Failed to create placeholder output file: {e}")
-                output_path = f"translated_video_{job_id}.mp4"
-                try:
-                    with open(output_path, "wb") as f:
-                        f.write(b"Video translation completed - content will be available shortly")
-                except Exception as e2:
-                    print(f"Failed to create fallback output file: {e2}")
+                response = supabase.table("users").select("credits").eq("id", user_id).execute()
+                if response.data:
+                    current_credits = response.data[0]["credits"]
+                    supabase.table("users").update({"credits": current_credits + 10}).eq("id", user_id).execute()
+                    print(f"Refunded 10 credits to user {user_id} due to video translation failure")
+            except Exception as refund_error:
+                print(f"Failed to refund credits: {refund_error}")
 
-        translation_jobs[job_id].update({
-            "status": "completed",
-            "progress": 100,
-            "result": result_with_target,
-            "completed_at": datetime.utcnow().isoformat(),
-            "output_path": output_path,
-            "output_video": output_path  # Store as output_video too for consistency
-        })
+            return
 
         # Cleanup temp file
         try:
@@ -699,19 +902,26 @@ async def process_video_job(job_id, file_path, target_language, user_id):
 
     except Exception as e:
         error_msg = str(e)
-        print(f"Basic video translation job {job_id} failed: {error_msg}")
+        print(f"Video translation job {job_id} failed with exception: {error_msg}")
+        import traceback
+        traceback.print_exc()
 
-        translation_jobs[job_id].update({
-            "status": "failed",
-            "error": error_msg,
-            "failed_at": datetime.utcnow().isoformat(),
-            "result": {
-                "success": False,
+        # Update job status in jobs_db
+        try:
+            from app import jobs_db
+            jobs_db[job_id].update({
+                "status": "failed",
                 "error": error_msg,
-                "output_path": None,
-                "target_language": target_language
-            }
-        })
+                "failed_at": datetime.utcnow().isoformat(),
+                "result": {
+                    "success": False,
+                    "error": error_msg,
+                    "output_path": None,
+                    "target_language": target_language
+                }
+            })
+        except:
+            pass  # jobs_db access failed
 
         # Refund credits on failure
         try:
@@ -734,6 +944,8 @@ async def process_video_job(job_id, file_path, target_language, user_id):
 async def download_file(file_type: str, file_id: str):
     """Download generated files"""
     try:
+        DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+        # is_demo_user logic for future-proofing, not currently used
         print(f"Download request: type={file_type}, id={file_id}")
 
         # First, check if this is a job-based download from both stores
@@ -761,6 +973,7 @@ async def download_file(file_type: str, file_id: str):
                 possible_filenames.append(job["output_video"])
 
             # 2. Standard locations
+            possible_filenames.append(f"backend/backend/outputs/translated_video_{file_id}.mp4")
             possible_filenames.append(f"backend/outputs/translated_video_{file_id}.mp4")
             possible_filenames.append(f"outputs/translated_video_{file_id}.mp4")
             possible_filenames.append(f"translated_video_{file_id}.mp4")
@@ -782,7 +995,7 @@ async def download_file(file_type: str, file_id: str):
 
             # 4. Search for any file containing file_id
             if not filename:
-                search_dirs = ["backend/outputs", "outputs", "."]
+                search_dirs = ["backend/backend/outputs", "backend/outputs", "outputs", "."]
                 for dir_path in search_dirs:
                     if os.path.exists(dir_path):
                         for file in os.listdir(dir_path):

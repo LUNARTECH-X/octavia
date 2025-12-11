@@ -264,18 +264,23 @@ export default function LoginPage() {
                   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/demo-login`, {
                     method: 'POST',
                   });
-                  
-                  const data = await response.json();
-                  
-                  if (data.success) {
+                  let data = null;
+                  try {
+                    data = await response.json();
+                  } catch (jsonErr) {
+                    data = null;
+                  }
+                  if (data && data.success) {
                     // Store user data
                     localStorage.setItem('octavia_user', JSON.stringify({
                       ...data.user,
                       token: data.token
                     }));
                     router.push('/dashboard');
-                  } else {
+                  } else if (data && data.detail) {
                     setError(data.detail || 'Demo login failed');
+                  } else {
+                    setError('Demo login failed: No response from server');
                   }
                 } catch (err) {
                   setError('Failed to login with demo account');

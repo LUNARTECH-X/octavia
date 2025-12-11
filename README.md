@@ -67,12 +67,44 @@ cd octavia-web
 npm run dev
 ```
 
+
 ### Docker Deployment (Alternative)
 ```bash
 cd backend
 docker build -t octavia .
-docker run -p 8000:8000 octavia
+# For mentor/demo evaluation, enable demo mode:
+docker run -e DEMO_MODE=true -p 8000:8000 octavia
 ```
+
+
+## 🧪 Test Mode / Demo Mode (Mentor & Self-Evaluation)
+
+To enable test/demo mode (no Supabase required, unlimited demo account):
+
+- Set the environment variable `DEMO_MODE=true` when running the backend.
+  - For Docker: `docker run -e DEMO_MODE=true -p 8000:8000 octavia`
+  - For local:  
+    - Windows PowerShell: `$env:DEMO_MODE="true"; python app.py`  
+    - Linux/macOS: `DEMO_MODE=true python app.py`
+- Use the **Try Demo Account** button on the login page, or:
+  - **Email:** `demo@octavia.com`
+  - **Password:** `demo123`
+
+In this mode, all features work for the demo account, even if Supabase/database is unavailable. Real users still require Supabase keys.
+
+---
+## 🧑‍💻 Mentor Evaluation & Demo Login
+
+If you do not have access to Supabase or want to test the app without cloud dependencies, you can use the built-in demo login mode:
+
+- Set the environment variable `DEMO_MODE=true` when running the backend (see Docker example above).
+- On the login page, click the **Try Demo Account** button, or use:
+  - **Email:** `demo@octavia.com`
+  - **Password:** `demo123`
+
+This will log you in as a demo user with 5000 credits and full access to all features, even if Supabase is unavailable.
+
+**Note:** In normal mode (with Supabase), the demo login will create or update a demo user in your Supabase instance.
 
 ## 📊 Technical Specifications
 

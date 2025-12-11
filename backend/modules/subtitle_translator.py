@@ -9,10 +9,15 @@ class SubtitleTranslator:
     def __init__(self):
         self.supported_formats = ['.srt', '.vtt', '.ass']
         self.supported_languages = {
-            'english': 'en', 'spanish': 'es', 'french': 'fr', 
+            # Language names to codes
+            'english': 'en', 'spanish': 'es', 'french': 'fr',
             'german': 'de', 'italian': 'it', 'portuguese': 'pt',
             'russian': 'ru', 'japanese': 'ja', 'korean': 'ko',
-            'chinese': 'zh-cn', 'arabic': 'ar', 'hindi': 'hi'
+            'chinese': 'zh-cn', 'arabic': 'ar', 'hindi': 'hi',
+            # Also support direct language codes
+            'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it',
+            'pt': 'pt', 'ru': 'ru', 'ja': 'ja', 'ko': 'ko', 'zh': 'zh-cn',
+            'ar': 'ar', 'hi': 'hi'
         }
     
     def translate_subtitles(

@@ -364,29 +364,26 @@ class AudioTranslator:
             }
     
     def translate_text_with_context(self, text: str, segments: List[Dict]) -> Tuple[str, List[Dict]]:
-        """Translate text with segment context preservation"""
+        """Translate text with segment context preservation. Fails loudly if translation is a no-op or fallback."""
         try:
             if not self.translation_pipeline:
                 self.load_models()
 
             if not text or len(text.strip()) < 2:
                 logger.warning("No text to translate")
-                return text, []
+                raise ValueError("No text to translate")
 
             logger.info(f"Translating text: '{text[:100]}...'")
 
             # Simple direct translation for now
             try:
-                # Try to use a simple translation approach first
                 logger.info(f"Attempting translation with pipeline...")
 
                 if self.translation_pipeline:
-                    # Use the pipeline for translation with simpler parameters
                     result = self.translation_pipeline(text, max_length=512, num_beams=1)
                     translated_text = result[0]['translation_text']
                     logger.info(f"Pipeline translation result: '{translated_text[:100]}...'")
                 else:
-                    # Direct model usage
                     logger.warning("No translation pipeline available, trying direct model")
                     inputs = self.translation_tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512)
                     if torch.cuda.is_available():
@@ -400,20 +397,19 @@ class AudioTranslator:
 
                 # Ensure we have translated text
                 if not translated_text or len(translated_text.strip()) < 1:
-                    logger.warning("Translation returned empty text, using fallback")
-                    translated_text = f"[Translated to {self.config.target_lang}] {text}"
+                    logger.error("Translation returned empty text. Failing loudly.")
+                    raise RuntimeError("Translation returned empty text.")
 
                 # If translation is too short or same as input, it's likely failed
                 if len(translated_text.strip()) < len(text.strip()) * 0.1 or translated_text.strip().lower() == text.strip().lower():
-                    logger.warning("Translation appears to have failed, using fallback")
-                    translated_text = f"[Translated to {self.config.target_lang}] {text}"
+                    logger.error("Translation appears to have failed (no-op or too similar to input). Failing loudly.")
+                    raise RuntimeError("Translation appears to have failed (no-op or too similar to input). Text: " + text[:100])
 
             except Exception as translation_error:
                 logger.error(f"Translation pipeline failed: {translation_error}")
                 import traceback
                 traceback.print_exc()
-                # Fallback translation
-                translated_text = f"[Translated to {self.config.target_lang}] {text}"
+                raise
 
             # Clean the translation
             translated_text = self._clean_translation(translated_text)
@@ -421,7 +417,6 @@ class AudioTranslator:
             # Create translated segments (simple mapping)
             translated_segments = []
             if segments:
-                # Distribute translated text proportionally across segments
                 translated_words = translated_text.split()
                 total_original_words = sum(len(seg["text"].split()) for seg in segments)
 
@@ -434,7 +429,6 @@ class AudioTranslator:
                     else:
                         num_translated_words = max(1, len(translated_words) // len(segments))
 
-                    # Get words for this segment
                     start_idx = word_idx
                     end_idx = min(word_idx + num_translated_words, len(translated_words))
                     segment_text = " ".join(translated_words[start_idx:end_idx])
@@ -455,15 +449,7 @@ class AudioTranslator:
 
         except Exception as e:
             logger.error(f"Translation failed completely: {e}")
-            # Return original text with empty segments
-            fallback_segments = [{
-                "start": seg["start"],
-                "end": seg["end"],
-                "original_text": seg["text"],
-                "translated_text": seg["text"],
-                "words": seg.get("words", [])
-            } for seg in segments]
-            return text, fallback_segments
+            raise
     
     def _clean_translation(self, text: str) -> str:
         """Clean and normalize translated text"""

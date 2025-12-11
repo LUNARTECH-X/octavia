@@ -394,18 +394,68 @@ export default function AudioTranslationPage() {
 
     try {
       console.log('Downloading audio for job:', jobId);
-      
-      // Use the API service to download the file
-      const blob = await api.downloadFile(jobId);
-      
+
+      // For audio jobs, try audio-specific endpoints first
+      const token = localStorage.getItem('octavia_user') ? JSON.parse(localStorage.getItem('octavia_user')!).token : null;
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+      // Try audio-specific endpoints first
+      const audioEndpoints = [
+        `/api/download/audio/${jobId}`,
+        `/api/download/${jobId}`,
+        `/api/download/video/${jobId}` // fallback to video endpoint
+      ];
+
+      let blob: Blob | null = null;
+      let lastError: Error | null = null;
+
+      for (const endpoint of audioEndpoints) {
+        const url = `${API_BASE_URL}${endpoint}`;
+
+        try {
+          console.log(`Trying audio download endpoint: ${endpoint}`);
+          const response = await fetch(url, {
+            headers: token ? {
+              'Authorization': `Bearer ${token}`
+            } : {},
+          });
+
+          if (response.ok) {
+            blob = await response.blob();
+            console.log(`Audio download successful from: ${endpoint}`);
+            break;
+          }
+
+          // If 404, try next endpoint
+          if (response.status === 404) {
+            console.log(`Endpoint ${endpoint} returned 404, trying next...`);
+            continue;
+          }
+
+          // For other errors, capture but continue trying other endpoints
+          const errorText = await response.text();
+          const error = new Error(`Download failed (${response.status}): ${errorText}`);
+          console.warn(`Endpoint ${endpoint} failed:`, error);
+          lastError = error;
+
+        } catch (error) {
+          console.warn(`Endpoint ${endpoint} network error:`, error);
+          lastError = error as Error;
+        }
+      }
+
+      if (!blob) {
+        throw lastError || new Error('Download failed: All endpoints failed');
+      }
+
       // Extract filename
       const fileName = `octavia_translated_audio_${jobId}.mp3`;
-      
+
       // Save the file
       api.saveFile(blob, fileName);
-      
+
       console.log('Audio file downloaded:', fileName);
-      
+
     } catch (err: any) {
       console.error('Download error:', err);
       setError("Failed to download audio file. Please try again or contact support.");
@@ -435,7 +485,59 @@ export default function AudioTranslationPage() {
         if (!audioToPlay) {
           // Download the audio file as a blob first
           console.log('Downloading audio file for playback...');
-          const audioBlob = await api.downloadFile(jobId);
+
+          // For audio jobs, try audio-specific endpoints first
+          const token = localStorage.getItem('octavia_user') ? JSON.parse(localStorage.getItem('octavia_user')!).token : null;
+          const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+          // Try audio-specific endpoints first
+          const audioEndpoints = [
+            `/api/download/audio/${jobId}`,
+            `/api/download/${jobId}`,
+            `/api/download/video/${jobId}` // fallback to video endpoint
+          ];
+
+          let audioBlob: Blob | null = null;
+          let lastError: Error | null = null;
+
+          for (const endpoint of audioEndpoints) {
+            const url = `${API_BASE_URL}${endpoint}`;
+
+            try {
+              console.log(`Trying audio download endpoint: ${endpoint}`);
+              const response = await fetch(url, {
+                headers: token ? {
+                  'Authorization': `Bearer ${token}`
+                } : {},
+              });
+
+              if (response.ok) {
+                audioBlob = await response.blob();
+                console.log(`Audio download successful from: ${endpoint}`);
+                break;
+              }
+
+              // If 404, try next endpoint
+              if (response.status === 404) {
+                console.log(`Endpoint ${endpoint} returned 404, trying next...`);
+                continue;
+              }
+
+              // For other errors, capture but continue trying other endpoints
+              const errorText = await response.text();
+              const error = new Error(`Download failed (${response.status}): ${errorText}`);
+              console.warn(`Endpoint ${endpoint} failed:`, error);
+              lastError = error;
+
+            } catch (error) {
+              console.warn(`Endpoint ${endpoint} network error:`, error);
+              lastError = error as Error;
+            }
+          }
+
+          if (!audioBlob) {
+            throw lastError || new Error('Download failed: All endpoints failed');
+          }
 
           // Validate blob
           if (!audioBlob || audioBlob.size === 0) {

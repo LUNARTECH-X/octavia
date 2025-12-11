@@ -19,6 +19,11 @@ JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "your-secret-key-change-in-product
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Debug: Check if demo mode is set
+DEMO_MODE_ENV = os.getenv("DEMO_MODE", "false")
+print(f"DEBUG: DEMO_MODE environment variable: '{DEMO_MODE_ENV}'")
+print(f"DEBUG: DEMO_MODE parsed: {DEMO_MODE_ENV.lower() == 'true'}")
+
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
@@ -112,6 +117,20 @@ async def get_current_user(token: str = Depends(HTTPBearer())):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
+        )
+
+    # DEMO_MODE: return static demo user if token matches
+    DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+    print(f"DEBUG: DEMO_MODE={DEMO_MODE}, user_id={user_id}")
+    if DEMO_MODE and user_id == "550e8400-e29b-41d4-a716-446655440000":
+        print("DEBUG: Using demo user")
+        return User(
+            id="550e8400-e29b-41d4-a716-446655440000",
+            email="demo@octavia.com",
+            name="Demo User",
+            is_verified=True,
+            credits=5000,
+            created_at=datetime.utcnow()
         )
 
     try:

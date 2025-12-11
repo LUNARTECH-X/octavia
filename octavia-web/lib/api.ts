@@ -650,6 +650,7 @@ async translateSubtitleFile(
     job_id: string;
     status: string;
     progress: number;
+    type?: string;
     status_message?: string;
     download_url?: string;
     original_filename?: string;
