@@ -111,7 +111,7 @@ def translate_audio(args):
         result = translator.process_audio(args.input)
         
         print(f"\ Audio translation completed!")
-        print(f"   Source: {result['source_lang']} → Target: {result['target_lang']}")
+        print(f"   Source: {result['source_lang']} -> Target: {result['target_lang']}")
         print(f"   Duration match: {result['duration_match_percent']:.1f}%")
         print(f"   Speed adjustment: {result['speed_adjustment']:.2f}x")
         print(f"   Output: {result['output_path']}")

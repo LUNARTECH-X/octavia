@@ -1,15 +1,389 @@
-pyvideotrans/
-win-pyvideotrans-v3.85.7z
-.DS_Store
-tts-venv/
-__pycache__/
-*.pyc
-*.mp4
-*.log
+# Dependencies
 node_modules/
-backend/backend/
-input/
-backend/outputs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower dependency directory (https://bower.io/)
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
 .env
-.ipynb_checkpoints/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+out/
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+storybook-static
+
+# Temporary folders
+tmp/
+temp/
+
+# Logs
+logs
+*.log
+
+# Python
+C:\Users\onyan\octavia\octavia\backend\__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# PyCharm
+.idea/
+
+# VS Code
 .vscode/
+*.code-workspace
+
+# MacOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Model files and checkpoints
+*.model
+*.h5
+*.hdf5
+*.pth
+*.pt
+checkpoints/
+models/
+
+# Generated outputs
+outputs/
+artifacts/
+test_outputs/
+temp_*/
+
+# Local development files
+*.local
+.local
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# System files
+*.swp
+*.swo
+*~
+
+# IDE files
+*.sublime-project
+*.sublime-workspace
+
+# Lock files (keep package-lock.json but ignore others)
+yarn.lock
+pnpm-lock.yaml
+
+# Test artifacts
+*.test.*
+test-results/
+coverage/
+
+# Video/audio processing artifacts
+*.mp4.tmp
+*.wav.tmp
+*.mp3.tmp
+*.avi.tmp
+*.mov.tmp
+
+# Translation cache
+*.translation.cache
+translation_cache/
+
+# User uploads (in production)
+uploads/
+user_files/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache directories
+.cache/
+cache/
+.tmp/
+
+# Large media files
+*.mov
+*.mp4
+*.avi
+*.mkv
+*.wmv
+*.flv
+*.webm
+*.m4v
+
+# Generated subtitle files
+*.srt.tmp
+*.vtt.tmp
+subtitles_cache/
+
+# Backend specific
+backend/logs/
+backend/temp/
+backend/uploads/
+backend/downloads/
+backend/checkpoints/
+backend/models/
+backend/backend/
+backend/temp_en_de/
+backend/temp_ru_en/
+backend/test_samples/
+backend/subtitle_jobs.json
+backend/artifacts/
+
+# Frontend specific
+octavia-web/.next/
+octavia-web/out/
+octavia-web/build/
+octavia-web/dist/
+
+# Documentation build
+docs/_build/
+site/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+tts-venv/
+
+# Development scripts
+run_test.bat
+test_*.py
+test_*.sh
+test_*.ps1
+debug_*.py
+setup.ps1
+startup_log.txt
+
+# Generated config files
+*.config.local.yaml
+*.config.dev.yaml
+
+# Stage files
+stage/
+
+# Project specific - artifacts and outputs
+artifacts/*
+!artifacts/.gitkeep
+outputs/*
+!outputs/.gitkeep
+test_outputs/*
+!test_outputs/.gitkeep
+
+# Backend specific directories
+backend/modules/
+backend/routes/
+backend/tests/
+backend/test_samples/
+backend/outputs/
+
+# Documentation specific
+documentation/assets/
+documentation/connections/
+documentation/progress/
+documentation/screenshots/

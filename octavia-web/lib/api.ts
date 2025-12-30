@@ -145,12 +145,24 @@ export interface LanguageOption {
   code: string;
 }
 
-// Translation progress interface
-export interface TranslationProgress {
-  status: 'idle' | 'uploading' | 'translating' | 'downloading' | 'complete' | 'error';
-  progress: number;
-  message?: string;
-}
+  // Translation progress interface
+  export interface TranslationProgress {
+    status: 'idle' | 'uploading' | 'translating' | 'downloading' | 'complete' | 'error';
+    progress: number;
+    message?: string;
+  }
+
+  // Available chunk interface for preview
+  export interface AvailableChunk {
+    id: number;
+    start_time: number;
+    duration: number;
+    preview_url: string;
+    status: 'completed' | 'processing' | 'failed';
+    confidence_score?: number;
+    estimated_wer?: number;
+    quality_rating?: string;
+  }
 
 class ApiService {
   // Get authentication token from localStorage
@@ -666,6 +678,9 @@ async translateSubtitleFile(
     original_filename?: string;
     target_language?: string;
     error?: string;
+    chunks_processed?: number;
+    total_chunks?: number;
+    available_chunks?: AvailableChunk[];
   }>> {
     return this.request<{
       job_id: string;
@@ -764,6 +779,69 @@ async translateSubtitleFile(
     return this.getJobStatus(jobId);
   }
 
+  // --- POLLING HELPERS ---
+
+  // Download a specific translated chunk for preview
+  async downloadChunk(jobId: string, chunkId: number): Promise<Blob> {
+    const token = this.getToken();
+
+    const url = `${API_BASE_URL}/api/download/chunk/${jobId}/${chunkId}`;
+
+    const response = await fetch(url, {
+      headers: token ? {
+        'Authorization': `Bearer ${token}`
+      } : {},
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Chunk download failed: ${response.statusText}`);
+    }
+
+    return await response.blob();
+  }
+
+  // Poll job status until completed or failed
+  async pollJobStatus(
+    jobId: string,
+    interval: number = 2000,
+    maxAttempts: number = 300
+  ): Promise<ApiResponse<{
+    job_id: string;
+    status: string;
+    progress: number;
+    status_message?: string;
+    download_url?: string;
+    original_filename?: string;
+    target_language?: string;
+    error?: string;
+    chunks_processed?: number;
+    total_chunks?: number;
+    available_chunks?: AvailableChunk[];
+  }>> {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const response = await this.getJobStatus(jobId);
+        
+        if (response.success && response.data) {
+          if (response.data.status === 'completed' || response.data.status === 'failed') {
+            return response;
+          }
+        }
+        
+        // Wait before next attempt
+        await new Promise(resolve => setTimeout(resolve, interval));
+      } catch (error) {
+        console.error('Error polling job status:', error);
+      }
+    }
+    
+    return {
+      success: false,
+      error: 'Timeout waiting for job completion',
+    };
+  }
+
   // Poll subtitle generation status
   async pollSubtitleStatus(
     jobId: string, 
@@ -791,198 +869,6 @@ async translateSubtitleFile(
       success: false,
       error: 'Timeout waiting for subtitle generation',
     };
-  }
-
-  // Download subtitle file
-  async downloadSubtitleFile(jobId: string, format: string = 'srt'): Promise<Blob> {
-    const token = this.getToken();
-    const url = `${API_BASE_URL}/api/download/subtitles/${jobId}`;
-    
-    const response = await fetch(url, {
-      headers: token ? {
-        'Authorization': `Bearer ${token}`
-      } : {},
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Download failed: ${response.statusText}`);
-    }
-    
-    return await response.blob();
-  }
-
-  // Get subtitle review data (for the review page)
-  async getSubtitleReviewData(jobId: string): Promise<ApiResponse<SubtitleReviewData>> {
-    const response = await this.request<SubtitleReviewData>(`/api/translate/subtitles/review/${jobId}`, {
-      method: 'GET',
-    }, true);
-    
-    // If we have SRT content, parse it into segments
-    if (response.success && response.data && response.data.content) {
-      const segments = this.parseSRTContent(response.data.content);
-      return {
-        ...response,
-        data: {
-          ...response.data,
-          segments
-        }
-      };
-    }
-    
-    return response;
-  }
-
-  // Update subtitle text (edit functionality)
-  async updateSubtitleSegment(
-    jobId: string,
-    segmentId: number,
-    text: string
-  ): Promise<ApiResponse> {
-    const body = JSON.stringify({
-      segment_id: segmentId,
-      text: text
-    });
-
-    return this.request(`/api/translate/subtitles/${jobId}/segment`, {
-      method: 'PUT',
-      body: body,
-    }, true);
-  }
-
-  // Export subtitles in different formats
-  async exportSubtitles(
-    jobId: string,
-    format: string
-  ): Promise<ApiResponse<{ download_url: string }>> {
-    const body = JSON.stringify({
-      format: format
-    });
-
-    return this.request<{ download_url: string }>(`/api/translate/subtitles/${jobId}/export`, {
-      method: 'POST',
-      body: body,
-    }, true);
-  }
-
-  // --- AUDIO TRANSLATION ---
-
-  // Translate audio file
-  async translateAudio(
-    data: TranslationRequest
-  ): Promise<ApiResponse<{ job_id: string; status_url: string; remaining_credits: number }>> {
-    const formData = new FormData();
-    formData.append('file', data.file);
-    formData.append('source_lang', data.sourceLanguage);
-    formData.append('target_lang', data.targetLanguage);
-
-    console.log('DEBUG: Audio translation request:', {
-      file: data.file.name,
-      sourceLanguage: data.sourceLanguage,
-      targetLanguage: data.targetLanguage
-    });
-
-    return this.request<{ job_id: string; status_url: string; remaining_credits: number }>('/api/translate/audio', {
-      method: 'POST',
-      body: formData,
-    }, true);
-  }
-
-  // --- VIDEO TRANSLATION ---
-
-  // Basic video translation
-  async translateVideo(
-    file: File,
-    targetLanguage: string = 'es'
-  ): Promise<ApiResponse<{ job_id: string; status_url: string; remaining_credits: number }>> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('target_language', targetLanguage);
-
-    return this.request<{ job_id: string; status_url: string; remaining_credits: number }>('/api/translate/video', {
-      method: 'POST',
-      body: formData,
-    }, true);
-  }
-
-  // Enhanced video translation
-  async translateVideoEnhanced(
-    file: File,
-    targetLanguage: string = 'es',
-    chunkSize: number = 30
-  ): Promise<ApiResponse<{ job_id: string; status_url: string; remaining_credits: number; features: string[] }>> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('target_language', targetLanguage);
-    formData.append('chunk_size', chunkSize.toString());
-
-    return this.request<{ job_id: string; status_url: string; remaining_credits: number; features: string[] }>('/api/translate/video/enhanced', {
-      method: 'POST',
-      body: formData,
-    }, true);
-  }
-
-  // --- USER PROFILE ---
-
-  // Get current user's profile information
-  async getUserProfile(): Promise<ApiResponse<{ user: User }>> {
-    return this.request<{ user: User }>('/api/user/profile', {
-      method: 'GET',
-    }, true);
-  }
-
-  // Get user's current credit balance
-  async getUserCredits(): Promise<ApiResponse<{ credits: number; email: string }>> {
-    return this.request<{ credits: number; email: string }>('/api/user/credits', {
-      method: 'GET',
-    }, true);
-  }
-
-  // Get user settings
-  async getUserSettings(): Promise<ApiResponse<{ settings: any }>> {
-    return this.request<{ settings: any }>('/api/user/settings', {
-      method: 'GET',
-    }, true);
-  }
-
-  // Update user settings
-  async updateUserSettings(settings: any): Promise<ApiResponse<{ settings: any }>> {
-    const body = JSON.stringify(settings);
-
-    return this.request<{ settings: any }>('/api/user/settings', {
-      method: 'PUT',
-      body: body,
-    }, true);
-  }
-
-  // Change user password
-  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse> {
-    const body = JSON.stringify({
-      current_password: currentPassword,
-      new_password: newPassword
-    });
-
-    return this.request('/api/user/change-password', {
-      method: 'POST',
-      body: body,
-    }, true);
-  }
-
-  // Update user profile
-  async updateUserProfile(data: { name: string; email: string }): Promise<ApiResponse<{ user: User }>> {
-    const body = JSON.stringify(data);
-
-    return this.request<{ user: User }>('/api/user/profile', {
-      method: 'PUT',
-      body: body,
-    }, true);
-  }
-
-  // Delete user account
-  async deleteUserAccount(): Promise<ApiResponse> {
-    return this.request('/api/user/account', {
-      method: 'DELETE',
-    }, true);
   }
 
   // --- FILE DOWNLOAD ---

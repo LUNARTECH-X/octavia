@@ -227,7 +227,7 @@ def main():
 
     # Test 1: English to German
     print("\n" + "🔵" * 80)
-    print("TEST 1: English → German")
+    print("TEST 1: English -> German")
     print("🔵" * 80)
     success1 = test_video_translation(
         video_path="backend/test_samples/sample_30s_en.mp4",
@@ -237,7 +237,7 @@ def main():
 
     # Test 2: Russian to English
     print("\n" + "🟡" * 80)
-    print("TEST 2: Russian → English")
+    print("TEST 2: Russian -> English")
     print("🟡" * 80)
     success2 = test_video_translation(
         video_path="backend/test_samples/sample_30s_ru.mp4",
@@ -258,9 +258,9 @@ def main():
         print("💥 SOME TESTS FAILED: Video translation pipeline needs fixes")
         print("❌ Please check the logs and fix issues before integration")
         if not success1:
-            print("  - English → German test failed")
+            print("  - English -> German test failed")
         if not success2:
-            print("  - Russian → English test failed")
+            print("  - Russian -> English test failed")
         return 1
 
 if __name__ == "__main__":

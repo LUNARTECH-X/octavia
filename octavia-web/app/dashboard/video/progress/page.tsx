@@ -2,10 +2,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle, Loader2, Clock, PlayCircle, ChevronDown, Terminal, AlertCircle, Download, Pause, Play, X } from "lucide-react";
+import { CheckCircle, Loader2, Clock, PlayCircle, ChevronDown, Terminal, AlertCircle, Download, Pause, Play, X, Volume2, VolumeX } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import type { AvailableChunk } from "@/lib/api";
 
 type JobStatus = "pending" | "processing" | "completed" | "failed";
 type PipelineStep = "splitting" | "transcribing" | "translating" | "dubbing" | "merging";
@@ -17,6 +18,9 @@ export default function TranslationProgressPage() {
     const [progress, setProgress] = useState(0);
     const [logs, setLogs] = useState<string[]>([]);
     const [estimatedTime, setEstimatedTime] = useState("~12 minutes");
+    const [availableChunks, setAvailableChunks] = useState<AvailableChunk[]>([]);
+    const [playingChunk, setPlayingChunk] = useState<number | null>(null);
+    const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
     
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -80,6 +84,11 @@ export default function TranslationProgressPage() {
                     setEstimatedTime(`~${estimatedMinutes} minute${estimatedMinutes !== 1 ? 's' : ''}`);
                 }
 
+                // Update available chunks for preview
+                if ((jobDataResponse as any).available_chunks) {
+                    setAvailableChunks((jobDataResponse as any).available_chunks);
+                }
+
                 // If job is completed, stop polling and redirect to review page after delay
                 if (jobDataResponse.status === "completed") {
                     console.log("Job completed, stopping polling and redirecting...");
@@ -115,21 +124,36 @@ export default function TranslationProgressPage() {
             // Initial fetch
             fetchJobStatus();
             
-            // Set up polling every 5 seconds
-            const interval = setInterval(fetchJobStatus, 5000);
+            // Set up polling every 2 seconds for faster updates
+            const interval = setInterval(fetchJobStatus, 2000);
             intervalRef.current = interval;
             
             return () => {
                 if (intervalRef.current) {
                     clearInterval(intervalRef.current);
                 }
+                // Cleanup audio on unmount
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                }
             };
         }
     }, [jobId]);
 
+    // Cleanup audio when component unmounts
+    useEffect(() => {
+        return () => {
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.src = '';
+            }
+        };
+    }, [audioElement]);
+
     const handleCancelJob = async () => {
         if (!jobId) return;
-        
+
         if (confirm("Are you sure you want to cancel this job?")) {
             // In a real app, you would call a cancel endpoint
             // For now, just stop polling and show cancelled state
@@ -137,6 +161,47 @@ export default function TranslationProgressPage() {
                 clearInterval(intervalRef.current);
             }
             setJobData({ ...jobData, status: "cancelled" });
+        }
+    };
+
+    const handlePlayChunk = async (chunk: AvailableChunk) => {
+        try {
+            // Stop any currently playing audio
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
+
+            // If clicking the same chunk, stop playback
+            if (playingChunk === chunk.id) {
+                setPlayingChunk(null);
+                return;
+            }
+
+            // Download and play the chunk
+            setPlayingChunk(chunk.id);
+            const blob = await api.downloadChunk(jobId!, chunk.id);
+            const audioUrl = URL.createObjectURL(blob);
+
+            const audio = new Audio(audioUrl);
+            setAudioElement(audio);
+
+            audio.onended = () => {
+                setPlayingChunk(null);
+                URL.revokeObjectURL(audioUrl);
+            };
+
+            audio.onerror = () => {
+                setPlayingChunk(null);
+                URL.revokeObjectURL(audioUrl);
+                alert("Failed to play chunk");
+            };
+
+            await audio.play();
+        } catch (error) {
+            console.error("Error playing chunk:", error);
+            setPlayingChunk(null);
+            alert("Failed to play chunk. It may not be ready yet.");
         }
     };
 
@@ -362,15 +427,62 @@ export default function TranslationProgressPage() {
                                 }`}
                             />
                         </div>
-                        <p className="text-sm text-slate-400">
-                            {isCompleted 
-                                ? "Translation completed successfully!" 
-                                : isFailed 
-                                ? `Failed: ${jobData?.error || "Unknown error"}` 
-                                : isCancelled 
-                                ? "Job cancelled by user." 
-                                : jobData?.status_message || `Processing... ${jobData?.processed_chunks || 0}/${jobData?.total_chunks || 0} chunks`}
-                        </p>
+                         <p className="text-sm text-slate-400">
+                             {isCompleted
+                                 ? "Translation completed successfully!"
+                                 : isFailed
+                                 ? `Failed: ${jobData?.error || "Unknown error"}`
+                                 : isCancelled
+                                 ? "Job cancelled by user."
+                                 : jobData?.status_message || `Processing... ${jobData?.processed_chunks || 0}/${jobData?.total_chunks || 0} chunks`}
+                         </p>
+
+                         {/* Overall Quality Metrics */}
+                         {availableChunks.length > 0 && (
+                             <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
+                                 <div className="flex items-center gap-4 text-sm">
+                                     <div className="flex items-center gap-2">
+                                         <div className="w-2 h-2 rounded-full bg-accent-cyan animate-pulse"></div>
+                                         <span className="text-slate-400">Quality Score:</span>
+                                     </div>
+                                     <div className="flex items-center gap-3">
+                                         {(() => {
+                                             const avgConfidence = availableChunks
+                                                 .filter(c => c.confidence_score !== undefined)
+                                                 .reduce((sum, c) => sum + (c.confidence_score || 0), 0) / Math.max(1, availableChunks.filter(c => c.confidence_score !== undefined).length);
+
+                                             const qualityRating = avgConfidence >= 0.8 ? 'Excellent' :
+                                                                  avgConfidence >= 0.6 ? 'Good' :
+                                                                  avgConfidence >= 0.4 ? 'Fair' : 'Needs Review';
+
+                                             return (
+                                                 <>
+                                                     <span className={`font-bold ${
+                                                         avgConfidence >= 0.8 ? 'text-green-400' :
+                                                         avgConfidence >= 0.6 ? 'text-yellow-400' :
+                                                         'text-red-400'
+                                                     }`}>
+                                                         {(avgConfidence * 100).toFixed(0)}%
+                                                     </span>
+                                                     <span className={`px-2 py-0.5 rounded text-xs ${
+                                                         qualityRating === 'Excellent' ? 'bg-green-500/20 text-green-400' :
+                                                         qualityRating === 'Good' ? 'bg-blue-500/20 text-blue-400' :
+                                                         qualityRating === 'Fair' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                         'bg-red-500/20 text-red-400'
+                                                     }`}>
+                                                         {qualityRating}
+                                                     </span>
+                                                 </>
+                                             );
+                                         })()}
+                                     </div>
+                                 </div>
+                                 <p className="text-xs text-slate-500 mt-2">
+                                     Based on {availableChunks.length} processed chunks.
+                                     Higher scores indicate better transcription and translation quality.
+                                 </p>
+                             </div>
+                         )}
                         
                         {jobData?.chunk_size && (
                             <div className="mt-4 p-3 bg-white/5 rounded-lg">
@@ -383,17 +495,134 @@ export default function TranslationProgressPage() {
                         )}
                     </div>
 
-                    {/* Translation Pipeline */}
-                    <div>
-                        <h2 className="text-xl font-bold text-white mb-4">Translation Pipeline</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                            {renderPipelineStep("splitting", "Splitting")}
-                            {renderPipelineStep("transcribing", "Transcribing")}
-                            {renderPipelineStep("translating", "Translating")}
-                            {renderPipelineStep("dubbing", "Dubbing")}
-                            {renderPipelineStep("merging", "Merging")}
-                        </div>
-                    </div>
+                     {/* Translation Pipeline */}
+                     <div>
+                         <h2 className="text-xl font-bold text-white mb-4">Translation Pipeline</h2>
+                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                             {renderPipelineStep("splitting", "Splitting")}
+                             {renderPipelineStep("transcribing", "Transcribing")}
+                             {renderPipelineStep("translating", "Translating")}
+                             {renderPipelineStep("dubbing", "Dubbing")}
+                             {renderPipelineStep("merging", "Merging")}
+                         </div>
+                     </div>
+
+                     {/* Chunk Preview */}
+                     {availableChunks.length > 0 && (
+                         <div>
+                             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                                 <Volume2 className="w-5 h-5 text-accent-cyan" />
+                                 Preview Translated Chunks
+                             </h2>
+                             <p className="text-slate-400 text-sm mb-4">
+                                 Listen to completed translated chunks before the full video is ready
+                             </p>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                 {availableChunks.map((chunk) => (
+                                     <motion.div
+                                         key={chunk.id}
+                                         initial={{ opacity: 0, y: 10 }}
+                                         animate={{ opacity: 1, y: 0 }}
+                                         className="glass-card p-4 hover:bg-white/10 transition-colors"
+                                     >
+                                         <div className="flex items-center justify-between mb-3">
+                                             <div>
+                                                 <p className="text-white font-medium">Chunk {chunk.id + 1}</p>
+                                                 <p className="text-slate-400 text-xs">
+                                                     {Math.floor(chunk.start_time / 60)}:{String(Math.floor(chunk.start_time % 60)).padStart(2, '0')} •
+                                                     {chunk.duration.toFixed(1)}s
+                                                 </p>
+                                                 {chunk.confidence_score !== undefined && (
+                                                     <div className="flex items-center gap-2 mt-1">
+                                                         <div className="text-xs text-slate-400">Quality:</div>
+                                                         <div className="flex items-center gap-1">
+                                                             <div className={`w-2 h-2 rounded-full ${
+                                                                 chunk.confidence_score >= 0.8 ? 'bg-green-500' :
+                                                                 chunk.confidence_score >= 0.6 ? 'bg-yellow-500' :
+                                                                 'bg-red-500'
+                                                             }`}></div>
+                                                             <span className={`text-xs font-medium ${
+                                                                 chunk.confidence_score >= 0.8 ? 'text-green-400' :
+                                                                 chunk.confidence_score >= 0.6 ? 'text-yellow-400' :
+                                                                 'text-red-400'
+                                                             }`}>
+                                                                 {(chunk.confidence_score * 100).toFixed(0)}%
+                                                             </span>
+                                                             {chunk.quality_rating && (
+                                                                 <span className={`text-xs px-1 py-0.5 rounded ${
+                                                                     chunk.quality_rating === 'excellent' ? 'bg-green-500/20 text-green-400' :
+                                                                     chunk.quality_rating === 'good' ? 'bg-blue-500/20 text-blue-400' :
+                                                                     chunk.quality_rating === 'fair' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                     'bg-red-500/20 text-red-400'
+                                                                 }`}>
+                                                                     {chunk.quality_rating}
+                                                                 </span>
+                                                             )}
+                                                         </div>
+                                                     </div>
+                                                 )}
+                                             </div>
+                                             <div className="flex items-center gap-2">
+                                                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                                 <span className="text-green-400 text-xs">Ready</span>
+                                             </div>
+                                         </div>
+                                         <button
+                                             onClick={() => handlePlayChunk(chunk)}
+                                             className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-all ${
+                                                 playingChunk === chunk.id
+                                                     ? 'bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30'
+                                                     : 'bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/20'
+                                             }`}
+                                         >
+                                             {playingChunk === chunk.id ? (
+                                                 <>
+                                                     <VolumeX className="w-4 h-4" />
+                                                     Stop
+                                                 </>
+                                             ) : (
+                                                 <>
+                                                     <PlayCircle className="w-4 h-4" />
+                                                     Play Preview
+                                                 </>
+                                             )}
+                                         </button>
+                                     </motion.div>
+                                 ))}
+                             </div>
+                             <div className="mt-4 space-y-3">
+                                 <div className="p-3 bg-accent-cyan/10 border border-accent-cyan/30 rounded-lg">
+                                     <p className="text-accent-cyan text-sm">
+                                         💡 <strong>Pro tip:</strong> These chunks show you how your translated audio will sound.
+                                         Each chunk represents a continuous segment of speech that was transcribed and translated.
+                                     </p>
+                                 </div>
+
+                                 {/* Quality Legend */}
+                                 <div className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                                     <h4 className="text-white text-sm font-semibold mb-2">Quality Indicators:</h4>
+                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                         <div className="flex items-center gap-2">
+                                             <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                             <span className="text-slate-300">Excellent (80%+)</span>
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                             <span className="text-slate-300">Good (60-79%)</span>
+                                         </div>
+                                         <div className="flex items-center gap-2">
+                                             <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                             <span className="text-slate-300">Needs Review (&lt;60%)</span>
+                                         </div>
+                                     </div>
+                                     <p className="text-slate-500 text-xs mt-2">
+                                         Confidence scores are based on Whisper AI's transcription accuracy.
+                                         Lower scores may indicate background noise, unclear speech, or complex audio.
+                                     </p>
+                                 </div>
+                             </div>
+                         </div>
+                     )}
                 </div>
 
                 <div className="lg:col-span-1 flex flex-col gap-6">
@@ -411,10 +640,40 @@ export default function TranslationProgressPage() {
                                     {isCompleted ? "Complete" : isFailed ? "Failed" : isCancelled ? "Cancelled" : estimatedTime}
                                 </p>
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                                <p className="text-sm text-slate-400">Target Language</p>
-                                <p className="text-sm font-bold text-white">{jobData?.target_language || "es"}</p>
-                            </div>
+                             <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                 <p className="text-sm text-slate-400">Target Language</p>
+                                 <p className="text-sm font-bold text-white">{jobData?.target_language || "es"}</p>
+                             </div>
+
+                             {availableChunks.length > 0 && (
+                                 <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                                     <p className="text-sm text-slate-400">Translation Quality</p>
+                                     <div className="flex items-center gap-2">
+                                         {(() => {
+                                             const avgConfidence = availableChunks
+                                                 .filter(c => c.confidence_score !== undefined)
+                                                 .reduce((sum, c) => sum + (c.confidence_score || 0), 0) / Math.max(1, availableChunks.filter(c => c.confidence_score !== undefined).length);
+
+                                             return (
+                                                 <>
+                                                     <div className={`w-3 h-3 rounded-full ${
+                                                         avgConfidence >= 0.8 ? 'bg-green-500' :
+                                                         avgConfidence >= 0.6 ? 'bg-yellow-500' :
+                                                         'bg-red-500'
+                                                     }`}></div>
+                                                     <span className={`text-sm font-bold ${
+                                                         avgConfidence >= 0.8 ? 'text-green-400' :
+                                                         avgConfidence >= 0.6 ? 'text-yellow-400' :
+                                                         'text-red-400'
+                                                     }`}>
+                                                         {(avgConfidence * 100).toFixed(0)}%
+                                                     </span>
+                                                 </>
+                                             );
+                                         })()}
+                                     </div>
+                                 </div>
+                             )}
                             
                             {!isCompleted && !isFailed && !isCancelled && (
                                 <button 

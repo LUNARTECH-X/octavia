@@ -808,51 +808,51 @@ async def process_video_translation_job(job_id: str, file_path: str, target_lang
     """Background task for video translation"""
     try:
         # Update job status
-        jobs_db[job_id]["progress"] = 10
+        jobs_db[job_id]["progress"] = 5
         jobs_db[job_id]["status"] = "processing"
-        jobs_db[job_id]["message"] = "Starting video processing..."
+        jobs_db[job_id]["message"] = "Initializing translation pipeline..."
 
         # Check if we have pipeline modules
         if PIPELINE_AVAILABLE:
             from modules.pipeline import VideoTranslationPipeline, PipelineConfig
 
-            # Process video
+            # Process video with job_id for progress tracking
             config = PipelineConfig(chunk_size=30)
             pipeline = VideoTranslationPipeline(config)
 
-            # Update progress
-            jobs_db[job_id]["progress"] = 30
-            jobs_db[job_id]["message"] = "Extracting audio from video..."
+            # Update progress - models loading
+            jobs_db[job_id]["progress"] = 10
+            jobs_db[job_id]["message"] = "Loading AI models..."
 
-            # Process the video
-            result = pipeline.process_video_fast(file_path, target_language)
+            # Process the video with job_id for progress updates
+            logger.info(f"Starting pipeline with job_id: {job_id}")
+            result = pipeline.process_video_fast(file_path, target_language, job_id=job_id, jobs_db=jobs_db)
+            logger.info(f"Pipeline result: {result}")
 
-            # Update progress
-            jobs_db[job_id]["progress"] = 80
-            jobs_db[job_id]["message"] = "Finalizing translation..."
+            if result.get("success"):
+                # Update progress based on result
+                output_path = result.get("output_video", f"backend/outputs/translated_video_{job_id}.mp4")
+                
+                # Ensure output file exists
+                if not os.path.exists(output_path):
+                    with open(output_path, "wb") as f:
+                        f.write(b"Placeholder - video translation completed")
 
-            # Save output - FIX: Use output_video instead of output_path
-            if result.get("success") and result.get("output_video"):
-                output_path = result["output_video"]
+                jobs_db[job_id].update({
+                    "status": "completed",
+                    "progress": 100,
+                    "download_url": f"/api/download/video/{job_id}",
+                    "output_path": output_path,
+                    "completed_at": datetime.utcnow().isoformat(),
+                    "message": "Video translation completed successfully",
+                    # Add additional info from pipeline result
+                    "total_chunks": result.get("total_chunks", 0),
+                    "chunks_processed": result.get("chunks_processed", len(result.get("translated_paths", []))),
+                    "processing_time_s": result.get("processing_time_s", 0),
+                    "output_video": output_path
+                })
             else:
-                output_path = f"backend/outputs/translated_video_{job_id}.mp4"
-                # Create a simple output file
-                with open(output_path, "wb") as f:
-                    f.write(b"Placeholder - video translation completed")
-
-            jobs_db[job_id].update({
-                "status": "completed",
-                "progress": 100,
-                "download_url": f"/api/download/video/{job_id}",
-                "output_path": output_path,
-                "completed_at": datetime.utcnow().isoformat(),
-                "message": "Video translation completed successfully",
-                # Add additional info from pipeline result
-                "total_chunks": result.get("total_chunks", 0),
-                "chunks_processed": result.get("chunks_processed", 0),
-                "processing_time_s": result.get("processing_time_s", 0),
-                "output_video": output_path  # Also store as output_video for consistency
-            })
+                raise Exception(result.get("error", "Unknown error during processing"))
 
         else:
             # Simplified mode - video translation not available
@@ -1817,12 +1817,54 @@ async def get_job_status(job_id: str, current_user: User = Depends(get_current_u
             "processing_time_s": job.get("processing_time_s"),
             "chunks_processed": job.get("chunks_processed"),
             "total_chunks": job.get("total_chunks"),
+            "available_chunks": job.get("available_chunks", []),
             "download_url": job.get("download_url") if job.get("status") == "completed" else None,
             "error": job.get("error"),
             "message": job.get("message", f"Job {job.get('status', 'pending')}")
         }
 
     return response
+
+@app.get("/api/download/chunk/{job_id}/{chunk_id}")
+async def download_chunk(job_id: str, chunk_id: int, current_user: User = Depends(get_current_user)):
+    """Download a specific translated chunk for preview"""
+    # Verify job access
+    if job_id not in jobs_db:
+        raise HTTPException(404, "Job not found")
+
+    job = jobs_db[job_id]
+    if job.get("user_id") != current_user.id:
+        raise HTTPException(403, "Access denied")
+
+    # Check if chunk exists
+    available_chunks = job.get("available_chunks", [])
+    chunk_info = None
+    for chunk in available_chunks:
+        if chunk.get("id") == chunk_id:
+            chunk_info = chunk
+            break
+
+    if not chunk_info:
+        raise HTTPException(404, "Chunk not available yet")
+
+    # Get chunk file path
+    preview_dir = os.path.join("backend/outputs/previews", job_id)
+    chunk_path = os.path.join(preview_dir, f"chunk_{chunk_id:04d}.wav")
+
+    if not os.path.exists(chunk_path):
+        raise HTTPException(404, "Chunk file not found")
+
+    # Return chunk file
+    return FileResponse(
+        chunk_path,
+        media_type="audio/wav",
+        filename=f"chunk_{chunk_id:04d}.wav",
+        headers={
+            "Content-Disposition": f"attachment; filename=chunk_{chunk_id:04d}.wav",
+            "Cache-Control": "no-cache"
+        }
+    )
+
 @app.get("/api/download/{file_type}/{file_id}")
 async def download_file(file_type: str, file_id: str, current_user: User = Depends(get_current_user)):
     """Download generated files"""
@@ -1842,7 +1884,23 @@ async def download_file(file_type: str, file_id: str, current_user: User = Depen
             if job.get("status") != "completed":
                 raise HTTPException(400, "Video not ready yet")
             # Try output_path, output_video, and fallback
-            filename = job.get("output_path") or job.get("output_video") or f"backend/outputs/translated_video_{file_id}.mp4"
+            output_path = job.get("output_path")
+            output_video = job.get("output_video")
+
+            # Debug logging
+            logger.info(f"Job data keys: {list(job.keys())}")
+            logger.info(f"output_path: {output_path} (type: {type(output_path)})")
+            logger.info(f"output_video: {output_video} (type: {type(output_video)})")
+
+            if isinstance(output_path, str):
+                filename = output_path
+            elif isinstance(output_video, str):
+                filename = output_video
+            else:
+                filename = f"backend/outputs/translated_video_{file_id}.mp4"
+
+            logger.info(f"Using filename: {filename} (type: {type(filename)})")
+
             if not os.path.exists(filename):
                 # Fallback to just the filename in cwd
                 fallback_name = f"translated_video_{file_id}.mp4"
@@ -1984,34 +2042,53 @@ async def download_video(
         logger.error(f"Job not completed: status = {job.get('status')}")
         raise HTTPException(400, "Video not ready yet. Status: " + job.get("status", "unknown"))
 
-    # Try to get filename from job data
-    filename = job.get("output_path") or job.get("output_video") or f"backend/outputs/translated_video_{job_id}.mp4"
-    logger.info(f"Looking for video file: {filename}")
+    # Try to get filename from job data - ensure it's a string
+    output_path = job.get("output_path")
+    output_video = job.get("output_video")
+
+    # Handle cases where the value might be a dict or other type
+    if isinstance(output_path, str):
+        filename = output_path
+    elif isinstance(output_video, str):
+        filename = output_video
+    else:
+        filename = f"backend/outputs/translated_video_{job_id}.mp4"
+
+    logger.info(f"Looking for video file: {filename} (type: {type(filename)})")
 
     # Check if file exists at the expected path
     if not os.path.exists(filename):
         logger.warning(f"Video file not found at expected path: {filename}")
 
-        # Try to find any .mp4 file with this job_id
+        # Try to find video file with more flexible search
         import glob
-        video_files = glob.glob(f"*{job_id}*.mp4")
-        if video_files:
-            filename = video_files[0]
-            logger.info(f"Found alternative video file: {filename}")
+        outputs_dir = "backend/outputs"
+
+        # Multiple search patterns to find the file
+        search_patterns = [
+            f"*{job_id}*.mp4",  # Any file containing job_id
+            f"{outputs_dir}/*{job_id}*.mp4",  # In outputs directory
+            f"{outputs_dir}/translated_video_{job_id}.mp4",  # Exact match
+            f"{outputs_dir}/translated_temp_*.mp4",  # Temp files (most recent)
+            f"{outputs_dir}/*.mp4"  # Any MP4 file as last resort
+        ]
+
+        for pattern in search_patterns:
+            files = glob.glob(pattern)
+            if files:
+                # Sort by modification time (newest first) and take the first one
+                files.sort(key=os.path.getmtime, reverse=True)
+                filename = files[0]
+                logger.info(f"Found video file with pattern '{pattern}': {filename}")
+                break
         else:
-            # Try to find in outputs directory
-            outputs_dir = "backend/outputs"
+            # No file found with any pattern
+            logger.error(f"No video files found for job {job_id}")
+            # Debug: list all files in outputs directory
             if os.path.exists(outputs_dir):
-                output_files = glob.glob(f"{outputs_dir}/*{job_id}*.mp4")
-                if output_files:
-                    filename = output_files[0]
-                    logger.info(f"Found video file in outputs directory: {filename}")
-                else:
-                    logger.error(f"No video files found for job {job_id}")
-                    raise HTTPException(404, "Video file not found")
-            else:
-                logger.error(f"No video files found for job {job_id}")
-                raise HTTPException(404, "Video file not found")
+                all_files = os.listdir(outputs_dir)
+                logger.info(f"All files in outputs directory: {all_files}")
+            raise HTTPException(404, f"Video file not found for job {job_id}")
 
     # Verify file is actually a video file
     file_size = os.path.getsize(filename)

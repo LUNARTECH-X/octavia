@@ -72,6 +72,11 @@ class TranslationResult:
     subtitle_path: Optional[str] = None
     timing_segments: List[Dict] = None
     error: Optional[str] = None
+    # Quality metrics
+    stt_confidence_score: float = 0.0
+    translation_confidence_score: float = 0.0
+    estimated_wer: float = 0.0
+    quality_rating: str = "unknown"
 
 class AudioTranslator:
     """Main audio translation class with improved quality"""
@@ -602,14 +607,21 @@ class AudioTranslator:
             # Clean text to remove problematic Unicode characters
             text = self._clean_text_for_tts(text)
 
-            # Try Edge TTS first (more reliable and offline)
-            logger.info(f"Generating speech with Edge TTS for language: {self.config.target_lang}")
+            # Use gTTS as primary TTS (more reliable and faster)
+            logger.info(f"Generating speech with gTTS for language: {self.config.target_lang}")
             try:
-                return self._edge_tts_synthesis(text, segments, output_path)
-            except Exception as edge_error:
-                logger.warning(f"Edge TTS failed, falling back to gTTS: {edge_error}")
-                # Fallback to gTTS
                 return self._fallback_gtts_synthesis(text, segments, output_path)
+            except Exception as gtts_error:
+                logger.warning(f"gTTS failed, falling back to Edge-TTS: {gtts_error}")
+                # Fallback to Edge-TTS
+                try:
+                    return self._edge_tts_synthesis(text, segments, output_path)
+                except Exception as edge_error:
+                    logger.error(f"Both gTTS and Edge-TTS failed. gTTS: {gtts_error}, Edge-TTS: {edge_error}")
+                    # Final fallback: create silent audio
+                    silent_audio = AudioSegment.silent(duration=5000)
+                    silent_audio.export(output_path, format="wav")
+                    return True, []
 
         except Exception as e:
             logger.error(f"TTS synthesis failed: {e}")
@@ -635,6 +647,7 @@ class AudioTranslator:
             # Use gTTS for synchronous TTS generation
             from gtts import gTTS
             import io
+            import hashlib
 
             # Get appropriate language code for gTTS
             lang_map = {
@@ -655,15 +668,58 @@ class AudioTranslator:
             gtts_lang = lang_map.get(self.config.target_lang, 'en')
             logger.info(f"Generating speech with gTTS for language: {gtts_lang}")
 
-            # Generate TTS audio synchronously
-            tts = gTTS(text=text, lang=gtts_lang, slow=False)
-            audio_bytes = io.BytesIO()
-            tts.write_to_fp(audio_bytes)
-            audio_bytes.seek(0)
+            # Create cache key for TTS caching
+            cache_key = hashlib.md5(f"{text}_{gtts_lang}".encode()).hexdigest()
+            cache_dir = os.path.join(self.config.cache_dir, "tts_cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_path = os.path.join(cache_dir, f"{cache_key}_gtts.wav")
 
-            # Load audio with pydub
-            tts_audio = AudioSegment.from_file(audio_bytes, format="mp3")
-            tts_duration_ms = len(tts_audio)
+            # Initialize variables
+            tts_audio = None
+            tts_duration_ms = 0
+
+            # Check cache first
+            if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+                logger.info(f"Using cached gTTS audio: {cache_path}")
+                # Copy cached file to output path
+                import shutil
+                shutil.copy2(cache_path, output_path)
+
+                # Load cached audio to get duration
+                cached_audio = AudioSegment.from_file(cache_path, format="wav")
+                tts_audio = cached_audio
+                tts_duration_ms = len(cached_audio)
+            else:
+                # Generate new TTS audio
+                logger.info("Generating new gTTS audio (not cached)")
+                start_time = datetime.now()
+
+                try:
+                    tts = gTTS(text=text, lang=gtts_lang, slow=False)
+                    audio_bytes = io.BytesIO()
+                    tts.write_to_fp(audio_bytes)
+                    audio_bytes.seek(0)
+
+                    generation_time = (datetime.now() - start_time).total_seconds()
+                    logger.info(f"gTTS generation took {generation_time:.2f}s")
+
+                    # Load audio with pydub
+                    tts_audio = AudioSegment.from_file(audio_bytes, format="mp3")
+                    tts_duration_ms = len(tts_audio)
+
+                    # Save to cache
+                    tts_audio.export(cache_path, format="wav")
+                    logger.info(f"Cached gTTS audio: {cache_path}")
+
+                    # Export to output path
+                    tts_audio.export(output_path, format="wav")
+
+                except Exception as generation_error:
+                    logger.error(f"gTTS generation failed: {generation_error}")
+                    # Create fallback silent audio
+                    silent_audio = AudioSegment.silent(duration=5000)
+                    silent_audio.export(output_path, format="wav")
+                    return True, []
 
             logger.info(f"gTTS audio generated: {tts_duration_ms}ms duration")
 
@@ -736,7 +792,7 @@ class AudioTranslator:
                 return False, []
 
     def _edge_tts_synthesis(self, text: str, segments: List[Dict], output_path: str) -> Tuple[bool, List[Dict]]:
-        """TTS synthesis using Edge-TTS"""
+        """TTS synthesis using Edge-TTS with optimizations"""
         try:
             if not text or len(text.strip()) < 2:
                 logger.warning("Text too short for TTS, creating silent audio")
@@ -746,98 +802,155 @@ class AudioTranslator:
 
             import edge_tts
             import io
+            import hashlib
+            import asyncio
 
             # Get appropriate voice for Edge-TTS
             voice = self.VOICE_MAPPING.get(self.config.target_lang, "en-US-JennyNeural")
             logger.info(f"Generating speech with Edge-TTS for language: {self.config.target_lang} (voice: {voice})")
 
-            # Generate TTS audio synchronously
-            communicate = edge_tts.Communicate(text, voice)
-            audio_bytes = io.BytesIO()
+            # Create cache key for TTS caching
+            cache_key = hashlib.md5(f"{text}_{voice}".encode()).hexdigest()
+            cache_dir = os.path.join(self.config.cache_dir, "tts_cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_path = os.path.join(cache_dir, f"{cache_key}_edge.wav")
 
-            # Collect all audio chunks synchronously
-            audio_chunks = list(communicate.stream_sync())
-            for chunk in audio_chunks:
-                if chunk["type"] == "audio":
-                    audio_bytes.write(chunk["data"])
-            audio_bytes.seek(0)
+            # Initialize variables
+            tts_duration_ms = 0
 
-            # Verify we got some audio data
-            if audio_bytes.tell() == 0:
-                raise Exception("No audio data received from edge-tts")
+            # Check cache first
+            if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+                logger.info(f"Using cached Edge-TTS audio: {cache_path}")
+                # Copy cached file to output path
+                import shutil
+                shutil.copy2(cache_path, output_path)
 
-            # Load audio with pydub
-            tts_audio = AudioSegment.from_file(audio_bytes, format="mp3")
-            tts_duration_ms = len(tts_audio)
+                # Load cached audio to get duration
+                cached_audio = AudioSegment.from_file(cache_path, format="wav")
+                tts_duration_ms = len(cached_audio)
+            else:
+                # Generate new TTS audio with optimized async approach
+                logger.info("Generating new Edge-TTS audio (not cached)")
 
-            logger.info(f"Edge-TTS audio generated: {tts_duration_ms}ms duration")
-
-            # Calculate simple timing segments (proportional distribution)
-            adjusted_segments = []
-            if segments and tts_duration_ms > 0:
-                total_original_duration = sum(seg["end"] - seg["start"] for seg in segments)
-
-                if total_original_duration > 0:
-                    current_pos = 0
-
-                    for seg in segments:
-                        seg_duration = seg["end"] - seg["start"]
-                        seg_ratio = seg_duration / total_original_duration
-
-                        adjusted_start = current_pos
-                        adjusted_end = current_pos + (tts_duration_ms * seg_ratio)
-
-                        adjusted_segments.append({
-                            "original_start": seg["start"],
-                            "original_end": seg["end"],
-                            "adjusted_start": adjusted_start,
-                            "adjusted_end": adjusted_end,
-                            "timing_precision_ms": 0,
-                            "within_tolerance": True,
-                            "text": seg.get("translated_text", seg.get("original_text", "")),
-                        })
-
-                        current_pos = adjusted_end
-
-                    logger.info(f"Created {len(adjusted_segments)} timing segments with proportional distribution")
-
-            # Apply speed adjustment if needed
-            if abs(self.config.voice_speed - 1.0) > 0.01:
                 try:
-                    speed_factor = self.config.voice_speed
-                    if speed_factor > 1.0:
-                        tts_audio = tts_audio.speedup(playback_speed=speed_factor)
-                    else:
-                        frame_rate = int(tts_audio.frame_rate * speed_factor)
-                        tts_audio = tts_audio._spawn(tts_audio.raw_data, overrides={"frame_rate": frame_rate})
-                        tts_audio = tts_audio.set_frame_rate(tts_audio.frame_rate)
-                    logger.info(f"Applied speed adjustment: {speed_factor:.2f}x")
-                except Exception as speed_error:
-                    logger.warning(f"Speed adjustment failed: {speed_error}")
+                    async def generate_tts_async():
+                        communicate = edge_tts.Communicate(text, voice)
+                        audio_bytes = io.BytesIO()
 
-            # Normalize audio levels
-            try:
-                tts_audio = self._normalize_audio(tts_audio)
-            except Exception as norm_error:
-                logger.warning(f"Audio normalization failed: {norm_error}")
+                        # Use async streaming for better performance
+                        async for chunk in communicate.stream():
+                            if chunk["type"] == "audio":
+                                audio_bytes.write(chunk["data"])
 
-            # Export final audio
-            tts_audio.export(output_path, format="wav")
-            logger.info(f"Speech synthesized successfully: {output_path} ({len(tts_audio)}ms)")
+                        audio_bytes.seek(0)
+                        return audio_bytes
 
+                    # Run async TTS generation
+                    start_time = datetime.now()
+                    audio_bytes = asyncio.run(generate_tts_async())
+                    generation_time = (datetime.now() - start_time).total_seconds()
+
+                    # Verify we got some audio data
+                    if audio_bytes.tell() == 0:
+                        raise Exception("No audio data received from edge-tts")
+
+                    # Load audio with pydub
+                    tts_audio = AudioSegment.from_file(audio_bytes, format="mp3")
+                    tts_duration_ms = len(tts_audio)
+
+                    logger.info(f"Edge-TTS audio generated in {generation_time:.2f}s: {tts_duration_ms}ms duration")
+
+                    # Save to cache
+                    tts_audio.export(cache_path, format="wav")
+                    logger.info(f"Cached Edge-TTS audio: {cache_path}")
+
+                    # Export to output path
+                    tts_audio.export(output_path, format="wav")
+
+                except Exception as generation_error:
+                    logger.error(f"Edge-TTS generation failed: {generation_error}")
+                    raise generation_error
+
+            # Calculate timing segments
+            adjusted_segments = self._calculate_timing_segments(segments, tts_duration_ms)
             return True, adjusted_segments
 
         except Exception as e:
-            logger.error(f"TTS synthesis failed: {e}")
-            # Create fallback silent audio
+            logger.warning(f"Edge-TTS synthesis failed: {e}")
+            # Don't fallback here since gTTS is now primary
+            raise e
+
+            import edge_tts
+            import io
+            import hashlib
+            import asyncio
+
+            # Get appropriate voice for Edge-TTS
+            voice = self.VOICE_MAPPING.get(self.config.target_lang, "en-US-JennyNeural")
+            logger.info(f"Generating speech with Edge-TTS for language: {self.config.target_lang} (voice: {voice})")
+
+            # Create cache key for TTS caching
+            cache_key = hashlib.md5(f"{text}_{voice}".encode()).hexdigest()
+            cache_dir = os.path.join(self.config.cache_dir, "tts_cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_path = os.path.join(cache_dir, f"{cache_key}.wav")
+
+            # Check cache first
+            if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+                logger.info(f"Using cached TTS audio: {cache_path}")
+                # Copy cached file to output path
+                import shutil
+                shutil.copy2(cache_path, output_path)
+
+                # Load cached audio to get duration
+                cached_audio = AudioSegment.from_file(cache_path, format="wav")
+                tts_duration_ms = len(cached_audio)
+
+            # Calculate timing segments
+            adjusted_segments = self._calculate_timing_segments(segments, tts_duration_ms)
+            return True, adjusted_segments
+
+        except Exception as e:
+            logger.warning(f"Edge-TTS synthesis failed: {e}, falling back to gTTS")
+            # Fallback to gTTS for faster, more reliable TTS
             try:
+                return self._fallback_gtts_synthesis(text, segments, output_path)
+            except Exception as gtts_error:
+                logger.error(f"Both Edge-TTS and gTTS failed. Edge-TTS: {e}, gTTS: {gtts_error}")
+                # Create silent audio as final fallback
                 silent_audio = AudioSegment.silent(duration=5000)
                 silent_audio.export(output_path, format="wav")
-                logger.info("Created fallback silent audio")
                 return True, []
-            except Exception as fallback_error:
-                logger.error(f"Fallback audio creation failed: {fallback_error}")
-                return False, []
+
+    def _calculate_timing_segments(self, segments: List[Dict], tts_duration_ms: float) -> List[Dict]:
+        """Calculate proportional timing segments for TTS audio"""
+        adjusted_segments = []
+        if segments and tts_duration_ms > 0:
+            total_original_duration = sum(seg["end"] - seg["start"] for seg in segments)
+
+            if total_original_duration > 0:
+                current_pos = 0
+
+                for seg in segments:
+                    seg_duration = seg["end"] - seg["start"]
+                    seg_ratio = seg_duration / total_original_duration
+
+                    adjusted_start = current_pos
+                    adjusted_end = current_pos + (tts_duration_ms * seg_ratio)
+
+                    adjusted_segments.append({
+                        "original_start": seg["start"],
+                        "original_end": seg["end"],
+                        "adjusted_start": adjusted_start,
+                        "adjusted_end": adjusted_end,
+                        "timing_precision_ms": 0,
+                        "within_tolerance": True,
+                        "text": seg.get("translated_text", seg.get("original_text", "")),
+                    })
+
+                    current_pos = adjusted_end
+
+        return adjusted_segments
     
     def _adjust_audio_speed(self, audio: AudioSegment, speed: float) -> AudioSegment:
         """Adjust audio playback speed with better quality"""
@@ -854,7 +967,7 @@ class AudioTranslator:
                 audio.export(temp_input, format="wav")
 
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_out:
-                temp_output = tmp_in.name
+                temp_output = tmp_out.name
 
                 cmd = [
                     'ffmpeg', '-i', temp_input,
@@ -1623,10 +1736,11 @@ class AudioTranslator:
                     output_path="",
                     error=error_msg
                 )
-            
+
             original_text = transcription["text"]
             detected_language = transcription["language"]
             segments = transcription["segments"]
+            quality_metrics = transcription.get("quality_metrics", {})
             
             # Update source language if auto-detected
             if self.config.auto_detect:
@@ -1771,7 +1885,10 @@ class AudioTranslator:
                 speed_adjustment=speed,
                 output_path=output_path,
                 subtitle_path=subtitle_path,
-                timing_segments=timing_segments
+                timing_segments=timing_segments,
+                stt_confidence_score=quality_metrics.get("confidence_score", 0.0),
+                estimated_wer=quality_metrics.get("estimated_wer", 0.0),
+                quality_rating=quality_metrics.get("quality_rating", "unknown")
             )
             
             # Log success
@@ -1826,7 +1943,7 @@ def test_audio_translation():
     translator = AudioTranslator(config)
     
     print(f"\n{'='*60}")
-    print(f"Testing Audio Translation: {args.source} → {args.target}")
+    print(f"Testing Audio Translation: {args.source} -> {args.target}")
     print(f"Audio file: {args.audio}")
     print(f"{'='*60}\n")
     

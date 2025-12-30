@@ -231,7 +231,7 @@ class VideoTranslationPipeline:
             logger.info("Loading subtitle generator...")
             self.subtitle_generator = SubtitleGenerator(model_size="base")
             
-            logger.info(f"Loading translation models for {source_lang}→{target_lang}...")
+            logger.info(f"Loading translation models for {source_lang}->{target_lang}...")
             
             # Setup translator
             translator_config = TranslationConfig(
@@ -639,26 +639,21 @@ class VideoTranslationPipeline:
             processed_chunks += 1
 
             # Update progress for silent chunks
-            if job_id and hasattr(self, '_jobs_db') and self._jobs_db and job_id in self._jobs_db:
+            if job_id and jobs_db and job_id in jobs_db:
                 progress_percent = 40 + int((processed_chunks / total_chunks) * 40)  # 40-80% range
-                self._jobs_db[job_id]["progress"] = min(progress_percent, 80)
-                self._jobs_db[job_id]["processed_chunks"] = processed_chunks
-                self._jobs_db[job_id]["total_chunks"] = total_chunks
-                self._jobs_db[job_id]["message"] = f"Processing audio chunks... ({processed_chunks}/{total_chunks})"
+                jobs_db[job_id]["progress"] = min(progress_percent, 80)
+                jobs_db[job_id]["processed_chunks"] = processed_chunks
+                jobs_db[job_id]["total_chunks"] = total_chunks
+                jobs_db[job_id]["message"] = f"Processing audio chunks... ({processed_chunks}/{total_chunks})"
 
-        # Process speech chunks with AI orchestration
-        logger.info("Processing speech chunks with AI orchestration")
+        # Process speech chunks in parallel for better performance
+        logger.info(f"Processing {len(speech_chunks)} speech chunks in parallel")
 
-        for chunk in speech_chunks:
+        def process_chunk_with_progress(chunk):
+            """Process a single chunk and return results"""
             chunk_start_time = datetime.now()
 
             try:
-                # Update progress at start of chunk processing
-                if job_id and jobs_db and job_id in jobs_db:
-                    progress_percent = 40 + int((processed_chunks / total_chunks) * 40)
-                    jobs_db[job_id]["progress"] = min(progress_percent, 85)
-                    jobs_db[job_id]["message"] = f"Transcribing chunk {chunk.id + 1}..."
-
                 # Step 6: Process chunk with AI-optimized settings
                 logger.info(f"Processing chunk {chunk.id} with AI optimization...")
                 result = self._process_single_chunk(chunk, target_lang)
@@ -666,37 +661,44 @@ class VideoTranslationPipeline:
                 # Step 7: Update metrics and store for AI learning
                 processing_time = (datetime.now() - chunk_start_time).total_seconds()
 
-                # Create processing metrics for AI learning (if needed)
-                if self.ai_orchestrator:
-                    from modules.ai_orchestrator import ProcessingMetrics
-                    processing_metrics = ProcessingMetrics(
-                        chunk_id=chunk.id,
-                        audio_duration_ms=chunk.duration_ms,
-                        transcription_time_s=processing_time * 0.4,
-                        translation_time_s=processing_time * 0.3,
-                        tts_time_s=processing_time * 0.3,
-                        whisper_confidence=0.8,
-                        vad_speech_ratio=0.5,
-                        memory_usage_mb=100,  # Default
-                        gpu_utilization=0,
-                        transcription_word_count=len(" ".join([seg.get("text", "") for seg in result["segments"]]).split()) if result and result.get("segments") else 0,
-                        translation_word_count=0,
-                        compression_ratio=1.0
-                    )
-                    self.ai_orchestrator.update_metrics(processing_metrics)
-
                 if result:
-                    translated_chunk_paths.append((chunk.id, result["path"]))
-                    if result.get("segments"):
-                        all_subtitle_segments.append(result["segments"])
+                    # Save chunk for preview if job_id provided
+                    if job_id:
+                        try:
+                            preview_dir = os.path.join(self.config.output_dir, "previews", job_id)
+                            os.makedirs(preview_dir, exist_ok=True)
+
+                            # Copy the translated chunk to preview directory
+                            preview_path = os.path.join(preview_dir, f"chunk_{chunk.id:04d}.wav")
+                            shutil.copy2(result["path"], preview_path)
+
+                            # Update job with available chunks (thread-safe)
+                            if jobs_db and job_id in jobs_db:
+                                available_chunks = jobs_db[job_id].get('available_chunks', [])
+                                chunk_info = {
+                                    "id": chunk.id,
+                                    "start_time": chunk.start_ms / 1000.0,  # Convert to seconds
+                                    "duration": chunk.duration_ms / 1000.0,
+                                    "preview_url": f"/api/download/chunk/{job_id}/{chunk.id}",
+                                    "status": "completed",
+                                    "confidence_score": result.get("stt_confidence_score", 0.0),
+                                    "estimated_wer": result.get("estimated_wer", 0.0),
+                                    "quality_rating": result.get("quality_rating", "unknown")
+                                }
+                                available_chunks.append(chunk_info)
+
+                        except Exception as preview_error:
+                            logger.warning(f"Failed to save preview for chunk {chunk.id}: {preview_error}")
+
                     logger.info(f"[OK] Chunk {chunk.id} processed successfully in {processing_time:.1f}s")
+                    return chunk.id, result, processing_time
                 else:
                     logger.warning(f"Chunk {chunk.id} returned no result")
                     # Create silent fallback
                     output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
                     silent_audio = AudioSegment.silent(duration=chunk.duration_ms)
                     silent_audio.export(output_path, format="wav")
-                    translated_chunk_paths.append((chunk.id, output_path))
+                    return chunk.id, {"path": output_path, "segments": []}, processing_time
 
             except Exception as e:
                 logger.error(f"Chunk {chunk.id} failed: {e}")
@@ -704,17 +706,37 @@ class VideoTranslationPipeline:
                 output_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
                 silent_audio = AudioSegment.silent(duration=chunk.duration_ms)
                 silent_audio.export(output_path, format="wav")
-                translated_chunk_paths.append((chunk.id, output_path))
+                return chunk.id, {"path": output_path, "segments": []}, (datetime.now() - chunk_start_time).total_seconds()
 
-            processed_chunks += 1
+        # Process chunks in parallel using ThreadPoolExecutor
+        max_workers = min(len(speech_chunks), 3)  # Limit to 3 concurrent TTS operations
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit all chunk processing tasks
+            future_to_chunk = {executor.submit(process_chunk_with_progress, chunk): chunk for chunk in speech_chunks}
 
-            # Update progress after each chunk
-            if job_id and jobs_db and job_id in jobs_db:
-                progress_percent = 40 + int((processed_chunks / total_chunks) * 40)
-                jobs_db[job_id]["progress"] = min(progress_percent, 85)
-                jobs_db[job_id]["processed_chunks"] = processed_chunks
-                jobs_db[job_id]["total_chunks"] = total_chunks
-                jobs_db[job_id]["message"] = f"Completed chunk {processed_chunks}/{total_chunks}"
+            # Collect results as they complete
+            for future in as_completed(future_to_chunk):
+                chunk = future_to_chunk[future]
+                try:
+                    chunk_id, result, processing_time = future.result()
+
+                    # Store results
+                    translated_chunk_paths.append((chunk_id, result["path"]))
+                    if result.get("segments"):
+                        all_subtitle_segments.append(result["segments"])
+
+                    # Update progress
+                    processed_chunks += 1
+                    if job_id and jobs_db and job_id in jobs_db:
+                        progress_percent = 40 + int((processed_chunks / total_chunks) * 40)
+                        jobs_db[job_id]["progress"] = min(progress_percent, 85)
+                        jobs_db[job_id]["processed_chunks"] = processed_chunks
+                        jobs_db[job_id]["total_chunks"] = total_chunks
+                        jobs_db[job_id]["message"] = f"Completed chunk {processed_chunks}/{total_chunks}"
+
+                except Exception as exc:
+                    logger.error(f'Chunk {chunk.id} generated an exception: {exc}')
+                    processed_chunks += 1
 
         # Final progress update before merging
         if job_id and jobs_db and job_id in jobs_db:
@@ -734,10 +756,13 @@ class VideoTranslationPipeline:
             if result.success:
                 new_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
                 shutil.move(result.output_path, new_path)
-                
+
                 return {
                     "path": new_path,
-                    "segments": result.timing_segments if result.timing_segments else []
+                    "segments": result.timing_segments if result.timing_segments else [],
+                    "stt_confidence_score": result.stt_confidence_score,
+                    "estimated_wer": result.estimated_wer,
+                    "quality_rating": result.quality_rating
                 }
         except Exception as e:
             logger.error(f"Failed to process chunk {chunk.id}: {e}")
@@ -791,7 +816,23 @@ class VideoTranslationPipeline:
         except Exception as e:
             logger.error(f"Cleanup failed: {e}")
     
-    def process_video_fast(self, video_path: str, target_lang: str = "de", source_lang: str = None, job_id: str = None) -> Dict[str, Any]:
+    def _update_job_progress(self, job_id: str, progress: int, message: str, chunks_processed: int = None, total_chunks: int = None, available_chunks: list = None, jobs_db: Dict = None):
+        """Update job progress in jobs_db"""
+        if job_id and jobs_db and job_id in jobs_db:
+            try:
+                jobs_db[job_id]["progress"] = progress
+                jobs_db[job_id]["message"] = message
+                if chunks_processed is not None:
+                    jobs_db[job_id]["chunks_processed"] = chunks_processed
+                if total_chunks is not None:
+                    jobs_db[job_id]["total_chunks"] = total_chunks
+                if available_chunks is not None:
+                    jobs_db[job_id]["available_chunks"] = available_chunks
+            except Exception as e:
+                logger.warning(f"Failed to update job progress: {e}")
+                pass  # Silently fail if jobs_db update fails
+
+    def process_video_fast(self, video_path: str, target_lang: str = "de", source_lang: str = None, job_id: str = None, jobs_db: Dict = None) -> Dict[str, Any]:
         """Fast video translation pipeline - optimized for FREE deployment"""
         start_time = datetime.now()
         
@@ -801,8 +842,14 @@ class VideoTranslationPipeline:
             logger.info(f"Target: {target_lang}")
             logger.info(f"Using GPU: {self.config.use_gpu}")
             
+            # Initial progress update
+            if job_id:
+                self._update_job_progress(job_id, 5, "Initializing translation pipeline...", jobs_db=jobs_db)
+
             # 1. Load models (cached)
             logger.info("1. Loading models...")
+            if job_id:
+                self._update_job_progress(job_id, 10, "Loading AI translation models...", jobs_db=jobs_db)
             # Detect source language if not provided
             if source_lang is None:
                 source_lang = self._detect_source_language(video_path) or "en"
@@ -818,6 +865,8 @@ class VideoTranslationPipeline:
             
             # 2. Extract audio
             logger.info("2. Extracting audio...")
+            if job_id:
+                self._update_job_progress(job_id, 15, "Extracting audio from video...", jobs_db=jobs_db)
             audio_path = os.path.join(self.config.temp_dir, "audio.wav")
             if not self.extract_audio_fast(video_path, audio_path):
                 return {
@@ -830,6 +879,8 @@ class VideoTranslationPipeline:
             
             # 3. Chunk audio in parallel
             logger.info("3. Chunking audio...")
+            if job_id:
+                self._update_job_progress(job_id, 20, "Splitting video into chunks...", jobs_db=jobs_db)
             chunks = self.chunk_audio_parallel(audio_path)
             if not chunks:
                 return {
@@ -839,16 +890,25 @@ class VideoTranslationPipeline:
                     "output_path": "",
                     "target_language": target_lang
                 }
+
+            total_chunks = len(chunks)
+            logger.info(f"Created {total_chunks} audio chunks")
+            if job_id:
+                self._update_job_progress(job_id, 25, f"Processing {total_chunks} audio chunks...", total_chunks=total_chunks, jobs_db=jobs_db)
             
             # 4. Process chunks in batch
             logger.info(f"4. Processing {len(chunks)} chunks...")
-            translated_paths, subtitle_segments = self.process_chunks_batch(chunks, target_lang, job_id)
+            if job_id:
+                self._update_job_progress(job_id, 30, f"Starting TTS generation for {total_chunks} chunks...", jobs_db=jobs_db)
+            translated_paths, subtitle_segments = self.process_chunks_batch(chunks, target_lang, job_id, jobs_db)
             
             if len(translated_paths) != len(chunks):
                 logger.warning(f"Only {len(translated_paths)}/{len(chunks)} chunks processed successfully")
             
             # 5. Merge chunks
             logger.info("5. Merging audio chunks...")
+            if job_id:
+                self._update_job_progress(job_id, 80, "Merging translated audio chunks...", jobs_db=jobs_db)
             merged_audio = os.path.join(self.config.temp_dir, "merged.wav")
 
             # Merge translated audio chunks in correct order
@@ -912,12 +972,17 @@ class VideoTranslationPipeline:
                 }
             
             logger.info("6. Merging with video...")
+            logger.info(f"Job ID: {job_id}")
             if job_id:
                 output_filename = f"translated_video_{job_id}.mp4"
+                logger.info(f"Using job_id filename: {output_filename}")
             else:
                 output_filename = f"translated_{os.path.basename(video_path)}"
+                logger.info(f"Using fallback filename: {output_filename}")
             output_path = os.path.join(self.config.output_dir, output_filename)
+            logger.info(f"Final output path: {output_path}")
             
+            logger.info(f"Calling merge_files_fast with output_path: {output_path}")
             if not self.merge_files_fast(video_path, merged_audio, output_path):
                 return {
                     "error": "Video merge failed",

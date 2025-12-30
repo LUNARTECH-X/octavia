@@ -1002,7 +1002,7 @@ async def process_video_job(job_id, file_path, target_language, user_id):
                 jobs_db[job_id]["message"] = "AI models loaded. Starting video processing..."
 
                 # Process the video with full AI pipeline
-                result = pipeline.process_video_fast(file_path, target_language)
+                result = pipeline.process_video_fast(file_path, target_language, job_id=job_id, jobs_db=jobs_db)
                 
                 if result:
                     jobs_db[job_id]["progress"] = 100
