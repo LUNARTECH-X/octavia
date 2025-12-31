@@ -145,30 +145,30 @@ export interface LanguageOption {
   code: string;
 }
 
-  // Translation progress interface
-  export interface TranslationProgress {
-    status: 'idle' | 'uploading' | 'translating' | 'downloading' | 'complete' | 'error';
-    progress: number;
-    message?: string;
-  }
+// Translation progress interface
+export interface TranslationProgress {
+  status: 'idle' | 'uploading' | 'translating' | 'downloading' | 'complete' | 'error';
+  progress: number;
+  message?: string;
+}
 
-  // Available chunk interface for preview
-  export interface AvailableChunk {
-    id: number;
-    start_time: number;
-    duration: number;
-    preview_url: string;
-    status: 'completed' | 'processing' | 'failed';
-    confidence_score?: number;
-    estimated_wer?: number;
-    quality_rating?: string;
-  }
+// Available chunk interface for preview
+export interface AvailableChunk {
+  id: number;
+  start_time: number;
+  duration: number;
+  preview_url: string;
+  status: 'completed' | 'processing' | 'failed';
+  confidence_score?: number;
+  estimated_wer?: number;
+  quality_rating?: string;
+}
 
 class ApiService {
   // Get authentication token from localStorage
   private getToken(): string | null {
     if (typeof window === 'undefined') return null;
-    
+
     const userStr = localStorage.getItem('octavia_user');
     if (userStr) {
       try {
@@ -185,7 +185,7 @@ class ApiService {
   // Update user token in localStorage
   private updateUserToken(token: string): void {
     if (typeof window === 'undefined') return;
-    
+
     const userStr = localStorage.getItem('octavia_user');
     if (userStr) {
       try {
@@ -285,7 +285,7 @@ class ApiService {
       if (!response.ok) {
         let errorData: any = {};
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        
+
         try {
           // Try to extract error message from response body
           const responseText = await response.text();
@@ -328,7 +328,7 @@ class ApiService {
           console.error('Failed to parse error response:', parseError);
           errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
-        
+
         // Return the error response
         return {
           success: false,
@@ -400,100 +400,100 @@ class ApiService {
 
 
 
-async downloadTranslatedSubtitle(jobId: string): Promise<Blob> {
-  const token = this.getToken();
-  
-  // Try multiple endpoint patterns
-  const endpoints = [
-    `/api/download/translated-subtitle/${jobId}`,
-    `/api/download/subtitle-audio/${jobId}`,
-    `/api/generate/subtitle-audio/download/${jobId}`,
-    `/api/download/${jobId}`
-  ];
-  
-  let lastError: Error | null = null;
-  
-  for (const endpoint of endpoints) {
-    const url = `${API_BASE_URL}${endpoint}`;
-    
+  async downloadTranslatedSubtitle(jobId: string): Promise<Blob> {
+    const token = this.getToken();
+
+    // Try multiple endpoint patterns
+    const endpoints = [
+      `/api/download/translated-subtitle/${jobId}`,
+      `/api/download/subtitle-audio/${jobId}`,
+      `/api/generate/subtitle-audio/download/${jobId}`,
+      `/api/download/${jobId}`
+    ];
+
+    let lastError: Error | null = null;
+
+    for (const endpoint of endpoints) {
+      const url = `${API_BASE_URL}${endpoint}`;
+
+      try {
+        const response = await fetch(url, {
+          headers: token ? {
+            'Authorization': `Bearer ${token}`
+          } : {},
+        });
+
+        if (response.ok) {
+          return await response.blob();
+        }
+
+        // If not found, try next endpoint
+        if (response.status === 404) {
+          continue;
+        }
+
+        // For other errors, throw immediately
+        const errorText = await response.text();
+        throw new Error(`Download failed (${response.status}): ${errorText}`);
+
+      } catch (error) {
+        lastError = error as Error;
+        console.log(`Endpoint ${endpoint} failed, trying next...`);
+      }
+    }
+
+    // If all endpoints failed
+    throw lastError || new Error('Download failed: All endpoints failed');
+  }
+
+
+
+  async translateSubtitleFile(
+    data: TranslationRequest
+  ): Promise<ApiResponse<{
+    status: string;
+    download_url: string;
+    source_language: string;
+    target_language: string;
+    segment_count: number;
+    output_path: string;
+    remaining_credits: number;
+  }>> {
     try {
-      const response = await fetch(url, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`
-        } : {},
+      // Use query parameters instead of form data for language parameters
+      // to avoid FastAPI parameter binding issues with File + Form combination
+      const endpoint = `/api/translate/subtitle-file?sourceLanguage=${encodeURIComponent(data.sourceLanguage)}&targetLanguage=${encodeURIComponent(data.targetLanguage)}&format=srt`;
+
+      const formData = new FormData();
+      formData.append('file', data.file);
+
+      console.log('DEBUG: Subtitle translation request:', {
+        endpoint: endpoint,
+        file: data.file.name,
+        sourceLanguage: data.sourceLanguage,
+        targetLanguage: data.targetLanguage
       });
-      
-      if (response.ok) {
-        return await response.blob();
-      }
-      
-      // If not found, try next endpoint
-      if (response.status === 404) {
-        continue;
-      }
-      
-      // For other errors, throw immediately
-      const errorText = await response.text();
-      throw new Error(`Download failed (${response.status}): ${errorText}`);
-      
+
+      return this.request<{
+        status: string;
+        download_url: string;
+        source_language: string;
+        target_language: string;
+        segment_count: number;
+        output_path: string;
+        remaining_credits: number;
+      }>(endpoint, {
+        method: 'POST',
+        body: formData,
+      }, true);  // Authentication required
     } catch (error) {
-      lastError = error as Error;
-      console.log(`Endpoint ${endpoint} failed, trying next...`);
+      console.error('Translation error:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
   }
-  
-  // If all endpoints failed
-  throw lastError || new Error('Download failed: All endpoints failed');
-}
-
-
-
-async translateSubtitleFile(
-  data: TranslationRequest
-): Promise<ApiResponse<{
-  status: string;
-  download_url: string;
-  source_language: string;
-  target_language: string;
-  segment_count: number;
-  output_path: string;
-  remaining_credits: number;
-}>> {
-  try {
-    // Use query parameters instead of form data for language parameters
-    // to avoid FastAPI parameter binding issues with File + Form combination
-    const endpoint = `/api/translate/subtitle-file?sourceLanguage=${encodeURIComponent(data.sourceLanguage)}&targetLanguage=${encodeURIComponent(data.targetLanguage)}&format=srt`;
-
-    const formData = new FormData();
-    formData.append('file', data.file);
-
-    console.log('DEBUG: Subtitle translation request:', {
-      endpoint: endpoint,
-      file: data.file.name,
-      sourceLanguage: data.sourceLanguage,
-      targetLanguage: data.targetLanguage
-    });
-
-    return this.request<{
-      status: string;
-      download_url: string;
-      source_language: string;
-      target_language: string;
-      segment_count: number;
-      output_path: string;
-      remaining_credits: number;
-    }>(endpoint, {
-      method: 'POST',
-      body: formData,
-    }, true);  // Authentication required
-  } catch (error) {
-    console.error('Translation error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
 
   // --- AUTHENTICATION ENDPOINTS ---
 
@@ -529,7 +529,7 @@ async translateSubtitleFile(
         ...response.user,
         token: response.token
       };
-      
+
       if (typeof window !== 'undefined') {
         localStorage.setItem('octavia_user', JSON.stringify(userData));
       }
@@ -543,13 +543,13 @@ async translateSubtitleFile(
     const response = await this.request('/api/auth/logout', {
       method: 'POST',
     }, true);
-    
+
     // Clear localStorage on logout
     if (typeof window !== 'undefined') {
       localStorage.removeItem('octavia_user');
       localStorage.removeItem('last_payment_session');
     }
-    
+
     return response;
   }
 
@@ -611,25 +611,25 @@ async translateSubtitleFile(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const response = await this.checkPaymentStatus(sessionId);
-        
+
         if (response.success && response.data) {
           if (response.data.status === 'completed') {
             return response.data;
           }
-          
+
           if (response.data.status === 'failed') {
             console.error('Payment failed:', response.data.description);
             return response.data;
           }
         }
-        
+
         // Wait before next attempt
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
         console.error('Error polling payment status:', error);
       }
     }
-    
+
     return null;
   }
 
@@ -645,13 +645,20 @@ async translateSubtitleFile(
     }, true);
   }
 
+  // Get user profile including credits
+  async getUserProfile(): Promise<ApiResponse<User>> {
+    return this.request<User>('/api/user/profile', {
+      method: 'GET',
+    }, true);
+  }
+
   // Get user's transaction history
   async getTransactionHistory(): Promise<ApiResponse<{ transactions: Transaction[] }>> {
     return this.request<{ transactions: Transaction[] }>('/api/payments/transactions', {
       method: 'GET',
     }, true);
   }
-  
+
 
   // Debug webhook endpoint
   async debugWebhook(): Promise<ApiResponse<{
@@ -691,7 +698,7 @@ async translateSubtitleFile(
       original_filename?: string;
       target_language?: string;
       error?: string;
-    }>(`/api/jobs/${jobId}/status`, {
+    }>(`/api/translate/jobs/${jobId}/status`, {
       method: 'GET',
     }, true);
   }
@@ -822,20 +829,20 @@ async translateSubtitleFile(
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const response = await this.getJobStatus(jobId);
-        
+
         if (response.success && response.data) {
           if (response.data.status === 'completed' || response.data.status === 'failed') {
             return response;
           }
         }
-        
+
         // Wait before next attempt
         await new Promise(resolve => setTimeout(resolve, interval));
       } catch (error) {
         console.error('Error polling job status:', error);
       }
     }
-    
+
     return {
       success: false,
       error: 'Timeout waiting for job completion',
@@ -844,27 +851,27 @@ async translateSubtitleFile(
 
   // Poll subtitle generation status
   async pollSubtitleStatus(
-    jobId: string, 
-    interval: number = 2000, 
+    jobId: string,
+    interval: number = 2000,
     maxAttempts: number = 60
   ): Promise<ApiResponse> {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const response = await this.getSubtitleJobStatus(jobId);
-        
+
         if (response.success && response.data) {
           if (response.data.status === 'completed' || response.data.status === 'failed') {
             return response;
           }
         }
-        
+
         // Wait before next attempt
         await new Promise(resolve => setTimeout(resolve, interval));
       } catch (error) {
         console.error('Error polling subtitle status:', error);
       }
     }
-    
+
     return {
       success: false,
       error: 'Timeout waiting for subtitle generation',
@@ -945,7 +952,7 @@ async translateSubtitleFile(
   // Save downloaded file with proper filename
   saveFile(blob: Blob, filename: string): void {
     if (typeof window === 'undefined') return;
-    
+
     const downloadUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = downloadUrl;
@@ -986,13 +993,13 @@ async translateSubtitleFile(
         },
         body: JSON.stringify({ email, password, name }),
       });
-      
+
       const responseText = await response.text();
-      
+
       if (!response.ok) {
         throw new Error(`Signup failed: ${response.status} ${response.statusText}`);
       }
-      
+
       let data = {};
       if (responseText) {
         try {
@@ -1002,7 +1009,7 @@ async translateSubtitleFile(
           data = { raw: responseText };
         }
       }
-      
+
       return data;
     } catch (error) {
       console.error('Direct signup test error:', error);
@@ -1033,39 +1040,39 @@ async translateSubtitleFile(
   // Store payment session for later polling
   storePaymentSession(sessionId: string, transactionId: string, packageId: string): void {
     if (typeof window === 'undefined') return;
-    
+
     const paymentData = {
       session_id: sessionId,
       transaction_id: transactionId,
       package_id: packageId,
       timestamp: Date.now()
     };
-    
+
     localStorage.setItem('last_payment_session', JSON.stringify(paymentData));
   }
 
   // Get stored payment session
-  getStoredPaymentSession(): { 
-    session_id: string; 
-    transaction_id: string; 
-    package_id: string; 
-    timestamp: number 
+  getStoredPaymentSession(): {
+    session_id: string;
+    transaction_id: string;
+    package_id: string;
+    timestamp: number
   } | null {
     if (typeof window === 'undefined') return null;
-    
+
     const paymentData = localStorage.getItem('last_payment_session');
     if (!paymentData) return null;
-    
+
     try {
       const parsed = JSON.parse(paymentData);
-      
+
       // Check if session is older than 5 minutes
       const timeElapsed = Date.now() - parsed.timestamp;
       if (timeElapsed > 5 * 60 * 1000) {
         localStorage.removeItem('last_payment_session');
         return null;
       }
-      
+
       return parsed;
     } catch (error) {
       console.error('Failed to parse stored payment session:', error);
@@ -1083,42 +1090,42 @@ async translateSubtitleFile(
   // Check URL parameters for payment success
   checkUrlForPaymentSuccess(): { success: boolean; sessionId: string | null } {
     if (typeof window === 'undefined') return { success: false, sessionId: null };
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const paymentSuccess = urlParams.get('payment_success');
     const sessionId = urlParams.get('session_id');
-    
+
     if (paymentSuccess === 'true' && sessionId) {
       // Clean URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
-      
+
       return { success: true, sessionId };
     }
-    
+
     return { success: false, sessionId: null };
   }
 
   // Store subtitle job data
   storeSubtitleJob(jobId: string, data: any): void {
     if (typeof window === 'undefined') return;
-    
+
     const jobData = {
       job_id: jobId,
       ...data,
       timestamp: Date.now()
     };
-    
+
     localStorage.setItem(`subtitle_job_${jobId}`, JSON.stringify(jobData));
   }
 
   // Get stored subtitle job data
   getStoredSubtitleJob(jobId: string): any {
     if (typeof window === 'undefined') return null;
-    
+
     const jobData = localStorage.getItem(`subtitle_job_${jobId}`);
     if (!jobData) return null;
-    
+
     try {
       return JSON.parse(jobData);
     } catch (error) {
@@ -1140,7 +1147,7 @@ async translateSubtitleFile(
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
     const milliseconds = Math.floor((seconds - Math.floor(seconds)) * 1000);
-    
+
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${milliseconds.toString().padStart(3, '0')}`;
   }
 
@@ -1148,13 +1155,13 @@ async translateSubtitleFile(
   parseSRTContent(srtText: string): SubtitleSegment[] {
     const segments: SubtitleSegment[] = [];
     const lines = srtText.split('\n');
-    
+
     let currentSegment: Partial<SubtitleSegment> = {};
     let textBuffer: string[] = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
-      
+
       if (!line) {
         // Empty line indicates end of segment
         if (currentSegment.id && textBuffer.length > 0) {
@@ -1169,7 +1176,7 @@ async translateSubtitleFile(
         textBuffer = [];
         continue;
       }
-      
+
       if (!currentSegment.id && /^\d+$/.test(line)) {
         // Segment number
         currentSegment.id = parseInt(line, 10);
@@ -1183,7 +1190,7 @@ async translateSubtitleFile(
         textBuffer.push(line);
       }
     }
-    
+
     // Add last segment if exists
     if (currentSegment.id && textBuffer.length > 0) {
       segments.push({
@@ -1193,7 +1200,7 @@ async translateSubtitleFile(
         text: textBuffer.join(' ').trim()
       });
     }
-    
+
     return segments;
   }
 
@@ -1202,7 +1209,7 @@ async translateSubtitleFile(
     const [time, milliseconds] = timestamp.split(',');
     const [hours, minutes, seconds] = time.split(':').map(Number);
     const ms = milliseconds ? parseInt(milliseconds, 10) / 1000 : 0;
-    
+
     return hours * 3600 + minutes * 60 + seconds + ms;
   }
 
@@ -1210,7 +1217,7 @@ async translateSubtitleFile(
   generateDummySubtitles(count: number = 10): SubtitleSegment[] {
     const segments: SubtitleSegment[] = [];
     let currentTime = 0;
-    
+
     for (let i = 1; i <= count; i++) {
       const duration = 3 + Math.random() * 4; // 3-7 seconds per segment
       const segment: SubtitleSegment = {
@@ -1220,13 +1227,13 @@ async translateSubtitleFile(
         text: `This is dummy subtitle text for segment ${i}. It simulates generated speech recognition output.`,
         confidence: 0.8 + Math.random() * 0.2 // 80-100% confidence
       };
-      
+
       segments.push(segment);
       currentTime += duration + 0.5; // Add small gap between segments
     }
-    
-  return segments;
-}
+
+    return segments;
+  }
 }
 
 export const api = new ApiService();

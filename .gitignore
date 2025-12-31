@@ -110,7 +110,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+
 lib64/
 parts/
 sdist/
@@ -376,8 +376,7 @@ test_outputs/*
 !test_outputs/.gitkeep
 
 # Backend specific directories
-backend/modules/
-backend/routes/
+
 backend/tests/
 backend/test_samples/
 backend/outputs/

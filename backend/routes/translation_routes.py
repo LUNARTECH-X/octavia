@@ -280,7 +280,7 @@ async def generate_subtitles(
                 "job_id": job_id
             },
             "message": "Subtitle generation started in background",
-            "status_url": f"/api/jobs/{job_id}/status",
+            "status_url": f"/api/translate/jobs/{job_id}/status",
             "remaining_credits": current_user.credits - 1 if not is_demo_user else 5000
         }
 
@@ -356,7 +356,7 @@ async def translate_audio(
             "success": True,
             "job_id": job_id,
             "message": "Audio translation started",
-            "status_url": f"/api/jobs/{job_id}/status",
+            "status_url": f"/api/translate/jobs/{job_id}/status",
             "remaining_credits": current_user.credits - 5 if not is_demo_user else 5000
         }
 
@@ -882,7 +882,7 @@ async def translate_video(
             "success": True,
             "job_id": job_id,
             "message": "Video translation started",
-            "status_url": f"/api/jobs/{job_id}/status",
+            "status_url": f"/api/translate/jobs/{job_id}/status",
             "remaining_credits": current_user.credits - 10 if not is_demo_user else 5000
         }
 
@@ -1165,10 +1165,11 @@ async def process_video_job(job_id, file_path, target_language, user_id):
 
             return
 
-        # Cleanup temp file
+        # Cleanup temp file - DISABLED to allow downloading original
         try:
             if os.path.exists(file_path):
-                os.remove(file_path)
+                # os.remove(file_path)
+                pass
         except Exception as cleanup_error:
             print(f"Warning: Failed to cleanup temp file {file_path}: {cleanup_error}")
 

@@ -1723,9 +1723,10 @@ async def process_video_enhanced_job(job_id: str, file_path: str, target_languag
             "output_path": result.get("output_path") or result.get("output_video")
         })
         
-        # Cleanup temp file
+        # Cleanup temp file - DISABLED to allow downloading original
         if os.path.exists(file_path):
-            os.remove(file_path)
+            # os.remove(file_path)
+            pass
             
     except Exception as e:
         jobs_db[job_id].update({
@@ -2374,37 +2375,17 @@ async def preview_voice(
         preview_filename = f"preview_{uuid.uuid4().hex[:8]}.mp3"
         output_path = f"outputs/{preview_filename}"
 
-        # Generate speech using edge-tts (more reliable)
+        # Generate speech using gTTS (as requested)
         try:
-            import edge_tts
-            import io
-
-            # Get appropriate voice for Edge-TTS
-            voice = voice_name_map.get(voice_id, "en-US-AriaNeural")
-
-            logger.info(f"Generating voice preview: voice_id={voice_id}, voice_name={voice}, text={text[:50]}")
-
-            # Generate TTS audio synchronously
-            communicate = edge_tts.Communicate(text, voice=voice)
-            audio_bytes = io.BytesIO()
-
-            # Collect all audio chunks synchronously
-            audio_chunks = list(communicate.stream_sync())
-            chunk_count = 0
-            for chunk in audio_chunks:
-                if chunk["type"] == "audio":
-                    audio_bytes.write(chunk["data"])
-                    chunk_count += 1
-
-            if chunk_count == 0:
-                raise Exception("No audio data received from edge-tts service")
-
-            if len(audio_bytes.getvalue()) == 0:
-                raise Exception("Received audio chunks but total size is 0 bytes")
-
-            # Write audio data to file
-            with open(output_path, "wb") as f:
-                f.write(audio_bytes.getvalue())
+            # Check if language code is valid for gTTS (basic check)
+            # Frontend sends 'en', 'es', 'fr', etc. which gTTS supports
+            lang_code = language.lower().split('-')[0] if '-' in language else language.lower()
+            
+            logger.info(f"Generating voice preview with gTTS: lang={lang_code}, text={text[:50]}")
+            
+            # Generate TTS using gTTS
+            tts = gTTS(text=text, lang=lang_code, slow=False)
+            tts.save(output_path)
 
             # Verify file was created and has content
             if not os.path.exists(output_path):
@@ -2415,7 +2396,21 @@ async def preview_voice(
                 os.remove(output_path)
                 raise Exception("Generated audio file is empty after writing")
 
-            logger.info(f"Voice preview generated: {output_path}, chunks: {chunk_count}, size: {file_size} bytes")
+            logger.info(f"Voice preview generated: {output_path}, size: {file_size} bytes")
+        except Exception as e:
+            # Clean up if file was created but is invalid
+            if os.path.exists(output_path):
+                try:
+                    os.remove(output_path)
+                    logger.info(f"Cleaned up invalid file: {output_path}")
+                except:
+                    pass
+
+            logger.error(f"Failed to generate audio with gTTS: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate voice preview: {str(e)}"
+            )
         except Exception as e:
             # Clean up if file was created but is invalid
             if os.path.exists(output_path):
@@ -2440,7 +2435,7 @@ async def preview_voice(
 
         return {
             "success": True,
-            "preview_url": f"/api/download/preview/{preview_filename}",
+            "preview_url": f"/api/voices/preview-file/{preview_filename}",
             "credits_remaining": new_credits,
             "message": "Preview generated successfully"
         }
@@ -2455,50 +2450,24 @@ async def preview_voice(
         )
 
 
-@app.get("/api/download/preview/{filename}")
+@app.get("/api/voices/preview-file/{filename}")
 async def download_preview_audio(filename: str):
     """Download generated voice preview"""
     file_path = f"outputs/{filename}"
+    
+    logger.info(f"PREVIEW DOWNLOAD REQUEST: {filename}")
 
     if not os.path.exists(file_path):
+        logger.warning(f"Preview file not found: {file_path}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Preview file not found")
 
+    logger.info(f"Serving preview audio: {file_path}")
     return FileResponse(
         file_path,
         media_type="audio/mpeg",
         filename=filename
     )
 
-    if job["user_id"] != current_user.id:
-        raise HTTPException(403, "Access denied")
-
-    # Check various locations
-    locations = [
-        job.get("output_path"),
-        job.get("output_video"),
-        f"backend/outputs/translated_video_{job_id}.mp4",
-        f"outputs/translated_video_{job_id}.mp4",
-        f"translated_video_{job_id}.mp4",
-    ]
-
-    results = []
-    for loc in locations:
-        if loc:
-            exists = os.path.exists(loc)
-            size = os.path.getsize(loc) if exists else 0
-            results.append({
-                "path": loc,
-                "exists": exists,
-                "size": size
-            })
-
-    return {
-        "success": True,
-        "job_id": job_id,
-        "job_status": job.get("status"),
-        "locations": results,
-        "current_dir": os.getcwd()
-    }
 
 @app.post("/api/test/integration")
 async def test_integration():
@@ -2638,6 +2607,65 @@ async def download_subtitle_file(
         file_path,
         media_type=media_type,
         filename=filename
+    )
+
+@app.get("/api/download/original/{job_id}")
+async def download_original_file(
+    job_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Download the original input file for a job"""
+    # Check all job stores
+    job = None
+    if job_id in jobs_db:
+        job = jobs_db[job_id]
+    elif job_id in subtitle_jobs:
+        job = subtitle_jobs[job_id]
+    else:
+        # Check translation_routes jobs if available
+        try:
+            from routes.translation_routes import translation_jobs
+            if job_id in translation_jobs:
+                job = translation_jobs[job_id]
+        except ImportError:
+            pass
+
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    if job.get("user_id") != current_user.id:
+        raise HTTPException(403, "Access denied")
+
+    file_path = job.get("file_path")
+    if not file_path:
+        raise HTTPException(404, "Original file path not found in job data")
+
+    # Path safety and existence check
+    final_path = None
+    if os.path.exists(file_path):
+        final_path = file_path
+    elif os.path.exists(os.path.join("backend", file_path)):
+        final_path = os.path.join("backend", file_path)
+    elif os.path.exists(os.path.basename(file_path)):
+        final_path = os.path.basename(file_path)
+    
+    if not final_path:
+        raise HTTPException(404, f"Original file not found on server (Path: {file_path})")
+
+    # Determine media type for original file
+    ext = os.path.splitext(final_path)[1].lower()
+    media_type = "application/octet-stream"
+    if ext in ['.mp4', '.m4v', '.mov']:
+        media_type = "video/mp4"
+    elif ext in ['.mp3', '.wav', '.ogg']:
+        media_type = "audio/mpeg"
+    
+    filename = job.get("original_filename", "original_file" + ext)
+    
+    return FileResponse(
+        final_path,
+        media_type=media_type,
+        filename=f"original_{filename}"
     )
 
 @app.get("/api/translate/subtitles/review/{job_id}")

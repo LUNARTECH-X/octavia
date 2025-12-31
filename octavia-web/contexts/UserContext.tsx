@@ -19,16 +19,16 @@ interface User {
 interface UserContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ 
-    success: boolean; 
-    error?: string; 
+  login: (email: string, password: string) => Promise<{
+    success: boolean;
+    error?: string;
     requiresVerification?: boolean;
     user?: User;
   }>;
-  signup: (email: string, password: string, name: string) => Promise<{ 
-    success: boolean; 
-    error?: string; 
-    requiresVerification?: boolean; 
+  signup: (email: string, password: string, name: string) => Promise<{
+    success: boolean;
+    error?: string;
+    requiresVerification?: boolean;
     message?: string;
     user_id?: string;
   }>;
@@ -38,15 +38,15 @@ interface UserContextType {
   deductCredits: (creditsToDeduct: number) => Promise<{ success: boolean; newBalance?: number; error?: string }>;
   isAuthenticated: boolean;
   setUser: (user: User | null) => void;
-  verifyEmail: (token: string) => Promise<{ 
-    success: boolean; 
+  verifyEmail: (token: string) => Promise<{
+    success: boolean;
     error?: string;
     user?: User;
   }>;
-  resendVerification: (email: string) => Promise<{ 
-    success: boolean; 
-    error?: string; 
-    message?: string 
+  resendVerification: (email: string) => Promise<{
+    success: boolean;
+    error?: string;
+    message?: string
   }>;
   fetchUserProfile: () => Promise<{ success: boolean; error?: string }>;
   refreshCredits: () => Promise<{ success: boolean; credits?: number; error?: string }>;
@@ -69,7 +69,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-        
+
         // Try to refresh the user data to make sure the token is still valid
         fetchUserProfile().catch(() => {
           // If we can't fetch the profile, the token might be expired
@@ -89,7 +89,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user) {
       return { success: false, error: 'No user logged in' };
     }
-    
+
     try {
       const response = await api.getUserProfile();
       if (response.success && response.user) {
@@ -119,14 +119,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await api.getUserCredits();
-      if (response && response.success && response.credits !== undefined) {
-        const updatedUser = { ...user, credits: response.credits };
+      // Use getUserProfile as alternative since getUserCredits was removed
+      const response = await api.getUserProfile();
+
+      // Safety check for null response
+      if (!response) {
+        return { success: false, error: 'Failed to fetch user profile' };
+      }
+
+      if (response.success && response.user) {
+        const updatedUser = {
+          ...user,
+          credits: response.user.credits,
+          // Update other fields too while we're at it
+          verified: response.user.verified
+        };
         setUser(updatedUser);
         localStorage.setItem('octavia_user', JSON.stringify(updatedUser));
-        return { success: true, credits: response.credits };
+        return { success: true, credits: response.user.credits };
       } else {
-        return { success: false, error: response?.error || 'Failed to fetch credits' };
+        return { success: false, error: response.error || 'Failed to fetch credits' };
       }
     } catch (error) {
       console.error('Could not refresh credits:', error);
@@ -139,26 +151,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await api.login(email, password);
-      
+
       if (response.success) {
         const userData: User = {
-          id: response.user.id,
-          email: response.user.email,
-          name: response.user.name,
-          token: response.token,
-          credits: response.user.credits,
-          verified: response.user.verified
+          id: response.user?.id || '',
+          email: response.user?.email || email,
+          name: response.user?.name || '',
+          token: response.token || '',
+          credits: response.user?.credits || 0,
+          verified: response.user?.verified || false
         };
-        
+
         setUser(userData);
         localStorage.setItem('octavia_user', JSON.stringify(userData));
-        return { 
+        return {
           success: true,
           user: userData
         };
       } else {
-        return { 
-          success: false, 
+        return {
+          success: false,
           error: response.error,
           requiresVerification: response.message?.includes('verify') || false
         };
@@ -176,20 +188,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await api.signup(email, password, name);
-      
+
       if (response.success) {
         if (response.requires_verification) {
           // User needs to verify their email before they can log in
           localStorage.setItem('pending_verification_email', email);
-          
-          return { 
-            success: true, 
+
+          return {
+            success: true,
             requiresVerification: true,
             message: response.message,
-            user_id: response.user_id
+            user_id: response.user?.id
           };
         }
-        
+
         // Account was created successfully and doesn't need verification
         const userData: User = {
           id: response.user?.id || '',
@@ -199,7 +211,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           credits: response.user?.credits || 0,
           verified: response.user?.verified || true
         };
-        
+
         setUser(userData);
         localStorage.setItem('octavia_user', JSON.stringify(userData));
         return { success: true };
@@ -219,22 +231,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await api.verifyEmail(token);
-      
+
       if (response.success) {
         const userData: User = {
-          id: response.user.id,
-          email: response.user.email,
-          name: response.user.name,
-          token: response.token,
-          credits: response.user.credits,
-          verified: response.user.verified
+          id: response.user?.id || '',
+          email: response.user?.email || '',
+          name: response.user?.name || '',
+          token: response.token || '',
+          credits: response.user?.credits || 0,
+          verified: response.user?.verified || true
         };
-        
+
         setUser(userData);
         localStorage.setItem('octavia_user', JSON.stringify(userData));
         localStorage.removeItem('pending_verification_email');
-        
-        return { 
+
+        return {
           success: true,
           user: userData
         };
@@ -254,7 +266,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await api.resendVerification(email);
-      
+
       if (response.success) {
         return { success: true, message: response.message };
       } else {
@@ -299,20 +311,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user) {
       return { success: false, error: 'User not logged in' };
     }
-    
+
     if (creditsToAdd <= 0) {
       return { success: false, error: 'Credits to add must be positive' };
     }
-    
+
     try {
       // In a real app, this would call a backend endpoint
       // For now, we just update the local state
       const newBalance = user.credits + creditsToAdd;
       updateCredits(newBalance);
-      
-      return { 
-        success: true, 
-        newBalance: newBalance 
+
+      return {
+        success: true,
+        newBalance: newBalance
       };
     } catch (error) {
       console.error('Failed to add credits:', error);
@@ -325,23 +337,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user) {
       return { success: false, error: 'User not logged in' };
     }
-    
+
     if (creditsToDeduct <= 0) {
       return { success: false, error: 'Credits to deduct must be positive' };
     }
-    
+
     if (user.credits < creditsToDeduct) {
       return { success: false, error: 'Insufficient credits' };
     }
-    
+
     try {
       // In production, this would be handled by the video translation endpoint
       const newBalance = user.credits - creditsToDeduct;
       updateCredits(newBalance);
-      
-      return { 
-        success: true, 
-        newBalance: newBalance 
+
+      return {
+        success: true,
+        newBalance: newBalance
       };
     } catch (error) {
       console.error('Failed to deduct credits:', error);
@@ -354,21 +366,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await api.demoLogin();
-      
+
       if (response.success) {
         const userData: User = {
-          id: response.user.id,
-          email: response.user.email,
-          name: response.user.name,
-          token: response.token,
-          credits: response.user.credits,
-          verified: response.user.verified
+          id: response.user?.id || '',
+          email: response.user?.email || '',
+          name: response.user?.name || '',
+          token: response.token || '',
+          credits: response.user?.credits || 0,
+          verified: response.user?.verified || true
         };
-        
+
         setUser(userData);
         localStorage.setItem('octavia_user', JSON.stringify(userData));
-        
-        return { 
+
+        return {
           success: true,
           user: userData
         };
