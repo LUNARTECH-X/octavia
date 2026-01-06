@@ -672,10 +672,13 @@ async def get_job_status(job_id: str, current_user: User = Depends(get_current_u
 async def get_user_job_history(current_user: User = Depends(get_current_user)):
     """Get user's job history"""
     user_jobs = await job_storage.get_user_jobs(current_user.id)
-    
+
     return {
         "success": True,
-        "data": user_jobs
+        "data": {
+            "jobs": user_jobs,
+            "total": len(user_jobs)
+        }
     }
 
 @router.post("/video")

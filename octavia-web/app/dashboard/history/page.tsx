@@ -67,12 +67,15 @@ export default function JobHistoryPage() {
     console.log("JobHistoryPage: Starting to fetch user history");
     setLoading(true);
     try {
-      // Fetch transaction history (credit purchases)
-      const [transactionsResponse, subtitleJobs, translationJobs] = await Promise.all([
+      // Fetch transaction history (credit purchases) and user jobs
+      const [transactionsResponse, userJobsResponse] = await Promise.all([
         api.getTransactionHistory(),
-        fetchSubtitleJobs(),
-        fetchTranslationJobs()
+        api.getUserJobHistory()
       ]);
+
+      const allJobs = userJobsResponse.success && userJobsResponse.data ? userJobsResponse.data.jobs : [];
+      const translationJobs = allJobs.filter((job: any) => job.type !== 'subtitles' && job.type !== 'subtitle');
+      const subtitleJobs = allJobs.filter((job: any) => job.type === 'subtitles' || job.type === 'subtitle');
 
       const historyItems: JobHistoryItem[] = [];
 
@@ -127,7 +130,7 @@ export default function JobHistoryPage() {
             job.status === "failed" ? "Failed" : "Unknown";
 
         historyItems.push({
-          id: `JOB-${job.id}`,
+          id: `JOB-${job.id || Math.random()}`,
           name: filename || `${typeDisplay} Job`,
           type: typeDisplay,
           lang: lang,
@@ -143,7 +146,7 @@ export default function JobHistoryPage() {
       // Add subtitle jobs
       subtitleJobs.forEach((job: any) => {
         historyItems.push({
-          id: `JOB-${job.job_id}`,
+          id: `JOB-${job.job_id || Math.random()}`,
           name: job.original_filename || "Subtitle Generation",
           type: "Subtitle Generation",
           lang: job.language || "Auto",
