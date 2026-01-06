@@ -82,7 +82,7 @@ export default function JobHistoryPage() {
         if (transactions && Array.isArray(transactions)) {
           transactions.forEach((tx: Transaction) => {
             historyItems.push({
-              id: `TXN-${tx.id.substring(0, 8)}`,
+              id: `txn-${Date.now()}-${Math.random()}-${tx.id}`,
               name: tx.description || "Credit Purchase",
               type: "Credit Purchase",
               lang: "N/A",
@@ -127,7 +127,7 @@ export default function JobHistoryPage() {
             job.status === "failed" ? "Failed" : "Unknown";
 
         historyItems.push({
-          id: `JOB-${job.id?.substring(0, 8) || "UNKNOWN"}`,
+          id: `JOB-${job.id}`,
           name: filename || `${typeDisplay} Job`,
           type: typeDisplay,
           lang: lang,
@@ -143,7 +143,7 @@ export default function JobHistoryPage() {
       // Add subtitle jobs
       subtitleJobs.forEach((job: any) => {
         historyItems.push({
-          id: `JOB-${job.job_id?.substring(0, 8) || "UNKNOWN"}`,
+          id: `JOB-${job.job_id}`,
           name: job.original_filename || "Subtitle Generation",
           type: "Subtitle Generation",
           lang: job.language || "Auto",
@@ -206,6 +206,24 @@ export default function JobHistoryPage() {
   };
 
   const fetchSubtitleJobs = async () => {
+    // Check if demo user
+    const userStr = localStorage.getItem('octavia_user');
+    const userData = userStr ? JSON.parse(userStr) : null;
+    if (userData?.email === 'demo@octavia.com') {
+      // Return mock subtitle jobs for demo
+      return [
+        {
+          job_id: "demo-sub-001",
+          original_filename: "Tutorial Series - Part 1.mp4",
+          language: "en",
+          status: "completed",
+          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+          segment_count: 120,
+          download_url: "/downloads/demo-sub-001.srt"
+        }
+      ];
+    }
+
     // In a real implementation, you would fetch from /api/translate/subtitles/history
     // For now, check localStorage for recent subtitle jobs
     const jobs: any[] = [];

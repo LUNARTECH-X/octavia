@@ -661,6 +661,72 @@ class ApiService {
     }, true);
   }
 
+  // Get user settings
+  async getUserSettings(): Promise<ApiResponse<{
+    settings: {
+      notifications: {
+        translationComplete: boolean;
+        emailNotifications: boolean;
+        weeklySummary: boolean;
+      };
+      language: string;
+      time_zone: string;
+    };
+  }>> {
+    // For demo account, return mock settings
+    const userStr = localStorage.getItem('octavia_user');
+    const userData = userStr ? JSON.parse(userStr) : null;
+    if (userData?.email === 'demo@octavia.com') {
+      return {
+        success: true,
+        data: {
+          settings: {
+            notifications: {
+              translationComplete: true,
+              emailNotifications: false,
+              weeklySummary: true,
+            },
+            language: 'English',
+            time_zone: 'UTC (GMT+0)',
+          }
+        }
+      };
+    }
+
+    // For real users, try to fetch from API (if endpoint exists)
+    try {
+      return this.request<{
+        settings: {
+          notifications: {
+            translationComplete: boolean;
+            emailNotifications: boolean;
+            weeklySummary: boolean;
+          };
+          language: string;
+          time_zone: string;
+        };
+      }>('/api/user/settings', {
+        method: 'GET',
+      }, true);
+    } catch (error) {
+      // Fallback to default settings if endpoint doesn't exist
+      return {
+        success: true,
+        data: {
+          settings: {
+            notifications: {
+              translationComplete: true,
+              emailNotifications: false,
+              weeklySummary: true,
+            },
+            language: 'English',
+            time_zone: 'UTC (GMT+0)',
+          }
+        }
+      };
+    }
+  }
+
 
   // Debug webhook endpoint
   async debugWebhook(): Promise<ApiResponse<{
@@ -724,6 +790,53 @@ class ApiService {
     }>;
     total: number;
   }>> {
+    // For demo account, return mock jobs
+    const userStr = localStorage.getItem('octavia_user');
+    const userData = userStr ? JSON.parse(userStr) : null;
+    if (userData?.email === 'demo@octavia.com') {
+      return {
+        success: true,
+        data: {
+          jobs: [
+            {
+              id: "demo-job-001",
+              type: "video",
+              status: "completed",
+              progress: 100,
+              target_language: "es",
+              original_filename: "Product Demo Video.mp4",
+              created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+              completed_at: new Date(Date.now() - 2 * 60 * 60 * 1000 + 4 * 30 * 1000).toISOString(),
+              output_path: "/downloads/demo-job-001.mp4",
+              message: "Translation completed successfully"
+            },
+            {
+              id: "demo-job-002",
+              type: "audio",
+              status: "processing",
+              progress: 75,
+              target_language: "fr",
+              original_filename: "Marketing Podcast Ep. 4.mp3",
+              created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+              message: "Processing audio segments"
+            },
+            {
+              id: "demo-job-003",
+              type: "video",
+              status: "failed",
+              progress: 0,
+              target_language: "de",
+              original_filename: "Keynote Speech.mp4",
+              created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+              error: "Unsupported video format"
+            }
+          ],
+          total: 3
+        }
+      };
+    }
+
+    // For real users, fetch from API
     return this.request<{
       jobs: Array<{
         id: string;

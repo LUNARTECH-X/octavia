@@ -1,8 +1,7 @@
-
 from fastapi import APIRouter, Request, Depends, HTTPException, BackgroundTasks, File, UploadFile
 from fastapi.responses import JSONResponse
 import os, uuid, json, asyncio, traceback
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from config import CREDIT_PACKAGES, ENABLE_TEST_MODE, POLAR_WEBHOOK_SECRET, POLAR_SERVER
 from utils import add_user_credits, update_transaction_status
 from shared_dependencies import supabase, get_current_user
@@ -221,6 +220,139 @@ async def get_payment_status(
 		logger.error(f"Failed to get payment status: {status_error}")
 		raise HTTPException(500, "Failed to get payment status")
 
+@router.get("/api/payments/transactions")
+async def get_user_transactions(
+	current_user = Depends(get_current_user),
+	limit: int = 20,
+	offset: int = 0
+):
+	"""
+	Get user's transaction history
+	For demo users: return mock data only
+	For non-demo users: query Supabase transactions table with no fallback
+	"""
+	try:
+		# Check if demo user
+		DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() == "true"
+		is_demo_user = DEMO_MODE
+		
+		if is_demo_user:
+			# Demo users get mock transaction data
+			logger.info(f"Returning mock transaction data for demo user: {current_user.email}")
+			
+			mock_transactions = [
+				{
+					"id": "demo-txn-001",
+					"type": "credit_purchase",
+					"status": "completed",
+					"description": "Pro Credits Purchase (Demo)",
+					"credits": 250,
+					"amount": 19.99,
+					"created_at": (datetime.utcnow() - timedelta(days=1)).isoformat(),
+					"updated_at": (datetime.utcnow() - timedelta(days=1)).isoformat()
+				},
+				{
+					"id": "demo-txn-002",
+					"type": "credit_purchase", 
+					"status": "completed",
+					"description": "Starter Credits (Demo)",
+					"credits": 100,
+					"amount": 9.99,
+					"created_at": (datetime.utcnow() - timedelta(days=7)).isoformat(),
+					"updated_at": (datetime.utcnow() - timedelta(days=7)).isoformat()
+				},
+				{
+					"id": "demo-txn-003",
+					"type": "credit_purchase",
+					"status": "completed", 
+					"description": "Premium Credits (Demo)",
+					"credits": 500,
+					"amount": 34.99,
+					"created_at": (datetime.utcnow() - timedelta(days=14)).isoformat(),
+					"updated_at": (datetime.utcnow() - timedelta(days=14)).isoformat()
+				}
+			]
+			
+			# Apply pagination to mock data
+			paginated_transactions = mock_transactions[offset:offset + limit]
+			
+			return {
+				"success": True,
+				"data": {
+					"transactions": paginated_transactions,
+					"pagination": {
+						"limit": limit,
+						"offset": offset,
+						"total": len(mock_transactions)
+					},
+					"is_demo_data": True
+				}
+			}
+		
+		# For non-demo users: Query Supabase with strict error handling
+		logger.info(f"Querying Supabase transactions for user: {current_user.email}")
+		
+		try:
+			# Query transactions table
+			response = supabase.table("transactions") \
+				.select("*") \
+				.eq("user_id", current_user.id) \
+				.order("created_at", desc=True) \
+				.range(offset, offset + limit - 1) \
+				.execute()
+			
+			if response.data is None:
+				# Database query failed
+				logger.error(f"Supabase query returned None for user {current_user.id}")
+				raise HTTPException(500, "Database query failed. Please try again later.")
+			
+			transactions = []
+			for tx in response.data:
+				transactions.append({
+					"id": tx.get("id"),
+					"type": tx.get("type"),
+					"status": tx.get("status"),
+					"description": tx.get("description"),
+					"credits": tx.get("credits", 0),
+					"amount": tx.get("amount", 0),
+					"created_at": tx.get("created_at"),
+					"updated_at": tx.get("updated_at")
+				})
+			
+			# Get total count
+			count_response = supabase.table("transactions") \
+				.select("id", count="exact") \
+				.eq("user_id", current_user.id) \
+				.execute()
+			
+			total_count = count_response.count or 0
+			
+			logger.info(f"Successfully retrieved {len(transactions)} transactions for user {current_user.id}")
+			
+			return {
+				"success": True,
+				"data": {
+					"transactions": transactions,
+					"pagination": {
+						"limit": limit,
+						"offset": offset,
+						"total": total_count
+					},
+					"is_demo_data": False
+				}
+			}
+			
+		except Exception as db_error:
+			logger.error(f"Database error retrieving transactions for user {current_user.id}: {str(db_error)}")
+			# Strict error handling - no fallback for production users
+			raise HTTPException(500, f"Unable to retrieve transaction history: {str(db_error)}")
+	
+	except HTTPException:
+		raise
+	except Exception as e:
+		logger.error(f"Unexpected error in get_user_transactions: {str(e)}")
+		raise HTTPException(500, "An unexpected error occurred while retrieving transactions")
+
 @router.post("/api/payments/webhook/polar")
 async def polar_webhook(request: Request):
 	try:
@@ -342,115 +474,12 @@ async def manual_complete_payment(
 		)
 		return {
 			"success": True,
-			"message": f"Manually added {package['credits']} credits",
-			"new_balance": new_balance,
-			"transaction_id": transaction["id"]
+			"message": "Payment completed manually",
+			"credits_added": package["credits"],
+			"new_balance": new_balance
 		}
-	except Exception as e:
-		logger.error(f"Manual completion error: {e}")
-		raise HTTPException(500, str(e))
-
-@router.post("/api/payments/force-complete-all")
-async def force_complete_all_payments():
-	try:
-		response = supabase.table("transactions").select("*").eq("status", "pending").execute()
-		if not response.data:
-			return {"success": True, "message": "No pending transactions found"}
-		completed = []
-		failed = []
-		for transaction in response.data:
-			try:
-				user_id = transaction["user_id"]
-				package_id = transaction.get("package_id")
-				if not package_id:
-					amount = transaction.get("amount", 999)
-					credits_to_add = 100 if amount == 999 else 250 if amount == 1999 else 500
-				else:
-					package = CREDIT_PACKAGES.get(package_id)
-					if not package:
-						failed.append(f"Invalid package: {package_id}")
-						continue
-					credits_to_add = package["credits"]
-				supabase.table("users").update({"credits": transaction.get("current_credits", 0) + credits_to_add}).eq("id", user_id).execute()
-				supabase.table("transactions").update({
-					"status": "completed",
-					"description": "FORCE COMPLETED: Added credits",
-					"updated_at": datetime.utcnow().isoformat()
-				}).eq("id", transaction["id"]).execute()
-				completed.append(f"Transaction {transaction['id']}: {credits_to_add} credits")
-			except Exception as tx_error:
-				failed.append(f"Transaction {transaction['id']}: {str(tx_error)}")
-		return {
-			"success": True,
-			"completed": completed,
-			"failed": failed,
-			"message": f"Force completed {len(completed)} transactions"
-		}
-	except Exception as e:
-		logger.error(f"Force complete error: {e}")
-		return {"success": False, "error": str(e)}
-
-@router.get("/api/payments/fix-pending")
-async def fix_pending_payments():
-	try:
-		response = supabase.table("transactions").select("*, users!inner(credits)").eq("status", "pending").execute()
-		for tx in response.data:
-			user_id = tx["user_id"]
-			package_id = tx.get("package_id")
-			if package_id in CREDIT_PACKAGES:
-				credits_to_add = CREDIT_PACKAGES[package_id]["credits"]
-			else:
-				amount = tx.get("amount", 999)
-				credits_to_add = 100 if amount == 999 else 250 if amount == 1999 else 500
-			supabase.table("users").update({"credits": tx["users"]["credits"] + credits_to_add}).eq("id", user_id).execute()
-			supabase.table("transactions").update({
-				"status": "completed",
-				"description": "Fixed by system",
-				"updated_at": datetime.utcnow().isoformat()
-			}).eq("id", tx["id"]).execute()
-		return {"success": True, "message": "Fixed all pending transactions"}
-	except Exception as e:
-		return {"success": False, "error": str(e)}
-
-@router.get("/api/payments/transactions")
-async def get_user_transactions(
-	current_user = Depends(get_current_user),
-	limit: int = 20,
-	offset: int = 0
-):
-	try:
-		response = supabase.table("transactions") \
-			.select("*") \
-			.eq("user_id", current_user.id) \
-			.order("created_at", desc=True) \
-			.range(offset, offset + limit - 1) \
-			.execute()
-		transactions = []
-		for tx in response.data:
-			transactions.append({
-				"id": tx.get("id"),
-				"type": tx.get("type"),
-				"status": tx.get("status"),
-				"description": tx.get("description"),
-				"credits": tx.get("credits", 0),
-				"amount": tx.get("amount", 0),
-				"created_at": tx.get("created_at"),
-				"updated_at": tx.get("updated_at")
-			})
-		count_response = supabase.table("transactions") \
-			.select("id", count="exact") \
-			.eq("user_id", current_user.id) \
-			.execute()
-		total_count = count_response.count or 0
-		return {
-			"success": True,
-			"transactions": transactions,
-			"pagination": {
-				"limit": limit,
-				"offset": offset,
-				"total": total_count
-			}
-		}
-	except Exception as e:
-		logger.error(f"Failed to get transactions: {e}")
-		raise HTTPException(500, "Failed to retrieve transaction history")
+	except HTTPException:
+		raise
+	except Exception as complete_error:
+		logger.error(f"Failed to manually complete payment: {complete_error}")
+		raise HTTPException(500, "Failed to complete payment")

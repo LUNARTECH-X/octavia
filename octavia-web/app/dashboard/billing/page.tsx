@@ -240,11 +240,15 @@ export default function BillingPage() {
             </div>
             <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-accent-cyan/50 transition-colors">
               <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Credits Used</div>
-              <div className="text-2xl font-bold text-white">0</div>
+              <div className="text-2xl font-bold text-white">
+                {user?.email === 'demo@octavia.com' ? '150' : '0'}
+              </div>
             </div>
             <div className="p-4 rounded-xl bg-white/5 border border-white/10 hover:border-green-500/50 transition-colors">
               <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Est. Cost/Min</div>
-              <div className="text-2xl font-bold text-white">$0.50</div>
+              <div className="text-2xl font-bold text-white">
+                {user?.email === 'demo@octavia.com' ? '$0.00' : '$0.50'}
+              </div>
             </div>
           </div>
         </div>
