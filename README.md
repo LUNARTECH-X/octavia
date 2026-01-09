@@ -20,6 +20,7 @@
 - [Try the Demo](#-try-the-demo)
 - [Technical Specifications](#-technical-specifications)
 - [Project Structure](#-project-structure)
+- [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
 - [License & Credits](#-license--credits)
 
@@ -70,19 +71,34 @@ Video Input → Audio Extraction → Chunking → STT → Translation → TTS �
 ## 🚀 Developer Quick Start
 
 ### Prerequisites
-- **OS**: Windows 11 (tested), macOS 11+, Ubuntu 20.04+
-- **Python**: 3.11+ (required for backend)
-- **Node.js**: 18.0+ (required for frontend)
-- **FFmpeg**: Latest version (automatically handled)
-- **Hardware**: 8GB RAM minimum, 16GB recommended
+- **Python**: 3.11+ (backend only)
+- **Node.js**: 18.0+ (frontend only)
+- **FFmpeg**: Latest version (auto-installed)
+- **Hardware**: 4GB RAM minimum, 8GB recommended
+
+### Quick Start (5 Minutes)
+```bash
+# 1. Clone and setup backend (required)
+cd backend
+pip install -r requirements.txt
+DEMO_MODE=true python cli.py test-integration  # Verify everything works
+
+# 2. Setup frontend (optional, for UI development)
+cd ../octavia-web
+npm install
+npm run dev  # Opens at http://localhost:3000
+
+# 3. Full application (recommended for complete experience)
+docker-compose up --build  # Both backend + frontend in one command
+```
 
 ### Environment Setup
-1. Copy the example environment files and configure with your API keys:
-   ```bash
-   cp .env.example .env
-   cp .env.local.example .env.local
-   ```
-   Edit `.env` with your backend secrets and `.env.local` with your frontend configuration.
+**For Contributors**: You can skip this section! Use demo mode instead.
+
+For full setup with real database:
+1. Copy example files: `cp .env.example .env && cp .env.local.example .env.local`
+2. Add your API keys to `.env` (Supabase, payment providers)
+3. Configure frontend settings in `.env.local`
 
 ### One-Command Setup & Run
 
@@ -311,32 +327,187 @@ logging:
 
 ---
 
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**"Module not found" errors:**
+```bash
+# Backend dependencies
+cd backend && pip install -r requirements.txt
+
+# Frontend dependencies
+cd octavia-web && npm install
+```
+
+**"Demo mode not working":**
+```bash
+# Make sure to set the environment variable
+cd backend
+DEMO_MODE=true python -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+**"CLI test fails":**
+```bash
+# Try with a different video or use the included sample
+python cli.py test-integration --input backend/test_samples/sample_30s_en.mp4
+```
+
+**"Out of memory" errors:**
+- Reduce video size or use shorter clips
+- Close other applications
+- Use Docker setup for better resource management
+
+**"Database connection failed":**
+- Use demo mode: `DEMO_MODE=true`
+- Check your `.env` file has correct Supabase credentials
+- Verify Supabase project is active
+
+### Getting Help
+- **Check existing issues** on GitHub for similar problems
+- **Run diagnostics**: `python cli.py metrics` for system info
+- **Contact**: opensource@lunartech.ai for setup questions
+
+---
+
 ## 🤝 Contributing
 
-We welcome contributions from the community! Octavia is an ambitious project, and there's plenty of room for innovation.
+We welcome contributions from the community! Octavia is designed to be contributor-friendly with multiple entry points.
 
-### 🌟 Why Contribute?
-- **Solve Real AI Native Problems**: Work on complex synchronization engines, neural TTS pipelines, and real-time frontend states.
-- **Modern Stack**: Gain experience with FastAPI, Next.js, Supabase, and advanced FFmpeg processing.
+### 🚀 Quick Start for Contributors
 
-### 🐛 First Good Issue
-We have identified the **Frontend Progress Tracker** as a high-impact area needing polish.
-1. Check `octavia-web/components/ProgressTracker.tsx`.
-2. Investigate the polling synchronization with the backend.
-3. Submit a PR to make the progress bar silky smooth!
+1. **Fork & Clone** the repository
+2. **Test locally**: `cd backend && DEMO_MODE=true python cli.py test-integration`
+3. **Find an issue** or create your own improvement
+4. **Make changes** and test with the CLI
+5. **Submit a PR** with a clear description
 
-### Development Setup
+### 📋 Contribution Guidelines
+
+- **Code Style**: Use Black for Python, ESLint for JavaScript
+- **Testing**: All changes must pass CLI integration tests
+- **Documentation**: Update README for new features
+- **Commits**: Use clear, descriptive commit messages
+
+### 🐛 Finding Good First Issues
+
+**Current Priority Issues:**
+1. **Frontend Progress Tracker** - Smooth out UI updates
+2. **Error Handling** - Better error messages throughout
+3. **Performance Optimization** - Speed up processing pipeline
+4. **Documentation** - Add missing API docs or tutorials
+
+**How to find issues:**
+- Check GitHub Issues labeled `good first issue` or `help wanted`
+- Look for `TODO` comments in the codebase
+- Test the CLI and report any friction points
+
+### 🧪 Testing Your Changes
+
 ```bash
-# Backend development
+# Backend tests
 cd backend
-pip install -r requirements.txt
 python -m pytest tests/ -v
 
-# Frontend development
+# Integration testing (recommended)
+python cli.py test-integration --input your-test-video.mp4
+
+# Full pipeline test
+python cli.py test-integration  # Uses default video
+```
+
+### 📚 Development Workflow
+
+**Backend Development:**
+```bash
+cd backend
+pip install -r requirements.txt
+DEMO_MODE=true python -m uvicorn app:app --reload
+# Make changes, test with CLI, commit
+```
+
+**Frontend Development:**
+```bash
 cd octavia-web
 npm install
-npm run build
+npm run dev  # Hot reload enabled
+# Make UI changes, test in browser
 ```
+
+**Full Stack Development:**
+```bash
+# Use Docker for isolated development
+docker-compose up --build
+# Both services run with hot reload
+```
+
+### 💡 Contribution Ideas
+
+- **Improve CLI**: Add new commands or better error handling
+- **Add Tests**: Unit tests for modules or integration tests
+- **Documentation**: Tutorials, API docs, or troubleshooting guides
+- **Performance**: Optimize memory usage or processing speed
+- **UI/UX**: Improve frontend components or add new features
+- **Languages**: Add support for new languages or voices
+
+### 📞 Getting Help
+
+- **GitHub Discussions**: For questions and ideas
+- **Issues**: Bug reports and feature requests
+- **Email**: opensource@lunartech.ai for private questions
+
+### 🌟 Why Contribute to Octavia?
+
+- **Real AI Impact**: Work on production-ready AI translation systems
+- **Modern Tech Stack**: FastAPI, Next.js, advanced ML models
+- **Open Source Community**: Join a growing project with real users
+- **Skill Building**: Learn synchronization, TTS, and distributed systems
+- **Portfolio Project**: Showcase complex full-stack development skills
+
+---
+
+## ❓ Contributor FAQ
+
+### **Q: Do I need both Python AND Node.js to contribute?**
+**A:** No! Choose based on what you want to work on:
+- **Backend only**: Python 3.11+ (AI pipeline, APIs)
+- **Frontend only**: Node.js 18+ (React UI)
+- **Full stack**: Both technologies
+
+### **Q: I don't have API keys. Can I still contribute?**
+**A:** Yes! Use demo mode: `DEMO_MODE=true python cli.py test-integration`
+
+### **Q: What's the minimum hardware requirement?**
+**A:** 4GB RAM for basic testing, 8GB for development. Use short videos or Docker for limited hardware.
+
+### **Q: How do I find something to work on?**
+**A:** Check GitHub Issues labeled `good first issue` or `help wanted`, or run the CLI and see if you find friction points to fix.
+
+### **Q: Do I need to understand AI/ML to contribute?**
+**A:** Not necessarily! Many contributions are in:
+- UI/UX improvements
+- Error handling
+- Documentation
+- Testing and CLI tools
+- Performance optimization
+
+### **Q: How do I test my changes?**
+**A:** Use the CLI: `python cli.py test-integration --input your-test-video.mp4`
+
+### **Q: Can I work on this without internet?**
+**A:** Yes, with demo mode. All core functionality works offline with the included test video.
+
+### **Q: What's the difference between Docker and local setup?**
+**A:** Docker isolates the environment and handles dependencies automatically. Local setup gives you more control but requires manual dependency management.
+
+### **Q: How long does testing take?**
+**A:** 3-5 minutes for a 30-second video on modern hardware. Use shorter clips for faster iteration.
+
+### **Q: What languages/frameworks should I learn?**
+**A:** Python (FastAPI) for backend, TypeScript/React (Next.js) for frontend. Familiarity with Docker and CLI tools is helpful.
+
+### **Q: Can I contribute documentation only?**
+**A:** Absolutely! Documentation improvements are highly valued and often the easiest way to start contributing.
 
 ---
 
