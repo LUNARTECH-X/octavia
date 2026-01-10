@@ -162,10 +162,12 @@ To test the application without setting up a full database (Supabase), you can u
 ## 📊 Technical Specifications
 
 ### Performance Metrics
-- **Processing Speed**: ~1.5-2x realtime on modern hardware (Intel i7/Ryzen 7)
+- **Processing Speed**: ~3-4x realtime on modern hardware (Intel i7/Ryzen 7)
 - **Memory Usage**: ~4GB peak for 30s test video
 - **Disk Usage**: ~500MB temp files (auto-cleaned)
 - **Supported Formats**: MP4, AVI, MOV (H.264/AAC preferred)
+- **AI Optimization**: Ollama integration for intelligent parameter tuning
+- **Parallel Processing**: 5 concurrent workers on 6-core CPUs
 
 ### Quality Metrics
 - **STT Accuracy**: >95% WER on clear speech

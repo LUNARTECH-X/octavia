@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PipelineConfig:
     """Configuration for the video translation pipeline - FREE VERSION"""
-    chunk_size: int = 10
+    chunk_size: int = 40  # Optimized for faster processing (fewer chunks, more efficiency)
     max_chunk_size: int = 120
     min_chunk_size: int = 10
     timing_tolerance_ms: int = 200
@@ -122,15 +122,22 @@ class VideoTranslationPipeline:
         self.ai_orchestrator = None
 
         # Initialize AI orchestrator if available
+        self.ai_mode = "none"
         if AI_ORCHESTRATOR_AVAILABLE:
             try:
                 self.ai_orchestrator = AIOchestrator()
-                if self.ai_orchestrator.start_llama_server():
-                    logger.info("[OK] AI Orchestrator initialized with Llama.cpp")
+                if self.ai_orchestrator.using_ollama:
+                    self.ai_mode = "ollama"
+                    logger.info("✓ AI Orchestrator: Ollama AI mode ACTIVE (deepseek-r1:latest)")
+                elif self.ai_orchestrator.llama_available:
+                    self.ai_mode = "llama"
+                    logger.info("✓ AI Orchestrator: Llama.cpp AI mode ACTIVE")
                 else:
-                    logger.info("AI Orchestrator initialized (rule-based mode)")
+                    self.ai_mode = "rule"
+                    logger.info("AI Orchestrator: Rule-based mode (Ollama not available)")
             except Exception as e:
                 logger.warning(f"AI Orchestrator initialization failed: {e}")
+                self.ai_mode = "rule"
 
         # Create directories
         os.makedirs(self.config.temp_dir, exist_ok=True)
@@ -654,8 +661,35 @@ class VideoTranslationPipeline:
             chunk_start_time = datetime.now()
 
             try:
-                # Step 6: Process chunk with AI-optimized settings
-                logger.info(f"Processing chunk {chunk.id} with AI optimization...")
+                # Get AI decision if orchestrator is available
+                ai_decision = None
+                if self.ai_orchestrator and self.ai_orchestrator.llama_available:
+                    # Create metrics for this chunk
+                    metrics = ProcessingMetrics(
+                        chunk_id=chunk.id,
+                        audio_duration_ms=chunk.duration_ms,
+                        transcription_time_s=0,
+                        translation_time_s=0,
+                        tts_time_s=0,
+                        whisper_confidence=0.0,
+                        compression_ratio=1.0
+                    )
+                    audio_analysis = self.ai_orchestrator.analyze_audio_chunk(chunk.path, chunk.id)
+                    ai_decision = self.ai_orchestrator.make_processing_decision(metrics, audio_analysis)
+                    if ai_decision:
+                        # Log based on actual mode used (check reasoning prefix)
+                        reasoning = ai_decision.reasoning
+                        if "Llama-optimized" in reasoning or "ollama" in reasoning.lower():
+                            logger.info(f"AI Decision (Ollama): chunk={chunk.id}, size={ai_decision.chunk_size_seconds}s, model={ai_decision.whisper_model_size}, workers={ai_decision.parallel_workers}, reason={reasoning}")
+                        elif "Llama" in reasoning:
+                            logger.info(f"AI Decision (Llama): chunk={chunk.id}, size={ai_decision.chunk_size_seconds}s, model={ai_decision.whisper_model_size}, workers={ai_decision.parallel_workers}, reason={reasoning}")
+                        else:
+                            logger.info(f"AI Decision (Rule-based): chunk={chunk.id}, size={ai_decision.chunk_size_seconds}s, model={ai_decision.whisper_model_size}, workers={ai_decision.parallel_workers}, reason={reasoning}")
+                    else:
+                        logger.info(f"AI Decision (Rule-based): chunk={chunk.id} - fallback to defaults")
+                else:
+                    # Rule-based mode
+                    logger.info(f"AI Decision (Rule-based): chunk={chunk.id} - no AI orchestrator available")
                 result = self._process_single_chunk(chunk, target_lang)
 
                 # Step 7: Update metrics and store for AI learning
@@ -709,7 +743,8 @@ class VideoTranslationPipeline:
                 return chunk.id, {"path": output_path, "segments": []}, (datetime.now() - chunk_start_time).total_seconds()
 
         # Process chunks in parallel using ThreadPoolExecutor
-        max_workers = min(len(speech_chunks), 3)  # Limit to 3 concurrent TTS operations
+        # Optimized for 6-core CPU: 5 workers gives best speed (1 core free for system)
+        max_workers = min(len(speech_chunks), 5)  # Limit to 5 concurrent TTS operations
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all chunk processing tasks
             future_to_chunk = {executor.submit(process_chunk_with_progress, chunk): chunk for chunk in speech_chunks}
