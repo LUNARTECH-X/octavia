@@ -7,11 +7,23 @@ import { useUser } from "@/contexts/UserContext";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+interface Voice {
+    id: number;
+    name: string;
+    type: string;
+    language: string;
+    language_code: string;
+    voice_id: string;
+    gender: string;
+    sample_text?: string;
+    date: string;
+}
+
 export default function MyVoicesPage() {
     const { user, refreshCredits } = useUser();
-    const [voices, setVoices] = useState([]);
+    const [voices, setVoices] = useState<Voice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [selectedVoice, setSelectedVoice] = useState(null);
+    const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
     const [previewText, setPreviewText] = useState("Hello! This is a preview of the voice.");
     const [isPlayingPreview, setIsPlayingPreview] = useState(false);
     const [audioElement, setAudioElement] = useState(null);
@@ -40,7 +52,7 @@ export default function MyVoicesPage() {
         try {
             setIsLoading(true);
             const token = getToken();
-            
+
             const response = await fetch(`${API_BASE_URL}/api/voices/all`, {
                 headers: token ? {
                     'Authorization': `Bearer ${token}`
@@ -52,16 +64,16 @@ export default function MyVoicesPage() {
             }
 
             const data = await response.json();
-            
+
             console.log("API Response:", data); // Debug log
-            
+
             if (data.success && data.voices_by_language) {
                 // Transform the data to match our frontend structure
-                const allVoices = [];
+                const allVoices: Voice[] = [];
                 let voiceId = 1;
-                
-                Object.entries(data.voices_by_language).forEach(([language, voiceList]) => {
-                    voiceList.forEach(voice => {
+
+                Object.entries(data.voices_by_language as Record<string, any[]>).forEach(([language, voiceList]) => {
+                    voiceList.forEach((voice: any) => {
                         allVoices.push({
                             id: voiceId++,
                             name: voice.name,
@@ -75,14 +87,14 @@ export default function MyVoicesPage() {
                         });
                     });
                 });
-                
+
                 setVoices(allVoices);
-                
+
                 // Select first voice by default
                 if (allVoices.length > 0) {
                     setSelectedVoice(allVoices[0]);
                 }
-                
+
                 console.log("Processed voices:", allVoices); // Debug log
             } else {
                 // Use fallback data if response structure is unexpected
@@ -95,9 +107,9 @@ export default function MyVoicesPage() {
                     { id: 5, name: "Denise (Female)", type: "Synthetic", language: "French", language_code: "fr", gender: "Female", voice_id: "denise_female", date: "Available" },
                     { id: 6, name: "Henri (Male)", type: "Synthetic", language: "French", language_code: "fr", gender: "Male", voice_id: "henri_male", date: "Available" },
                 ];
-                
+
                 setVoices(fallbackVoices);
-                
+
                 if (fallbackVoices.length > 0) {
                     setSelectedVoice(fallbackVoices[0]);
                 }
@@ -113,9 +125,9 @@ export default function MyVoicesPage() {
                 { id: 5, name: "Denise (Female)", type: "Synthetic", language: "French", language_code: "fr", gender: "Female", voice_id: "denise_female", date: "Available" },
                 { id: 6, name: "Henri (Male)", type: "Synthetic", language: "French", language_code: "fr", gender: "Male", voice_id: "henri_male", date: "Available" },
             ];
-            
+
             setVoices(fallbackVoices);
-            
+
             if (fallbackVoices.length > 0) {
                 setSelectedVoice(fallbackVoices[0]);
             }
@@ -125,7 +137,7 @@ export default function MyVoicesPage() {
     };
 
     // Handle voice preview
-    const handlePreviewVoice = async (voice) => {
+    const handlePreviewVoice = async (voice: Voice) => {
         try {
             setSelectedVoice(voice);
 
@@ -272,7 +284,7 @@ export default function MyVoicesPage() {
     }, [audioElement]);
 
     // Group voices by language
-    const voicesByLanguage = voices.reduce((groups, voice) => {
+    const voicesByLanguage = voices.reduce((groups: Record<string, Voice[]>, voice) => {
         const lang = voice.language;
         if (!groups[lang]) {
             groups[lang] = [];
@@ -316,7 +328,7 @@ export default function MyVoicesPage() {
                             </span>
                         </div>
                     </div>
-                    
+
                     <div className="mb-4">
                         <label className="text-white text-sm font-medium mb-2 block">Preview Text</label>
                         <textarea
@@ -326,13 +338,13 @@ export default function MyVoicesPage() {
                             placeholder="Enter text to preview the voice..."
                         />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="text-white font-bold">{selectedVoice.name}</h3>
                             <p className="text-slate-400 text-sm">{selectedVoice.type} Voice</p>
                         </div>
-                        
+
                         <button
                             onClick={() => handlePreviewVoice(selectedVoice)}
                             disabled={isPlayingPreview}
@@ -353,7 +365,7 @@ export default function MyVoicesPage() {
                             </div>
                         </button>
                     </div>
-                    
+
                     {isPlayingPreview && (
                         <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                             <p className="text-blue-400 text-sm flex items-center gap-2">
@@ -385,30 +397,27 @@ export default function MyVoicesPage() {
                             <h2 className="text-white font-bold text-xl">{language}</h2>
                             <span className="text-slate-500 text-sm">({langVoices.length} voices)</span>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                             {langVoices.map((voice) => (
                                 <motion.div
                                     key={voice.id}
                                     whileHover={{ y: -4 }}
-                                    className={`glass-panel-glow p-5 relative group cursor-pointer transition-all ${
-                                        selectedVoice?.id === voice.id ? 'ring-2 ring-primary-purple' : ''
-                                    }`}
+                                    className={`glass-panel-glow p-5 relative group cursor-pointer transition-all ${selectedVoice?.id === voice.id ? 'ring-2 ring-primary-purple' : ''
+                                        }`}
                                     onClick={() => setSelectedVoice(voice)}
                                 >
                                     <div className="glass-shine" />
 
                                     <div className="flex justify-between items-start mb-4 relative z-10">
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
-                                            voice.gender === 'Female' 
-                                                ? 'bg-pink-500/10 border-pink-500/20' 
-                                                : 'bg-blue-500/10 border-blue-500/20'
-                                        }`}>
-                                            <Mic className={`w-5 h-5 ${
-                                                voice.gender === 'Female' 
-                                                    ? 'text-pink-500' 
-                                                    : 'text-blue-500'
-                                            }`} />
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${voice.gender === 'Female'
+                                            ? 'bg-pink-500/10 border-pink-500/20'
+                                            : 'bg-blue-500/10 border-blue-500/20'
+                                            }`}>
+                                            <Mic className={`w-5 h-5 ${voice.gender === 'Female'
+                                                ? 'text-pink-500'
+                                                : 'text-blue-500'
+                                                }`} />
                                         </div>
                                         <button className="text-slate-500 hover:text-white transition-colors">
                                             <MoreVertical className="w-4 h-4" />
@@ -418,24 +427,22 @@ export default function MyVoicesPage() {
                                     <div className="relative z-10">
                                         <h3 className="text-white font-bold text-lg mb-1">{voice.name}</h3>
                                         <div className="flex items-center gap-2 mb-4">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                                voice.type === 'Cloned' 
-                                                    ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
-                                                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                            }`}>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${voice.type === 'Cloned'
+                                                ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                                                : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                                }`}>
                                                 {voice.type}
                                             </span>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                                voice.gender === 'Female' 
-                                                    ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20' 
-                                                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                            }`}>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${voice.gender === 'Female'
+                                                ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20'
+                                                : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                                }`}>
                                                 {voice.gender}
                                             </span>
                                         </div>
 
                                         <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/5">
-                                            <button 
+                                            <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     handlePreviewVoice(voice);
@@ -445,7 +452,7 @@ export default function MyVoicesPage() {
                                                 <Play className="w-3 h-3" />
                                                 Preview
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={(e) => e.stopPropagation()}
                                                 className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
                                             >

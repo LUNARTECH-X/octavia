@@ -505,11 +505,34 @@ export default function VideoTranslationPage() {
             disabled={loading}
           >
             <option value="auto">Auto-detect (Recommended)</option>
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
-            <option value="it">Italian</option>
+            <optgroup label="Popular Languages">
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="it">Italian</option>
+              <option value="pt">Portuguese</option>
+              <option value="ru">Russian</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="zh">Chinese (Mandarin)</option>
+            </optgroup>
+            <optgroup label="European Languages">
+              <option value="nl">Dutch</option>
+              <option value="pl">Polish</option>
+              <option value="tr">Turkish</option>
+              <option value="sv">Swedish</option>
+              <option value="da">Danish</option>
+              <option value="no">Norwegian</option>
+              <option value="fi">Finnish</option>
+            </optgroup>
+            <optgroup label="Asian Languages">
+              <option value="vi">Vietnamese</option>
+              <option value="th">Thai</option>
+              <option value="id">Indonesian</option>
+              <option value="hi">Hindi</option>
+              <option value="ar">Arabic</option>
+            </optgroup>
           </select>
           {aiInsights?.detectedLanguage && sourceLanguage === "auto" && (
             <p className="text-xs text-accent-cyan mt-1">
@@ -527,16 +550,34 @@ export default function VideoTranslationPage() {
             onChange={(e) => setTargetLanguage(e.target.value)}
             disabled={loading}
           >
-            <option value="es">Spanish</option>
-            <option value="en">English</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
-            <option value="it">Italian</option>
-            <option value="pt">Portuguese</option>
-            <option value="ru">Russian</option>
-            <option value="ja">Japanese</option>
-            <option value="ko">Korean</option>
-            <option value="zh">Chinese</option>
+            <optgroup label="Popular Languages">
+              <option value="es">Spanish</option>
+              <option value="en">English</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="it">Italian</option>
+              <option value="pt">Portuguese</option>
+              <option value="ru">Russian</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="zh">Chinese (Mandarin)</option>
+            </optgroup>
+            <optgroup label="European Languages">
+              <option value="nl">Dutch</option>
+              <option value="pl">Polish</option>
+              <option value="tr">Turkish</option>
+              <option value="sv">Swedish</option>
+              <option value="da">Danish</option>
+              <option value="no">Norwegian</option>
+              <option value="fi">Finnish</option>
+            </optgroup>
+            <optgroup label="Asian Languages">
+              <option value="vi">Vietnamese</option>
+              <option value="th">Thai</option>
+              <option value="id">Indonesian</option>
+              <option value="hi">Hindi</option>
+              <option value="ar">Arabic</option>
+            </optgroup>
           </select>
         </div>
       </div>

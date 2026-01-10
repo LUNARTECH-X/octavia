@@ -549,75 +549,106 @@ class VideoTranslationPipeline:
         except:
             return True  # Assume speech by default
 
-    def _detect_source_language(self, video_path: str) -> Optional[str]:
-        """Detect the source language from the video audio"""
+    def _detect_source_language(self, video_path: str, min_confidence: float = 0.50) -> Optional[str]:
+        """Detect the source language from the video audio with confidence threshold"""
         try:
             logger.info("Detecting source language from video audio...")
 
-            # Extract a short sample of audio for language detection
-            temp_audio_path = os.path.join(self.config.temp_dir, "lang_detect.wav")
-            cmd = [
-                'ffmpeg', '-y',
-                '-i', video_path,
-                '-vn',
-                '-acodec', 'pcm_s16le',
-                '-ar', '16000',  # 16kHz for Whisper
-                '-ac', '1',  # Mono
-                '-t', '10',  # First 10 seconds
-                '-loglevel', 'error',
-                temp_audio_path
-            ]
+            # Try progressively longer samples if confidence is low
+            sample_durations = [15, 30, 60]  # Try 15s, 30s, 60s samples
+            last_confidence = 0.0
+            detected_lang = None
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            if result.returncode != 0 or not os.path.exists(temp_audio_path):
-                logger.warning("Could not extract audio sample for language detection")
-                return None
+            for duration in sample_durations:
+                if duration > 60:
+                    break
 
-            # Load Whisper model if not already loaded
-            if not hasattr(self, 'whisper_model') or self.whisper_model is None:
-                try:
-                    from faster_whisper import WhisperModel
-                    detect_model = WhisperModel(
-                        "tiny",  # Very small model for detection
-                        device="cpu",  # Use CPU for detection
-                        download_root=os.path.expanduser(self.config.cache_dir)
-                    )
-                except ImportError:
-                    import whisper
-                    detect_model = whisper.load_model("tiny", device="cpu")
-            else:
-                detect_model = self.whisper_model
+                # Extract audio sample for language detection
+                temp_audio_path = os.path.join(self.config.temp_dir, "lang_detect.wav")
+                cmd = [
+                    'ffmpeg', '-y',
+                    '-i', video_path,
+                    '-vn',
+                    '-acodec', 'pcm_s16le',
+                    '-ar', '16000',  # 16kHz for Whisper
+                    '-ac', '1',  # Mono
+                    '-t', str(duration),
+                    '-loglevel', 'error',
+                    temp_audio_path
+                ]
 
-            # Detect language
-            try:
-                if hasattr(detect_model, 'transcribe'):
-                    # faster-whisper
-                    segments, info = detect_model.transcribe(
-                        temp_audio_path,
-                        language=None,  # Auto-detect
-                        beam_size=1,  # Faster
-                        vad_filter=True
-                    )
-                    detected_lang = info.language
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if result.returncode != 0 or not os.path.exists(temp_audio_path):
+                    logger.warning(f"Could not extract {duration}s audio sample for language detection")
+                    continue
+
+                # Check file size
+                if os.path.getsize(temp_audio_path) < 1000:
+                    logger.warning(f"Audio sample too small ({os.path.getsize(temp_audio_path)} bytes), trying longer sample")
+                    continue
+
+                # Load Whisper model if not already loaded
+                if not hasattr(self, 'whisper_model') or self.whisper_model is None:
+                    try:
+                        from faster_whisper import WhisperModel
+                        detect_model = WhisperModel(
+                            "tiny",  # Very small model for detection (faster)
+                            device="cpu",
+                            download_root=os.path.expanduser(self.config.cache_dir)
+                        )
+                    except ImportError:
+                        import whisper
+                        detect_model = whisper.load_model("tiny", device="cpu")
                 else:
-                    # Original whisper
-                    result = detect_model.transcribe(temp_audio_path, language=None, verbose=False)
-                    detected_lang = result.get("language")
+                    detect_model = self.whisper_model
 
-                logger.info(f"Detected language: {detected_lang}")
+                # Detect language with confidence
+                try:
+                    if hasattr(detect_model, 'transcribe'):
+                        # faster-whisper
+                        segments, info = detect_model.transcribe(
+                            temp_audio_path,
+                            language=None,  # Auto-detect
+                            beam_size=1,  # Faster
+                            vad_filter=True
+                        )
+                        detected_lang = info.language
+                        confidence = info.language_probability if hasattr(info, 'language_probability') else 0.5
+                    else:
+                        # Original whisper
+                        result = detect_model.transcribe(temp_audio_path, language=None, verbose=False)
+                        detected_lang = result.get("language")
+                        confidence = result.get("confidence", 0.5)
+
+                    last_confidence = confidence
+                    logger.info(f"Language detection ({duration}s sample): {detected_lang} (confidence: {confidence:.2%})")
+
+                    # Clean up temp file
+                    try:
+                        if os.path.exists(temp_audio_path):
+                            os.unlink(temp_audio_path)
+                    except:
+                        pass
+
+                    # Check if confidence meets threshold
+                    if confidence >= min_confidence:
+                        logger.info(f"✓ High confidence language detection: {detected_lang} ({confidence:.2%})")
+                        return detected_lang
+                    else:
+                        logger.warning(f"⚠ Low confidence ({confidence:.2%} < {min_confidence:.0%}), trying longer sample...")
+                        continue
+
+                except Exception as detect_error:
+                    logger.warning(f"Language detection failed for {duration}s sample: {detect_error}")
+                    continue
+
+            # If all samples had low confidence, return the best result we have
+            if detected_lang and last_confidence > 0:
+                logger.warning(f"⚠ Using best available detection: {detected_lang} ({last_confidence:.2%}) - consider manual source language selection")
                 return detected_lang
 
-            except Exception as detect_error:
-                logger.warning(f"Language detection failed: {detect_error}")
-                return None
-
-            finally:
-                # Clean up temp file
-                try:
-                    if os.path.exists(temp_audio_path):
-                        os.unlink(temp_audio_path)
-                except:
-                    pass
+            logger.warning("All language detection attempts failed")
+            return None
 
         except Exception as e:
             logger.warning(f"Source language detection failed: {e}")
