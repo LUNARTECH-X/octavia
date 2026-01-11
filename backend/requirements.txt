@@ -13,6 +13,7 @@ faster-whisper
 transformers==4.48.3
 sentencepiece
 deep-translator==1.11.4
+sacremoses  # Recommended for Helsinki-NLP MarianMT models
 
 # Audio Processing
 ffmpeg-python

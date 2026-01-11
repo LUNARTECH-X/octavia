@@ -107,10 +107,11 @@ npm install; npm run dev
 
 ## Technical Capabilities
 
-- **End-to-End Pipeline**: Complete video ingestion → transcription → translation → TTS → synchronization → export
+- **End-to-End Pipeline**: Complete video ingestion → transcription → translation → Ollama post-processing → TTS → synchronization → export
 - **Duration Fidelity**: Final output duration matches input exactly (within container constraints)
 - **Lip-Sync Accuracy**: Segment-level timing within ±100-200ms tolerance
 - **Voice Quality**: Clean, natural TTS with consistent gain and prosody
+- **Translation Quality**: Helsinki-NLP MarianMT base + Ollama post-processing for consistent names and natural grammar
 - **Modular Architecture**: Separate modules for each pipeline stage
 - **Instrumentation**: Comprehensive logging and metrics collection
 - **Resumability**: Checkpoint system for interrupted processing
@@ -119,22 +120,23 @@ npm install; npm run dev
 ### Backend Pipeline
 ```mermaid
 graph TD
- A[Video Input] -->|FFmpeg| B(Audio Extraction)
- B -->|FFmpeg| C(Chunking)
- C -->|AI Orchestrator| D{Processing}
- D -->|Whisper| E[STT]
- E -->|Helsinki-NLP| F[Translation]
- F -->|Edge-TTS| G[TTS]
- G -->|pydub| H(Sync)
- H -->|FFmpeg| I(Merge)
- I -->|FFmpeg| J[Video Output]
+  A[Video Input] -->|FFmpeg| B(Audio Extraction)
+  B -->|FFmpeg| C(Chunking)
+  C -->|AI Orchestrator| D{Processing}
+  D -->|Whisper| E[STT]
+  E -->|Helsinki-NLP| F[Translation]
+  F -->|Ollama| G[Post-Processing]
+  G -->|Edge-TTS| H[TTS]
+  H -->|pydub| I(Sync)
+  I -->|FFmpeg| J(Merge)
+  J -->|FFmpeg| K[Video Output]
 ```
 
 ```
-Video Input → Audio Extraction → Chunking → STT → Translation → TTS → Sync → Merge → Video Output
- ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓
- FFmpeg FFmpeg AI Whisper Helsinki Edge pydub FFmpeg FFmpeg
- (probe) (extract) Orchestrator (transcribe) (opus-mt) (TTS) (sync) (merge) (mux)
+Video Input → Audio Extraction → Chunking → STT → Translation → Ollama Post → TTS → Sync → Merge → Video Output
+  ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓
+  FFmpeg FFmpeg AI Whisper Helsinki Ollama Edge pydub FFmpeg FFmpeg FFmpeg FFmpeg
+  (probe) (extract) Orchestrator (transcribe) (opus-mt) (qwen-coder) (TTS) (sync) (merge) (mux)
 ```
 
 ---
@@ -283,15 +285,15 @@ cd octavia-web
 npm run dev
 ```
 
-### AI Orchestrator Model Setup
+### AI Orchestrator & Translation Post-Processing Model Setup
 
-The AI Orchestrator (`backend/modules/ai_orchestrator.py`) manages intelligent decision-making for the translation pipeline. You can optionally configure it to use local AI models for enhanced control and privacy.
+The AI Orchestrator (`backend/modules/ai_orchestrator.py`) manages intelligent decision-making for the translation pipeline. Additionally, Octavia uses a local LLM for **translation post-processing** - fixing name transliterations, improving grammar, and enhancing natural fluency.
 
-**Prerequisite:** Ensure [Ollama](https://ollama.com) is installed and running on your system with the recommended model pulled: `ollama pull qwen-coder`.
+**Prerequisite:** Ensure [Ollama](https://ollama.com) is installed and running on your system with the recommended model pulled: `ollama pull qwen2.5-coder:1.5b`.
 
 #### Using Ollama (Local LLM)
 
-Ollama provides local AI model inference for the orchestrator:
+Ollama provides local AI model inference for both the orchestrator and translation post-processing:
 
 **Linux / macOS:**
 ```bash
@@ -301,8 +303,8 @@ curl -fsSL https://ollama.ai/install.sh | sh
 # Start Ollama service
 sudo systemctl start ollama
 
-# Pull the recommended model for AI Orchestrator
-ollama pull qwen-coder
+# Pull the recommended model for AI Orchestrator & Translation
+ollama pull qwen2.5-coder:1.5b
 ```
 
 **Windows:**
@@ -313,8 +315,8 @@ winget install Ollama.Ollama
 :: Start Ollama service (run as administrator)
 net start ollama
 
-:: Pull the recommended model for AI Orchestrator
-ollama pull qwen-coder
+:: Pull the recommended model for AI Orchestrator & Translation
+ollama pull qwen2.5-coder:1.5b
 ```
 
 **Windows (WSL2):**
@@ -324,8 +326,22 @@ curl -fsSL https://ollama.ai/install.sh | sh
 
 # Start service
 sudo systemctl start ollama
-ollama pull qwen-coder
+ollama pull qwen2.5-coder:1.5b
 ```
+
+#### What Ollama Does in Octavia
+
+1. **AI Orchestrator** - Intelligent decision-making for:
+   - Chunk size optimization
+   - Translation quality assessment
+   - Voice selection recommendations
+   - Error recovery strategies
+
+2. **Translation Post-Processing** - Improves translation quality by:
+   - Normalizing name transliterations (e.g., "小龙" → "Xiao Long" consistently)
+   - Fixing grammar issues ("I'm" → "I am")
+   - Enhancing natural fluency
+   - Preserving meaning while improving readability
 
 #### Benefits of Local AI Model
 
@@ -333,14 +349,57 @@ ollama pull qwen-coder
 - **Cost Control**: No API usage fees
 - **Customization**: Fine-tune models for your domain
 - **Offline Operation**: Works without internet
+- **Better Translation**: Names, grammar, and fluency improvements
 
 #### Fallback Behavior
 
-If no local model is configured, the orchestrator uses default heuristics for:
-- Chunk size optimization
-- Translation quality assessment
-- Voice selection recommendations
-- Error recovery strategies
+If no local model is configured:
+- The orchestrator uses default heuristics for chunk size, quality assessment, and voice selection
+- Translation post-processing is skipped (basic MarianMT output is used)
+- Translation still works but may have inconsistent names and less natural phrasing
+
+#### Ollama Troubleshooting
+
+**"Ollama model not found" or 404 errors:**
+```bash
+# Check available models
+curl http://localhost:11434/api/tags
+
+# Verify the exact model name needed
+# Our code uses: qwen2.5-coder:1.5b
+
+# Pull the correct model
+ollama pull qwen2.5-coder:1.5b
+```
+
+**"Connection refused" errors:**
+```bash
+# Windows: Start Ollama service
+net start ollama
+
+# Linux/macOS: Start service
+sudo systemctl start ollama
+
+# Verify Ollama is running
+curl http://localhost:11434/api/tags
+```
+
+**Slow translation post-processing:**
+- The 1.5B model is optimized for speed
+- Translation post-processing adds ~2-5 seconds per chunk
+- If too slow, disable post-processing in `TranslationConfig`:
+  ```python
+  use_ollama_post_processing: bool = False
+  ```
+
+**Different model names in curl vs ollama list:**
+```bash
+# Ollama may show: qwen2.5-coder:1.5b
+# curl may show: qwen2.5-coder:latest
+
+# Use the exact name from ollama list
+ollama list
+```
 
 ### Docker Setup
 
@@ -415,14 +474,14 @@ To test the application without setting up a full database (Supabase), you can u
 
 ### Quality Metrics
 - **STT Accuracy**: >95% WER on clear speech
-- **Translation Quality**: Natural phrasing with cultural adaptation
+- **Translation Quality**: Natural phrasing with cultural adaptation + Ollama post-processing for grammar/names
 - **TTS Quality**: Edge-TTS voices (neural, 24kHz)
 - **Sync Precision**: ±100ms per segment, exact total duration
 
 ### Supported Languages
-- **Source**: English, Russian, German, Spanish, French
-- **Target**: English, Russian, German, Spanish, French
-- **Translation Pairs**: All combinations via Helsinki-NLP models
+- **Source**: English, Russian, German, Spanish, French, Chinese, Japanese, Korean
+- **Target**: English, Russian, German, Spanish, French, Chinese, Japanese, Korean
+- **Translation Pairs**: All combinations via Helsinki-NLP models + Ollama post-processing for CJK languages
 
 ## Usage Examples
 
@@ -533,7 +592,7 @@ Audio Translation      PASSED      107.6s
 Subtitle Generation    PASSED      22.1s
 Subtitle Translation   PASSED      0.0s
 
-Overall Status: ✅ ALL TESTS PASSED
+Overall Status: ALL TESTS PASSED
 ```
 
 This ensures the entire Octavia system works correctly for video translation, audio processing, and subtitle generation.
@@ -1004,6 +1063,55 @@ docker version
 - **Check existing issues** on GitHub for similar problems
 - **Run diagnostics**: `python cli.py metrics` for system info
 - **Contact**: opensource@lunartech.ai for setup questions
+
+---
+
+## Language Pair Issues
+
+The following language pairs require extra attention for optimal translation quality:
+
+### CJK Languages (Highest Priority)
+
+| Pair | Status | Issues |
+|------|--------|--------|
+| **zh-en** | Tested | Sentence splitting working, compression 0.55, duration multiplier 1.5x |
+| **en-zh** | Untested | Compression 1.8, duration multiplier 0.7x, no sentence splitting |
+| **ja-en** | Untested | Compression 0.6, duration multiplier 1.4x, no sentence splitting |
+| **en-ja** | Untested | Compression 1.7, duration multiplier 0.75x, no sentence splitting |
+| **ko-en** | Untested | Compression 0.6, duration multiplier 1.4x, no sentence splitting |
+| **en-ko** | Untested | Compression 1.7, duration multiplier 0.75x, no sentence splitting |
+
+**Issues:**
+- Character-based writing systems need special handling
+- Significant length expansion/compression when translating to/from English
+- Sentence splitting works for Chinese (space-separated), but Japanese/Korean not tested
+- No Ollama post-processing prompts for Japanese/Korean names
+
+### Russian
+
+| Pair | Status | Issues |
+|------|--------|--------|
+| **ru-en** | Untested | Compression 0.7, no duration multiplier |
+| **en-ru** | Untested | Compression 1.4, no duration multiplier |
+
+**Issues:**
+- Cyrillic alphabet needs transliteration handling
+- No duration multiplier defined (may cause lip-sync issues)
+- No Ollama post-processing for Russian names
+
+### Other Languages (Default Settings)
+
+All other pairs (es-en, fr-en, de-en, it-en, ar-en, hi-en, vi-en, th-en, id-en, tr-en, pl-en, pt-en, etc.) use default compression ratio (1.0) and duration multiplier (1.0).
+
+**Additional notes:**
+- Arabic is right-to-left (RTL) - may need subtitle positioning adjustments
+
+### Recommendations for Contributors
+
+1. **Add Japanese/Korean sentence splitting** to `_translate_by_sentences()` in `backend/modules/audio_translator.py`
+2. **Add Ollama prompts** for all languages in `_post_process_translation_with_llm()`
+3. **Add duration multipliers** for Russian and other tested language pairs
+4. **Test Arabic RTL** - Subtitles may need vertical positioning adjustment
 
 ---
 

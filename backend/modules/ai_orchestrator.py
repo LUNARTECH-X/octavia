@@ -283,7 +283,7 @@ Recommend optimal parameters in JSON format:
         """Test if Ollama server is responding"""
         try:
             import requests
-            response = requests.get(f"{self.ollama_url}/api/tags", timeout=2)
+            response = requests.get(f"{self.ollama_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 logger.info("Ollama server connected successfully")
                 return True
@@ -295,17 +295,19 @@ Recommend optimal parameters in JSON format:
         """Query Ollama server for processing decision"""
         if not self.llama_available or not self.using_ollama:
             return None
-            
+
         try:
             import requests
-            
+
             context = self._prepare_llama_context(metrics, audio_analysis)
-            
-            prompt = f"""You are an AI orchestrator for video translation. 
+
+            prompt = f"""You are an AI orchestrator for video translation.
 Based on this analysis: {context}
 
 Recommend optimal parameters in JSON format:
 {{"chunk_size": 30, "model": "base", "workers": 4, "speed": 1.0, "temp": 0.7, "reasoning": "brief"}}"""
+
+            timeout = 60 if audio_analysis.get('speech_ratio', 0) > 0.6 else 30
 
             response = requests.post(
                 f"{self.ollama_url}/api/generate",
@@ -318,7 +320,7 @@ Recommend optimal parameters in JSON format:
                         "num_predict": 200
                     }
                 },
-                timeout=30  # Allow more time for AI decision
+                timeout=timeout
             )
             
             if response.status_code == 200:
@@ -579,7 +581,11 @@ Recommend optimal parameters in JSON format:
         elif metrics.compression_ratio < 0.8:
             tts_speed = 1.1
             reasoning_parts.append("text compression")
-        
+
+        if metrics.compression_ratio < 0.6:
+            tts_speed = 1.2
+            reasoning_parts.append("high compression (e.g., Chinese->English)")
+
         # Translation temperature based on content type
         temp = 0.7
         if complexity < 0.3:

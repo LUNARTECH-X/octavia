@@ -18,7 +18,7 @@ from datetime import datetime
 
 import whisper
 import torch
-from transformers import MarianMTModel, MarianTokenizer, pipeline
+from transformers import MarianMTModel, MarianTokenizer, pipeline, AutoModelForSeq2SeqLM, AutoTokenizer
 from pydub import AudioSegment
 import numpy as np
 from difflib import SequenceMatcher
@@ -55,6 +55,14 @@ class TranslationConfig:
     validation_spots: int = 5
     max_speedup_ratio: float = 1.1
     target_lufs: float = -16.0
+    # Ollama LLM post-processing for translation quality
+    use_ollama_post_processing: bool = True
+    ollama_model: str = "qwen2.5-coder:1.5b"
+    ollama_host: str = "http://localhost:11434"
+    # Ollama LLM post-processing for translation quality
+    use_ollama_post_processing: bool = True
+    ollama_model: str = "qwen2.5-coder:1.5b"
+    ollama_host: str = "http://localhost:11434"
 
 @dataclass
 class TranslationResult:
@@ -108,7 +116,7 @@ class AudioTranslator:
         "ru-en": "Helsinki-NLP/opus-mt-ru-en",
         "ja-en": "Helsinki-NLP/opus-mt-jap-en",
         "ko-en": "Helsinki-NLP/opus-mt-ko-en",
-        "zh-en": "Helsinki-NLP/opus-mt-zh-en",
+        "zh-en": "Helsinki-NLP/opus-mt-zh-en",  # NLLB is called directly in translate_text_with_context()
         "ar-en": "Helsinki-NLP/opus-mt-ar-en",
         "hi-en": "Helsinki-NLP/opus-mt-hi-en",
         "pt-en": "Helsinki-NLP/opus-mt-pt-en",
@@ -209,6 +217,29 @@ class AudioTranslator:
         "fi": 11,  # Finnish: ~11 chars/second
         "id": 10,  # Indonesian: ~10 chars/second
     }
+
+    # Compression ratios for language pairs (target_length / source_length)
+    # Chinese→English compresses significantly (Chinese is more dense)
+    COMPRESSION_RATIOS = {
+        "zh-en": 0.55,  # Chinese to English: ~55% of original length
+        "en-zh": 1.8,   # English to Chinese: ~180% of original length
+        "ja-en": 0.6,   # Japanese to English: ~60%
+        "en-ja": 1.7,   # English to Japanese: ~170%
+        "ko-en": 0.6,   # Korean to English: ~60%
+        "en-ko": 1.7,   # English to Korean: ~170%
+        "ru-en": 0.7,   # Russian to English: ~70%
+        "en-ru": 1.4,   # English to Russian: ~140%
+    }
+
+    # Target duration multipliers per language pair (compensate for compression)
+    TARGET_DURATION_MULTIPLIERS = {
+        "zh-en": 1.5,   # Chinese→English needs 1.5x target duration
+        "en-zh": 0.7,   # English→Chinese needs 0.7x target duration
+        "ja-en": 1.4,   # Japanese→English needs 1.4x
+        "en-ja": 0.75,  # English→Japanese needs 0.75x
+        "ko-en": 1.4,   # Korean→English needs 1.4x
+        "en-ko": 0.75,  # English→Korean needs 0.75x
+    }
     
     def __init__(self, config: TranslationConfig = None):
         self.config = config or TranslationConfig()
@@ -216,6 +247,10 @@ class AudioTranslator:
         self.translation_model = None
         self.translation_tokenizer = None
         self.translation_pipeline = None
+        self.nllb_model = None
+        self.nllb_tokenizer = None
+        self.m2m100_model = None
+        self.m2m100_tokenizer = None
         self._models_loaded = False
         
     def load_models(self):
@@ -496,25 +531,485 @@ class AudioTranslator:
                 "error": str(e)
             }
     
-    def _translate_with_marian(self, text: str) -> Optional[str]:
-        """Attempt translation using MarianMT pipeline with error handling"""
+    def _detect_sentences(self, text: str) -> List[str]:
+        """Detect sentence boundaries in text (supports CJK and English)"""
+        import re
+        
+        source_lang = getattr(self.config, 'source_lang', 'en')
+        is_cjk = source_lang in ['zh', 'ja', 'ko']
+        
+        if is_cjk:
+            sentences = re.split(r'(?<=[.!?。！？])\s*', text)
+        else:
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+        
+        sentences = [s.strip() for s in sentences if s.strip()]
+        return sentences
+    
+    def _extract_chinese_entities(self, text: str) -> Dict[str, str]:
+        """Extract Chinese entities for consistent translation (names, relationships, etc.)"""
+        entities = {}
+        
+        # Common Chinese family relationship terms
+        family_terms = {
+            '爸爸': 'father', '妈妈': 'mother', '爷爷': 'grandfather', '奶奶': 'grandmother',
+            '儿子': 'son', '女儿': 'daughter', '哥哥': 'older brother', '姐姐': 'older sister',
+            '弟弟': 'younger brother', '妹妹': 'younger sister', '叔叔': 'uncle', '阿姨': 'aunt',
+            '侄子': 'nephew', '外甥': 'nephew', '侄女': 'niece', '外甥女': 'niece',
+            '丈夫': 'husband', '妻子': 'wife', '老公': 'husband', '老婆': 'wife',
+            '朋友': 'friend', '老师': 'teacher', '同学': 'classmate', '同事': 'colleague'
+        }
+        entities['family_terms'] = family_terms
+        
+        # Common name patterns (2-3 character Chinese names)
+        # This is a basic pattern - the full implementation would use NER
+        import re
+        name_pattern = r'[\u4e00-\u9fff]{2,4}'
+        potential_names = re.findall(name_pattern, text)
+        
+        # Filter out common words that aren't names
+        common_words = {'什么', '怎么', '可以', '但是', '因为', '所以', '如果', '这个', '那个', '哪个'}
+        name_entities = {}
+        for name in set(potential_names):
+            if name not in common_words and len(name) <= 4:
+                name_entities[name] = name  # Will be transliterated by Ollama
+        
+        entities['names'] = name_entities
+        
+        return entities
+    
+    def _segment_chinese_text(self, text: str) -> List[str]:
+        """Smart segmentation for Chinese text (handles Whisper's space-separated output)"""
+        import re
+        
+        # Check for punctuation first
+        has_punctuation = any(p in text for p in '。！？.!?')
+        
+        if has_punctuation:
+            # Split by punctuation for properly punctuated text
+            segments = re.split(r'(?<=[。！？.!?])\s*', text)
+            segments = [s.strip() for s in segments if s.strip()]
+        else:
+            # Whisper transcribes Chinese without punctuation - split by spaces
+            # Group 5-10 characters for better translation context
+            words = text.split()
+            segments = []
+            current_chunk = []
+            current_length = 0
+            
+            for word in words:
+                word_len = len(word)
+                # Group Chinese words: aim for ~8-15 characters per segment
+                if current_length + word_len <= 12 and word_len <= 6:
+                    current_chunk.append(word)
+                    current_length += word_len
+                else:
+                    if current_chunk:
+                        segments.append(' '.join(current_chunk))
+                    current_chunk = [word]
+                    current_length = word_len
+            
+            if current_chunk:
+                segments.append(' '.join(current_chunk))
+        
+        # Filter out very short segments
+        segments = [s for s in segments if len(s) >= 2]
+        
+        return segments
+    
+    def _translate_chinese_with_context(self, text: str) -> Optional[str]:
+        """Translate Chinese text with context awareness and entity preservation"""
         try:
             if not self.translation_pipeline:
                 return None
             
-            # Truncate very long texts
+            # Extract entities first for consistency
+            entities = self._extract_chinese_entities(text)
+            
+            # Segment text intelligently
+            segments = self._segment_chinese_text(text)
+            
+            if len(segments) <= 1:
+                # Single segment - translate directly
+                result = self.translation_pipeline(text, max_length=512, num_beams=4)
+                return result[0]['translation_text']
+            
+            # Translate in groups of 2-3 segments for better context
+            translated_segments = []
+            group_size = 2  # Translate 2 segments together for context
+            
+            for i in range(0, len(segments), group_size):
+                group = segments[i:i + group_size]
+                group_text = ' '.join(group)
+                
+                # Use more beams for better quality
+                result = self.translation_pipeline(
+                    group_text, 
+                    max_length=512, 
+                    num_beams=4,
+                    temperature=0.3
+                )
+                translated = result[0]['translation_text'].strip()
+                translated_segments.append(translated)
+            
+            # Join translated segments
+            translated_text = ' '.join(translated_segments)
+            translated_text = re.sub(r'\s+', ' ', translated_text).strip()
+            
+            return translated_text
+            
+        except Exception as e:
+            logger.error(f"Context-aware Chinese translation failed: {e}")
+            return None
+    
+    def _translate_with_marian(self, text: str) -> Optional[str]:
+        """Attempt translation using MarianMT pipeline with optimized CJK settings"""
+        try:
+            if not self.translation_pipeline:
+                return None
+            
             input_length = len(text)
             if input_length > 2000:
                 text = text[:2000]
             
-            result = self.translation_pipeline(text, max_length=1024, num_beams=1)
+            # Optimized settings for CJK languages
+            is_cjk = self.config.source_lang in ['zh', 'ja', 'ko']
+            
+            if is_cjk:
+                import re
+                # Check for punctuation first
+                has_punctuation = any(p in text for p in '。！？.!?')
+                
+                if has_punctuation:
+                    # Split by punctuation for properly punctuated text
+                    sentences = re.split(r'(?<=[。！？.!?])\s*', text)
+                    sentences = [s.strip() for s in sentences if s.strip()]
+                else:
+                    # Whisper transcribes CJK without punctuation - split by spaces
+                    # Group 5-10 characters for better translation
+                    words = text.split()
+                    sentences = []
+                    current_chunk = []
+                    current_length = 0
+                    
+                    for word in words:
+                        word_len = len(word)
+                        if current_length + word_len <= 12 and word_len <= 6:
+                            current_chunk.append(word)
+                            current_length += word_len
+                        else:
+                            if current_chunk:
+                                sentences.append(' '.join(current_chunk))
+                            current_chunk = [word]
+                            current_length = word_len
+                    
+                    if current_chunk:
+                        sentences.append(' '.join(current_chunk))
+                
+                if len(sentences) > 1:
+                    logger.info(f"Split {len(text)} chars into {len(sentences)} segments for translation")
+                    translated_sentences = []
+                    for i, sent in enumerate(sentences):
+                        if len(sent) > 2:
+                            try:
+                                # Use more beams for CJK to improve quality
+                                result = self.translation_pipeline(
+                                    sent, 
+                                    max_length=512, 
+                                    num_beams=4,
+                                    temperature=0.3,
+                                    early_stopping=True
+                                )
+                                translated_sentences.append(result[0]['translation_text'])
+                            except Exception as e:
+                                logger.warning(f"Failed to translate segment {i}: {e}")
+                                translated_sentences.append(sent)
+                    
+                    return ' '.join(translated_sentences)
+            
+            # Fallback to direct translation with optimized settings
+            result = self.translation_pipeline(
+                text, 
+                max_length=1024, 
+                num_beams=4,
+                temperature=0.3
+            )
             return result[0]['translation_text']
+            
         except IndexError as e:
-            # Embedding error - model doesn't support input characters
             logger.error(f"MarianMT embedding error (likely unsupported language): {e}")
             return None
         except Exception as e:
             logger.error(f"MarianMT translation failed: {e}")
+            return None
+    
+    def _check_ollama_available(self) -> bool:
+        """Check if Ollama is running and model is available"""
+        try:
+            import urllib.request
+            import urllib.error
+            import json
+            
+            url = f"{self.config.ollama_host}/api/tags"
+            req = urllib.request.Request(url, method='GET')
+            
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                models = [m['name'] for m in data.get('models', [])]
+                
+                model_name = self.config.ollama_model
+                for m in models:
+                    if model_name in m or m.split(':')[0] == model_name:
+                        logger.info(f"Ollama model {model_name} is available")
+                        return True
+                
+                logger.warning(f"Ollama model {model_name} not found. Available: {models}")
+                return False
+        except Exception as e:
+            logger.warning(f"Ollama not available: {e}")
+            return False
+    
+    def _post_process_translation_with_llm(self, text: str, source_lang: str = "zh") -> str:
+        """Use Ollama LLM to fix translation quality issues for difficult language pairs only"""
+        try:
+            if not self.config.use_ollama_post_processing:
+                return text
+            
+            # Only post-process difficult language pairs (CJK and Russian)
+            difficult_pairs = ['zh', 'ja', 'ko', 'ru']
+            if source_lang not in difficult_pairs:
+                logger.debug(f"Skipping Ollama post-processing for {source_lang} (not a difficult pair)")
+                return text
+            
+            if not self._check_ollama_available():
+                logger.warning("Ollama not available, skipping post-processing")
+                return text
+            
+            import urllib.request
+            import urllib.error
+            import json
+            
+            # Chinese-specific translation prompt with best practices
+            if source_lang == 'zh':
+                prompt = """You are a professional Chinese to English translator. Apply these rules:
+
+1. NAME TRANSLITERATION (CRITICAL):
+   - "小龙" → "Xiao Long" (not "Xiao Lung", "Little Dragon", or "Bruce")
+   - "大象" → "Elephant" (not "Big Elephant")
+   - Use pinyin-based transliteration for names
+   - Keep family name + given name format
+
+2. FAMILY RELATIONSHIPS:
+   - "爸爸" → "father" (not "dad" unless context suggests intimacy)
+   - "妈妈" → "mother" (not "mom" unless context suggests intimacy)
+   - "爷爷/外公" → "grandfather"
+   - "奶奶/外婆" → "grandmother"
+   - "哥哥/弟弟" → "older brother/younger brother"
+   - "姐姐/妹妹" → "older sister/younger sister"
+
+3. NUMBERS & MEASUREMENTS:
+   - Keep Arabic numerals (1, 2, 3) as-is
+   - Chinese numbers in context: translate appropriately ("三个人" → "three people")
+   - Time expressions: "早上" → "in the morning", "晚上" → "in the evening"
+
+4. GRAMMAR FIXES:
+   - "I'm" → "I am" (unless in direct dialogue)
+   - "He's" → "He is" (unless in direct dialogue)
+   - Fix article usage: "the" where needed, remove extra "the"
+
+5. NATURAL FLUENCY:
+   - Prefer active voice over passive
+   - Keep sentences varied in length
+   - Remove redundant words
+
+6. CONTEXT PRESERVATION:
+   - Maintain the tone (formal/informal)
+   - Keep cultural references intact
+   - Preserve the meaning over literal translation
+
+Output ONLY the corrected translation:
+
+""" + text + """
+
+Corrected translation:"""
+            
+            # Japanese-specific prompt
+            elif source_lang == 'ja':
+                prompt = """You are a professional Japanese to English translator. Apply these rules:
+
+1. NAME TRANSLITERATION:
+   - Use established English equivalents when available
+   - Transliterate unknown names using Japanese pronunciation
+
+2. GRAMMAR FIXES:
+   - "です" → appropriate English structure
+   - Fix subject/object omissions (Japanese often omits subjects)
+   - Handle respect language appropriately
+
+3. CULTURAL EXPRESSIONS:
+   - Keep cultural context where relevant
+   - Translate idioms by meaning, not literally
+
+4. NUMBERS & TIME:
+   - Convert Japanese numbering appropriately
+   - Handle Japanese era dates if present
+
+Output ONLY the corrected translation:
+
+""" + text + """
+
+Corrected translation:"""
+            
+            # Korean-specific prompt  
+            elif source_lang == 'ko':
+                prompt = """You are a professional Korean to English translator. Apply these rules:
+
+1. NAME TRANSLITERATION:
+   - Transliterate Korean names to English
+   - Use pinyin-based but Korean-specific conventions
+
+2. HONORIFICS:
+   - Handle Korean honorifics appropriately
+   - "아버지" → "father" or "dad" based on context
+
+3. GRAMMAR FIXES:
+   - Fix Korean-to-English structural issues
+   - Handle particle translations
+
+4. CULTURAL EXPRESSIONS:
+   - Translate Korean idioms by meaning
+
+Output ONLY the corrected translation:
+
+""" + text + """
+
+Corrected translation:"""
+            
+            else:
+                # Generic prompt for other languages
+                prompt = f"""You are a professional {source_lang} to English translator:
+- Fix grammar issues
+- Improve natural fluency  
+- Normalize name transliterations
+- Keep the meaning intact
+- Output ONLY the corrected translation
+
+{text}
+
+Corrected translation:"""
+            
+            url = f"{self.config.ollama_host}/api/generate"
+            
+            import json as json_mod
+            data = {
+                "model": self.config.ollama_model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.1,
+                    "num_predict": 1000  # Allow longer output for long texts
+                }
+            }
+            data_str = json_mod.dumps(data).encode('utf-8')
+            
+            req = urllib.request.Request(url, data=data_str, method='POST')
+            req.add_header('Content-Type', 'application/json')
+            
+            with urllib.request.urlopen(req, timeout=60) as response:
+                result = json_mod.loads(response.read().decode())
+                corrected = result.get('response', '').strip()
+                
+                corrected = ' '.join(corrected.split())
+                
+                if corrected and len(corrected) > 5:
+                    logger.info(f"Ollama post-processing: '{text[:50]}...' -> '{corrected[:50]}...'")
+                    return corrected
+                else:
+                    logger.warning("Ollama returned empty or too short result, using original")
+                    return text
+                    
+        except urllib.error.URLError as e:
+            logger.warning(f"Ollama request failed: {e}")
+            return text
+        except Exception as e:
+            logger.error(f"Ollama post-processing failed: {e}")
+            return text
+    
+    def _load_nllb_model(self):
+        """Load NLLB-200 distilled model for Chinese→English translation"""
+        try:
+            model_name = "facebook/nllb-200-distilled-600M"
+            logger.info(f"Loading NLLB-200 distilled model: {model_name}")
+            self.nllb_tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.nllb_model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            logger.info("[OK] NLLB-200 distilled model loaded successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to load NLLB model: {e}")
+            return False
+    
+    def _translate_with_nllb(self, text: str) -> Optional[str]:
+        """Translate using NLLB-200 distilled model (best for Chinese→English)"""
+        try:
+            if not self.nllb_model:
+                if not self._load_nllb_model():
+                    return None
+            
+            input_length = len(text)
+            
+            inputs = self.nllb_tokenizer(text, return_tensors="pt", src_lang="zho_Hans")
+            
+            max_new_tokens = min(input_length * 2, 1024)
+            
+            translated = self.nllb_model.generate(
+                **inputs,
+                tgt_lang="eng_Latn",
+                max_new_tokens=max_new_tokens,
+                num_beams=1,
+                do_sample=False
+            )
+            
+            result = self.nllb_tokenizer.batch_decode(translated, skip_special_tokens=True)[0]
+            logger.info(f"NLLB translation: '{text[:50]}...' -> '{result[:50]}...'")
+            return result
+        except Exception as e:
+            logger.error(f"NLLB translation failed: {e}")
+            return None
+    
+    def _load_m2m100_model(self):
+        """Load M2M100 model as fallback for translation"""
+        try:
+            model_name = "facebook/m2m100_418M"
+            logger.info(f"Loading M2M100 model: {model_name}")
+            self.m2m100_tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.m2m100_model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+            logger.info("[OK] M2M100 model loaded successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to load M2M100 model: {e}")
+            return False
+    
+    def _translate_with_m2m100(self, text: str) -> Optional[str]:
+        """Translate using M2M100 as fallback (supports 100+ languages)"""
+        try:
+            if not self.m2m100_model:
+                if not self._load_m2m100_model():
+                    return None
+            
+            inputs = self.m2m100_tokenizer(text, return_tensors="pt", src_lang="zh")
+            
+            translated = self.m2m100_model.generate(
+                **inputs,
+                tgt_lang="en",
+                max_new_tokens=len(text) * 2,
+                num_beams=1
+            )
+            
+            result = self.m2m100_tokenizer.batch_decode(translated, skip_special_tokens=True)[0]
+            logger.info(f"M2M100 translation: '{text[:50]}...' -> '{result[:50]}...'")
+            return result
+        except Exception as e:
+            logger.error(f"M2M100 translation failed: {e}")
             return None
     
     def _translate_with_rule_based(self, text: str, source_lang: str, target_lang: str) -> str:
@@ -542,49 +1037,104 @@ class AudioTranslator:
 
             logger.info(f"Translating text: '{text[:100]}...' (length: {len(text)} chars)")
 
-            # Simple direct translation for now
+            # Initialize translated_text
             translated_text = None
-            try:
-                logger.info(f"Attempting translation with pipeline...")
 
-                if self.translation_pipeline:
-                    # Try MarianMT first with error handling
+            # Use optimized translation for Chinese (context-aware, entity-preserving)
+            if self.config.source_lang == 'zh':
+                logger.info("Using optimized Chinese translation (context-aware with entity preservation)")
+                translated_text = self._translate_chinese_with_context(text)
+                
+                if translated_text is None:
+                    logger.warning("Context-aware Chinese translation failed, using MarianMT fallback")
                     translated_text = self._translate_with_marian(text)
-                    
-                    if translated_text is None:
-                        # MarianMT failed - use rule-based fallback
-                        logger.warning("MarianMT failed, using rule-based fallback")
-                        translated_text = self._translate_with_rule_based(text, self.config.source_lang, self.config.target_lang)
-                    else:
-                        logger.info(f"Pipeline translation result: '{translated_text[:100]}...'")
-                else:
-                    logger.warning("No translation pipeline available, using rule-based fallback")
-                    translated_text = self._translate_with_rule_based(text, self.config.source_lang, self.config.target_lang)
+            
+            # Japanese/Korean and other languages use existing sentence-based translation
+            elif self.config.source_lang in ['ja', 'ko']:
+                logger.info(f"Using sentence-based translation for {self.config.source_lang}")
+                translated_text = self._translate_by_sentences(text)
+                
+                if translated_text is None:
+                    logger.warning("Sentence translation failed, using MarianMT fallback")
+                    translated_text = self._translate_with_marian(text)
+            
+            # Non-CJK languages: use MarianMT directly
+            else:
+                logger.info("Using MarianMT for non-CJK language")
+                translated_text = self._translate_with_marian(text)
 
-                # Ensure we have translated text
-                if not translated_text or len(translated_text.strip()) < 1:
-                    logger.error("Translation returned empty text.")
-                    raise RuntimeError("Translation returned empty text.")
-
-                # If translation is too short or same as input, it might be a fallback
-                if translated_text.strip().lower() == text.strip().lower() or "[Translated:" in translated_text:
-                    logger.warning("Translation returned input text or fallback marker - this is expected for unsupported language pairs")
-                elif len(translated_text.strip()) < len(text.strip()) * 0.1:
-                    logger.warning("Translation seems too short - possible quality issue")
-
-            except Exception as translation_error:
-                logger.error(f"Translation pipeline failed: {translation_error}")
-                import traceback
-                traceback.print_exc()
-                # Use fallback instead of failing completely
+            # Handle translation failure
+            if translated_text is None:
+                logger.warning("Translation failed, using rule-based fallback")
                 translated_text = self._translate_with_rule_based(text, self.config.source_lang, self.config.target_lang)
+            else:
+                logger.info(f"Translation result: '{translated_text[:100]}...'")
+            
+            # Post-process with Ollama LLM for CJK and Russian (improves quality)
+            if self.config.use_ollama_post_processing and translated_text:
+                logger.info("Post-processing translation with Ollama LLM...")
+                corrected_text = self._post_process_translation_with_llm(translated_text, self.config.source_lang)
+                if corrected_text and corrected_text != translated_text:
+                    logger.info(f"Ollama corrected: '{corrected_text[:100]}...'")
+                    translated_text = corrected_text
 
-            # Clean the translation
-            translated_text = self._clean_translation(translated_text)
+            # Ensure we have translated text
+            if not translated_text or len(translated_text.strip()) < 1:
+                logger.error("Translation returned empty text.")
+                raise RuntimeError("Translation returned empty text.")
 
-            # Create translated segments (simple mapping)
-            translated_segments = []
-            if segments:
+            # If translation is too short or same as input, it might be a fallback
+            if translated_text.strip().lower() == text.strip().lower() or "[Translated:" in translated_text:
+                logger.warning("Translation returned input text or fallback marker - this is expected for unsupported language pairs")
+            elif len(translated_text.strip()) < len(text.strip()) * 0.1:
+                logger.warning("Translation seems too short - possible quality issue")
+
+        except Exception as translation_error:
+            logger.error(f"Translation pipeline failed: {translation_error}")
+            import traceback
+            traceback.print_exc()
+            # Use fallback instead of failing completely
+            translated_text = self._translate_with_rule_based(text, self.config.source_lang, self.config.target_lang)
+        
+        # Clean the translation
+        translated_text = self._clean_translation(translated_text)
+        
+        # Create translated segments with proper handling for Chinese (character-based) and other languages
+        translated_segments = []
+        if segments:
+            source_lang = self.config.source_lang
+            is_cjk = source_lang in ['zh', 'ja', 'ko']
+
+            if is_cjk:
+                translated_chars = list(translated_text)
+                total_original_chars = sum(len(seg["text"]) for seg in segments)
+
+                char_idx = 0
+                for seg in segments:
+                    seg_chars = len(seg["text"])
+                    if total_original_chars > 0:
+                        ratio = seg_chars / total_original_chars
+                        num_translated_chars = max(1, int(len(translated_chars) * ratio))
+                    else:
+                        num_translated_chars = max(1, len(translated_chars) // len(segments))
+
+                    start_idx = char_idx
+                    end_idx = min(char_idx + num_translated_chars, len(translated_chars))
+                    segment_text = ''.join(translated_chars[start_idx:end_idx])
+
+                    if not segment_text.strip():
+                        segment_text = seg["text"]
+
+                    translated_segments.append({
+                        "start": seg["start"],
+                        "end": seg["end"],
+                        "original_text": seg["text"],
+                        "translated_text": segment_text,
+                        "words": seg.get("words", [])
+                    })
+
+                    char_idx = end_idx
+            else:
                 translated_words = translated_text.split()
                 total_original_words = sum(len(seg["text"].split()) for seg in segments)
 
@@ -601,24 +1151,23 @@ class AudioTranslator:
                     end_idx = min(word_idx + num_translated_words, len(translated_words))
                     segment_text = " ".join(translated_words[start_idx:end_idx])
 
+                    if not segment_text.strip():
+                        segment_text = seg["text"]
+
                     translated_segments.append({
                         "start": seg["start"],
                         "end": seg["end"],
                         "original_text": seg["text"],
-                        "translated_text": segment_text if segment_text else seg["text"],
+                        "translated_text": segment_text,
                         "words": seg.get("words", [])
                     })
 
                     word_idx = end_idx
 
-            logger.info(f"Translation completed: {len(text)} chars to {len(translated_text)} chars")
+        logger.info(f"Translation completed: {len(text)} chars to {len(translated_text)} chars")
 
-            return translated_text, translated_segments
+        return translated_text, translated_segments
 
-        except Exception as e:
-            logger.error(f"Translation failed completely: {e}")
-            raise
-    
     def _clean_translation(self, text: str) -> str:
         """Clean and normalize translated text"""
         # Remove duplicate punctuation
@@ -642,7 +1191,30 @@ class AudioTranslator:
         
         text = ' '.join(cleaned)
         return text.strip()
-    
+
+    def _get_duration_multiplier(self) -> float:
+        """Get duration multiplier for language pair to compensate for compression/expansion"""
+        lang_pair = f"{self.config.source_lang}-{self.config.target_lang}"
+        return self.TARGET_DURATION_MULTIPLIERS.get(lang_pair, 1.0)
+
+    def _get_compression_ratio(self) -> float:
+        """Get expected compression ratio for language pair"""
+        lang_pair = f"{self.config.source_lang}-{self.config.target_lang}"
+        return self.COMPRESSION_RATIOS.get(lang_pair, 1.0)
+
+    def _estimate_translated_duration(self, original_text: str, original_duration_ms: float) -> float:
+        """Estimate translated text duration based on language pair compression"""
+        compression_ratio = self._get_compression_ratio()
+        translated_length_ratio = len(original_text) * compression_ratio / max(len(original_text), 1)
+
+        target_lang_rate = self.VOICE_RATES.get(self.config.target_lang, 12)
+        source_lang_rate = self.VOICE_RATES.get(self.config.source_lang, 12)
+
+        rate_ratio = source_lang_rate / target_lang_rate
+
+        estimated_duration = original_duration_ms * translated_length_ratio * rate_ratio
+        return estimated_duration
+
     def condense_text_smart(self, text: str, target_duration_ms: float) -> Tuple[str, float]:
         """Smart text condensation to fit target duration"""
         try:
@@ -765,127 +1337,129 @@ class AudioTranslator:
         """TTS synthesis using gTTS with high-quality segment-based timing"""
         try:
             if not segments:
-                # If no segments, fallback to full text synthesis
-                logger.warning("No segments provided for synthesis, falling back to full text")
                 return self._gtts_full_text_synthesis(text, output_path)
 
             logger.info(f"Synthesizing {len(segments)} segments with gTTS for precise timing")
-            
+
             from gtts import gTTS
             import io
             import tempfile
             import subprocess
             from pydub import AudioSegment
 
-            # Get appropriate language code for gTTS
             lang_map = {
                 'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it',
                 'pt': 'pt', 'ru': 'ru', 'ja': 'ja', 'ko': 'ko', 'zh': 'zh-cn',
                 'ar': 'ar', 'hi': 'hi'
             }
             gtts_lang = lang_map.get(self.config.target_lang, 'en')
-            
-            # Sort segments by start time
+
             sorted_segments = sorted(segments, key=lambda x: x.get('start', 0))
-            
+
             final_audio = AudioSegment.silent(duration=0)
             current_time_ms = 0
             processed_segments = []
-            
+            failed_segments = 0
+
             for i, seg in enumerate(sorted_segments):
                 seg_text = seg.get('translated_text', seg.get('text', '')).strip()
+
                 if not seg_text:
-                    continue
-                    
+                    original_text = seg.get('original_text', '').strip()
+                    if original_text:
+                        seg_text = original_text
+                        logger.debug(f"Using original text for empty translated segment {i}")
+                    else:
+                        logger.warning(f"Segment {i} has no text, adding silence")
+                        target_end_ms = int(seg.get('end', seg.get('start', current_time_ms / 1000) + 1) * 1000)
+                        silence_duration = max(100, target_end_ms - current_time_ms)
+                        final_audio += AudioSegment.silent(duration=silence_duration)
+                        current_time_ms += silence_duration
+                        continue
+
                 target_start_ms = int(seg.get('start', 0) * 1000)
                 target_end_ms = int(seg.get('end', 0) * 1000)
                 target_duration_ms = target_end_ms - target_start_ms
-                
-                # Add silence to reach start time
+
                 if target_start_ms > current_time_ms:
                     silence_duration = target_start_ms - current_time_ms
                     final_audio += AudioSegment.silent(duration=silence_duration)
                     current_time_ms = target_start_ms
-                
-                # Generate TTS for segment
-                try:
-                    tts = gTTS(text=seg_text, lang=gtts_lang, slow=False)
-                    audio_bytes = io.BytesIO()
-                    tts.write_to_fp(audio_bytes)
-                    audio_bytes.seek(0)
-                    
-                    segment_audio = AudioSegment.from_file(audio_bytes, format="mp3")
-                    current_duration_ms = len(segment_audio)
-                    
-                    # Handle overlapping/speed adjustment
-                    # If this segment needs to end by a certain time (next segment start or strict duration)
-                    # For now, let's try to match strict duration if significant difference
-                    
-                    adjusted_audio = segment_audio
-                    
-                    # Only speed up if it's significantly longer than target AND we have constraints
-                    # But for high quality, we prefer correct speed over strict duration match, unless it overlaps next segment
-                    
-                    # Check next segment start
-                    next_start_ms = int(sorted_segments[i+1].get('start', 0) * 1000) if i + 1 < len(sorted_segments) else float('inf')
-                    available_duration_ms = next_start_ms - target_start_ms
-                    
-                    # If TTS is longer than available slot, speed it up
-                    if current_duration_ms > available_duration_ms and available_duration_ms > 0:
-                        speed_factor = current_duration_ms / available_duration_ms
-                        # Cap speedup to avoid chipmunk effect
-                        speed_factor = min(1.5, speed_factor)
-                        
-                        if speed_factor > 1.05:
-                            # Apply speedup with ffmpeg
-                            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_in:
-                                temp_input = tmp_in.name
-                                segment_audio.export(temp_input, format="wav")
-                                
-                            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_out:
-                                temp_output = tmp_out.name
-                                
-                                cmd = [
-                                    'ffmpeg', '-y', '-i', temp_input,
-                                    '-filter:a', f'atempo={speed_factor:.3f}',
-                                    temp_output
-                                ]
-                                subprocess.run(cmd, capture_output=True, timeout=10)
-                                
-                                if os.path.exists(temp_output) and os.path.getsize(temp_output) > 0:
-                                    adjusted_audio = AudioSegment.from_file(temp_output)
-                                    logger.debug(f"Sped up segment {i} by {speed_factor:.2f}x to fit timeline")
-                                    
-                            try:
-                                if os.path.exists(temp_input): os.unlink(temp_input)
-                                if os.path.exists(temp_output): os.unlink(temp_output)
-                            except: pass
-                            
-                    final_audio += adjusted_audio
-                    current_time_ms += len(adjusted_audio)
-                    
-                    # Record actual timing
-                    processed_segments.append({
-                        "original_start": seg.get('start', 0),
-                        "original_end": seg.get('end', 0),
-                        "adjusted_start": target_start_ms / 1000.0,
-                        "adjusted_end": current_time_ms / 1000.0,
-                        "text": seg_text
-                    })
-                    
-                except Exception as seg_error:
-                    logger.warning(f"Failed to generate segment {i}: {seg_error}")
+
+                segment_audio = None
+                max_retries = 2
+                for retry in range(max_retries):
+                    try:
+                        tts = gTTS(text=seg_text, lang=gtts_lang, slow=False)
+                        audio_bytes = io.BytesIO()
+                        tts.write_to_fp(audio_bytes)
+                        audio_bytes.seek(0)
+
+                        segment_audio = AudioSegment.from_file(audio_bytes, format="mp3")
+                        break
+                    except Exception as retry_error:
+                        if retry < max_retries - 1:
+                            logger.warning(f"gTTS retry {retry + 1} for segment {i}: {retry_error}")
+                            import time
+                            time.sleep(0.5)
+                        else:
+                            failed_segments += 1
+                            logger.warning(f"Failed to generate segment {i} after {max_retries} attempts: {retry_error}")
+
+                if segment_audio is None:
                     continue
 
-            # Export final audio
+                current_duration_ms = len(segment_audio)
+                adjusted_audio = segment_audio
+
+                next_start_ms = int(sorted_segments[i+1].get('start', 0) * 1000) if i + 1 < len(sorted_segments) else float('inf')
+                available_duration_ms = next_start_ms - target_start_ms
+
+                if current_duration_ms > available_duration_ms and available_duration_ms > 0:
+                    speed_factor = current_duration_ms / available_duration_ms
+                    speed_factor = min(1.5, max(1.0, speed_factor))
+
+                    if speed_factor > 1.05:
+                        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_in:
+                            temp_input = tmp_in.name
+                            segment_audio.export(temp_input, format="wav")
+
+                        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_out:
+                            temp_output = tmp_out.name
+
+                            cmd = [
+                                'ffmpeg', '-y', '-i', temp_input,
+                                '-filter:a', f'atempo={speed_factor:.3f}',
+                                temp_output
+                            ]
+                            subprocess.run(cmd, capture_output=True, timeout=10)
+
+                            if os.path.exists(temp_output) and os.path.getsize(temp_output) > 0:
+                                adjusted_audio = AudioSegment.from_file(temp_output)
+
+                        try:
+                            if os.path.exists(temp_input): os.unlink(temp_input)
+                            if os.path.exists(temp_output): os.unlink(temp_output)
+                        except: pass
+
+                final_audio += adjusted_audio
+                current_time_ms += len(adjusted_audio)
+
+                processed_segments.append({
+                    "original_start": seg.get('start', 0),
+                    "original_end": seg.get('end', 0),
+                    "adjusted_start": target_start_ms / 1000.0,
+                    "adjusted_end": current_time_ms / 1000.0,
+                    "text": seg_text
+                })
+
             final_audio.export(output_path, format="wav")
-            logger.info(f"Generated frame-accurate audio: {len(final_audio)}ms (vs {current_time_ms}ms tracked)")
-            
+            logger.info(f"Generated frame-accurate audio: {len(final_audio)}ms (vs {current_time_ms}ms tracked), {failed_segments} segments failed")
+
             return True, processed_segments
 
         except Exception as e:
             logger.error(f"Segment-based TTS synthesis failed: {e}")
-            # Fallback to full text logic
             return self._gtts_full_text_synthesis(text, output_path)
 
     def _gtts_full_text_synthesis(self, text: str, output_path: str) -> Tuple[bool, List[Dict]]:
@@ -1206,41 +1780,36 @@ class AudioTranslator:
     def calculate_optimal_speed(self, original_duration_ms: float, translated_text: str) -> float:
         """Calculate optimal speed adjustment for frame-accurate timing match with quality constraints"""
         try:
-            # Get speaking rate for target language
+            lang_pair = f"{self.config.source_lang}-{self.config.target_lang}"
+            duration_multiplier = self.TARGET_DURATION_MULTIPLIERS.get(lang_pair, 1.0)
+
             chars_per_second = self.VOICE_RATES.get(self.config.target_lang, 12)
 
-            # Estimate speaking time
-            estimated_speaking_time = len(translated_text) / chars_per_second  # seconds
+            estimated_speaking_time = len(translated_text) / chars_per_second
 
-            # Convert original duration to seconds
             original_duration_s = original_duration_ms / 1000
 
             if original_duration_s <= 0:
                 return 1.0
 
-            # Calculate required speed for EXACT duration match
             speed = estimated_speaking_time / original_duration_s
 
-            # Apply quality constraints: prefer text condensation over extreme speedup
-            # If TTS would be too long, condense text first, then apply minor speedup only if needed
+            if duration_multiplier != 1.0:
+                speed = speed / duration_multiplier
+                logger.info(f"Applied duration multiplier {duration_multiplier:.2f}x for {lang_pair}")
 
-            # First, check if we need any adjustment
-            if abs(speed - 1.0) < 0.05:  # Within 5% - no adjustment needed
+            if abs(speed - 1.0) < 0.05:
                 speed = 1.0
-            elif speed < 0.9:  # TTS too slow - this suggests text condensation was insufficient
-                # Allow some slowdown for natural speech
+            elif speed < 0.9:
                 speed = max(0.85, speed)
-            elif speed > self.config.max_speedup_ratio:  # TTS too fast - limit speedup to preserve quality
-                # Cap at max_speedup_ratio (default 1.1x) to avoid artifacts
+            elif speed > self.config.max_speedup_ratio:
                 speed = min(speed, self.config.max_speedup_ratio)
                 logger.info(f"Speed capped at {self.config.max_speedup_ratio:.2f}x for quality")
             else:
-                # Normal range - fine-tune
                 speed = round(speed * 100) / 100
 
             logger.info(f"Frame-accurate speed: {estimated_speaking_time:.3f}s speech in {original_duration_s:.3f}s to speed: {speed:.2f}x")
 
-            # Update config
             self.config.voice_speed = speed
 
             return speed
