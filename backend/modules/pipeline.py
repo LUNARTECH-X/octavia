@@ -329,7 +329,11 @@ class VideoTranslationPipeline:
                 )]
 
             # Calculate optimal chunk size
-            target_chunk_count = min(8, max(2, duration_ms // (self.config.chunk_size * 1000)))
+            min_chunks = 2
+            # Allow up to 1000 chunks for very long videos (enough for ~11 hours at 40s chunks)
+            max_chunks = 1000 
+            calculated_chunks = duration_ms // (self.config.chunk_size * 1000)
+            target_chunk_count = min(max_chunks, max(min_chunks, calculated_chunks))
             actual_chunk_size = duration_ms / target_chunk_count
 
             # Ensure minimum chunk size

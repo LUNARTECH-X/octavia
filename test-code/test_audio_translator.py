@@ -187,17 +187,78 @@ class TestAudioTranslator:
         assert len(voice) > 0
 
     @patch('modules.audio_translator.AudioSegment')
-    def test_preprocess_audio(self, mock_audio_segment, translator, sample_audio_file):
-        """Test audio preprocessing"""
-        # Mock AudioSegment
+    @patch('modules.audio_translator.subprocess.run')
+    def test_preprocess_audio_dynamic_timeout(self, mock_subprocess_run, mock_audio_segment, translator, sample_audio_file):
+        """Test audio preprocessing with dynamic timeout calculation"""
+        # Mock AudioSegment with 30 second audio (30000ms)
         mock_audio = MagicMock()
         mock_audio_segment.from_file.return_value = mock_audio
-        mock_audio.__len__.return_value = 1000
+        mock_audio.__len__.return_value = 30000  # 30 seconds
+
+        # Mock successful subprocess run
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_subprocess_run.return_value = mock_result
+
+        # Enable both preprocessing options
+        translator.config.enable_input_normalization = True
+        translator.config.enable_denoising = True
 
         result = translator.preprocess_audio(sample_audio_file)
 
-        # Should return the input path if no preprocessing needed
-        assert result == sample_audio_file
+        # Verify subprocess.run was called with dynamic timeout
+        # 30s duration × 2.5 multiplier + 60s base = 135s timeout
+        call_args = mock_subprocess_run.call_args
+        assert call_args.kwargs.get('timeout') == 135
+
+    @patch('modules.audio_translator.AudioSegment')
+    @patch('modules.audio_translator.subprocess.run')
+    def test_preprocess_audio_timeout_cap(self, mock_subprocess_run, mock_audio_segment, translator, sample_audio_file):
+        """Test that timeout is capped at maximum value"""
+        # Mock AudioSegment with very long audio (200 seconds)
+        mock_audio = MagicMock()
+        mock_audio_segment.from_file.return_value = mock_audio
+        mock_audio.__len__.return_value = 200000  # 200 seconds
+
+        # Mock successful subprocess run
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_subprocess_run.return_value = mock_result
+
+        # Enable both preprocessing options
+        translator.config.enable_input_normalization = True
+        translator.config.enable_denoising = True
+
+        result = translator.preprocess_audio(sample_audio_file)
+
+        # Verify timeout is capped at 300s
+        # 200s duration × 2.5 multiplier + 60s base = 560s, but capped at 300s
+        call_args = mock_subprocess_run.call_args
+        assert call_args.kwargs.get('timeout') == 300
+
+    @patch('modules.audio_translator.AudioSegment')
+    @patch('modules.audio_translator.subprocess.run')
+    def test_preprocess_audio_single_filter(self, mock_subprocess_run, mock_audio_segment, translator, sample_audio_file):
+        """Test audio preprocessing with single filter uses correct multiplier"""
+        # Mock AudioSegment with 60 second audio
+        mock_audio = MagicMock()
+        mock_audio_segment.from_file.return_value = mock_audio
+        mock_audio.__len__.return_value = 60000  # 60 seconds
+
+        # Mock successful subprocess run
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_subprocess_run.return_value = mock_result
+
+        # Enable only normalization
+        translator.config.enable_input_normalization = True
+        translator.config.enable_denoising = False
+
+        result = translator.preprocess_audio(sample_audio_file)
+
+        # 60s duration × 1.5 multiplier + 60s base = 150s timeout
+        call_args = mock_subprocess_run.call_args
+        assert call_args.kwargs.get('timeout') == 150
 
     def test_process_audio_file_not_found(self, translator):
         """Test processing with nonexistent file"""

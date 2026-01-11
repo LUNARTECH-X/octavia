@@ -108,6 +108,21 @@ class AudioTranslator:
         "en-tr": "Helsinki-NLP/opus-mt-en-tr",
         "en-vi": "Helsinki-NLP/opus-mt-en-vi",
         "en-th": "Helsinki-NLP/opus-mt-en-th",
+        # Same-language translations (identity - no actual translation needed)
+        "en-en": None,  # English to English: return original text
+        "es-es": None,  # Spanish to Spanish
+        "fr-fr": None,  # French to French
+        "de-de": None,  # German to German
+        "it-it": None,  # Italian to Italian
+        "ru-ru": None,  # Russian to Russian
+        "ja-ja": None,  # Japanese to Japanese
+        "ko-ko": None,  # Korean to Korean
+        "zh-zh": None,  # Chinese to Chinese
+        "pt-pt": None,  # Portuguese to Portuguese
+        "nl-nl": None,  # Dutch to Dutch
+        "pl-pl": None,  # Polish to Polish
+        "jw-jw": None,  # Javanese to Javanese
+        "nn-nn": None,  # Norwegian Nynorsk to Norwegian Nynorsk
         # Reverse translations (other languages to English)
         "es-en": "Helsinki-NLP/opus-mt-es-en",
         "fr-en": "Helsinki-NLP/opus-mt-fr-en",
@@ -154,6 +169,12 @@ class AudioTranslator:
         "zh-de": "Helsinki-NLP/opus-mt-zh-de",
         "en-id": "Helsinki-NLP/opus-mt-en-id",
         "id-en": "Helsinki-NLP/opus-mt-id-en",
+        # Javanese language (jw)
+        "jw-en": "Helsinki-NLP/opus-mt-jw-en",
+        "en-jw": "Helsinki-NLP/opus-mt-en-jw",
+        # Norwegian Nynorsk (nn)
+        "nn-en": "Helsinki-NLP/opus-mt-nn-en",
+        "en-nn": "Helsinki-NLP/opus-mt-en-nn",
         # Common pairs with Russian
         "es-ru": "Helsinki-NLP/opus-mt-es-ru",
         "ru-es": "Helsinki-NLP/opus-mt-ru-es",
@@ -187,9 +208,12 @@ class AudioTranslator:
         "sv": "sv-SE-SofieNeural",
         "da": "da-DK-JeppeNeural",
         "no": "no-NO-PernilleNeural",
+        "nn": "no-NO-PernilleNeural",  # Norwegian Nynorsk (uses Norwegian voice)
         "fi": "fi-FI-SelmaNeural",
         # Indonesian
         "id": "id-ID-GadisNeural",
+        # Javanese (uses Indonesian voice as fallback)
+        "jw": "id-ID-GadisNeural",
     }
     
     # Voice rate mapping (characters per second) for different languages
@@ -214,8 +238,10 @@ class AudioTranslator:
         "sv": 11,  # Swedish: ~11 chars/second
         "da": 11,  # Danish: ~11 chars/second
         "no": 11,  # Norwegian: ~11 chars/second
+        "nn": 11,  # Norwegian Nynorsk: ~11 chars/second
         "fi": 11,  # Finnish: ~11 chars/second
         "id": 10,  # Indonesian: ~10 chars/second
+        "jw": 10,  # Javanese: ~10 chars/second
     }
 
     # Compression ratios for language pairs (target_length / source_length)
@@ -287,23 +313,40 @@ class AudioTranslator:
                 model_key = f"{self.config.source_lang}-{self.config.target_lang}"
                 model_name = self.MODEL_MAPPING.get(model_key)
 
-                if not model_name:
+                if model_name is None:
+                    logger.info(f"Same-language translation ({model_key}), skipping translation model")
+                    self.translation_pipeline = None
+                elif not model_name:
                     logger.warning(f"Model not found for {model_key}, using Helsinki-NLP/opus-mt-mul-en")
                     model_name = "Helsinki-NLP/opus-mt-mul-en"
 
-                # Load tokenizer and model with optimizations
-                self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
-                self.translation_model = MarianMTModel.from_pretrained(model_name)
+                    # Load tokenizer and model with optimizations
+                    self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                    self.translation_model = MarianMTModel.from_pretrained(model_name)
 
-                # SPEED OPTIMIZATION: Use GPU if available for translation
-                device = 0 if torch.cuda.is_available() else -1
-                self.translation_pipeline = pipeline(
-                    "translation",
-                    model=self.translation_model,
-                    tokenizer=self.translation_tokenizer,
-                    device=device,
-                    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-                )
+                    # SPEED OPTIMIZATION: Use GPU if available for translation
+                    device = 0 if torch.cuda.is_available() else -1
+                    self.translation_pipeline = pipeline(
+                        "translation",
+                        model=self.translation_model,
+                        tokenizer=self.translation_tokenizer,
+                        device=device,
+                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                    )
+                else:
+                    # Load tokenizer and model with optimizations
+                    self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                    self.translation_model = MarianMTModel.from_pretrained(model_name)
+
+                    # SPEED OPTIMIZATION: Use GPU if available for translation
+                    device = 0 if torch.cuda.is_available() else -1
+                    self.translation_pipeline = pipeline(
+                        "translation",
+                        model=self.translation_model,
+                        tokenizer=self.translation_tokenizer,
+                        device=device,
+                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                    )
             else:
                  logger.info("Skipping translation model load (language auto-detection enabled)")
 
@@ -1030,6 +1073,22 @@ Corrected translation:"""
         try:
             if not self.translation_pipeline:
                 self.load_models()
+
+            # Handle same-language translation (en-en, es-es, etc.)
+            if self.config.source_lang == self.config.target_lang:
+                logger.info(f"Same-language translation ({self.config.source_lang}-{self.config.target_lang}), returning original text")
+                # Create translated segments that mirror the original segments
+                translated_segments = []
+                if segments:
+                    for seg in segments:
+                        translated_segments.append({
+                            "start": seg.get("start", 0),
+                            "end": seg.get("end", 0),
+                            "original_text": seg.get("text", ""),
+                            "translated_text": seg.get("text", ""),
+                            "words": seg.get("words", [])
+                        })
+                return text, translated_segments
 
             if not text or len(text.strip()) < 2:
                 logger.warning("No text to translate")
@@ -2359,6 +2418,28 @@ Corrected translation:"""
 
             # Execute FFmpeg command
             import subprocess
+            from subprocess import TimeoutExpired
+
+            # Calculate dynamic timeout based on audio duration and filter complexity
+            try:
+                audio = AudioSegment.from_file(input_path)
+                duration_seconds = len(audio) / 1000.0
+            except Exception:
+                duration_seconds = 30.0  # Default estimate
+
+            filter_multiplier = 1.0
+            if self.config.enable_denoising and self.config.enable_input_normalization:
+                filter_multiplier = 2.5  # Both filters = much slower
+            elif self.config.enable_denoising or self.config.enable_input_normalization:
+                filter_multiplier = 1.5  # Single filter
+
+            base_timeout = 60
+            calculated_timeout = int(base_timeout + (duration_seconds * filter_multiplier))
+            timeout = min(calculated_timeout, 300)  # Cap at 5 minutes
+
+            logger.debug(f"Audio preprocessing: {duration_seconds:.1f}s duration, "
+                        f"filter_multiplier={filter_multiplier}, timeout={timeout}s")
+
             cmd = [
                 'ffmpeg', '-i', input_path,
                 '-filter:a', filter_string,
@@ -2368,7 +2449,7 @@ Corrected translation:"""
                 '-y', temp_output
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
             if result.returncode != 0:
                 logger.warning(f"FFmpeg preprocessing failed: {result.stderr}")
@@ -2382,6 +2463,11 @@ Corrected translation:"""
                 logger.warning("Preprocessed audio file is empty, using original")
                 return input_path
 
+        except TimeoutExpired:
+            logger.warning(f"Audio preprocessing timed out after {timeout}s for {input_path}. "
+                          f"Audio is {duration_seconds:.1f}s with filters={filter_string}. "
+                          "Continuing with original audio.")
+            return input_path
         except Exception as e:
             logger.error(f"Audio preprocessing failed: {e}")
             return input_path
@@ -2495,22 +2581,38 @@ Corrected translation:"""
                  model_key = f"{self.config.source_lang}-{self.config.target_lang}"
                  model_name = self.MODEL_MAPPING.get(model_key)
 
-                 if not model_name:
-                    logger.warning(f"Model not found for {model_key}, using Helsinki-NLP/opus-mt-mul-en")
-                    model_name = "Helsinki-NLP/opus-mt-mul-en"
+                 if model_name is None:
+                     logger.info(f"Same-language translation ({model_key}), no translation model needed")
+                     self.translation_pipeline = None
+                 elif not model_name:
+                     logger.warning(f"Model not found for {model_key}, using Helsinki-NLP/opus-mt-mul-en")
+                     model_name = "Helsinki-NLP/opus-mt-mul-en"
 
-                 # Load tokenizer and model
-                 self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
-                 self.translation_model = MarianMTModel.from_pretrained(model_name)
-                 
-                 device = 0 if torch.cuda.is_available() else -1
-                 self.translation_pipeline = pipeline(
-                    "translation",
-                    model=self.translation_model,
-                    tokenizer=self.translation_tokenizer,
-                    device=device,
-                    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-                 )
+                     # Load tokenizer and model
+                     self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                     self.translation_model = MarianMTModel.from_pretrained(model_name)
+                     
+                     device = 0 if torch.cuda.is_available() else -1
+                     self.translation_pipeline = pipeline(
+                        "translation",
+                        model=self.translation_model,
+                        tokenizer=self.translation_tokenizer,
+                        device=device,
+                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                     )
+                 else:
+                     # Load tokenizer and model
+                     self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                     self.translation_model = MarianMTModel.from_pretrained(model_name)
+                     
+                     device = 0 if torch.cuda.is_available() else -1
+                     self.translation_pipeline = pipeline(
+                        "translation",
+                        model=self.translation_model,
+                        tokenizer=self.translation_tokenizer,
+                        device=device,
+                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                     )
                  logger.info(f"Translation model loaded: {model_name}")
             
             logger.info(f"Transcribed: {len(original_text)} characters, {len(segments)} segments in {detected_language}")
