@@ -33,28 +33,28 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
       // Create payment session
       const response = await api.createPaymentSession(pkg.id);
       
-      if (response.success && response.checkout_url) {
+      if (response.success && response.data?.checkout_url) {
         setStatusMessage("Redirecting to payment...");
         
         // Store session info for polling
-        if (response.session_id) {
+        if (response.data?.session_id) {
           localStorage.setItem('last_payment_session', JSON.stringify({
-            session_id: response.session_id,
-            transaction_id: response.transaction_id,
+            session_id: response.data.session_id,
+            transaction_id: response.data.transaction_id,
             package_id: pkg.id,
             timestamp: Date.now()
           }));
         }
         
         // For test mode, handle directly
-        if (response.test_mode) {
+        if (response.data?.test_mode) {
           setStatusMessage("Adding test credits...");
           
           // Poll for completion
-          await pollPaymentStatus(response.session_id, response.transaction_id);
+          await pollPaymentStatus(response.data.session_id, response.data.transaction_id);
         } else {
           // Redirect to Polar.sh checkout
-          window.location.href = response.checkout_url;
+          window.location.href = response.data.checkout_url;
         }
       } else {
         setStatusMessage(response.error || "Failed to create payment session");

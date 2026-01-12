@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, ArrowRight, Loader2, PartyPopper } from "lucide-react";
 import { motion } from "framer-motion";
@@ -8,7 +8,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useUser } from "@/contexts/UserContext";
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, fetchUserProfile } = useUser();
@@ -177,5 +177,20 @@ export default function PaymentSuccessPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen w-full bg-bg-dark flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-primary-purple animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Loading payment details...</p>
+        </div>
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

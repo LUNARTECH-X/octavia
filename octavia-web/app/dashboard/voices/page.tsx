@@ -26,7 +26,7 @@ export default function MyVoicesPage() {
     const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
     const [previewText, setPreviewText] = useState("Hello! This is a preview of the voice.");
     const [isPlayingPreview, setIsPlayingPreview] = useState(false);
-    const [audioElement, setAudioElement] = useState(null);
+    const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
     // Get authentication token
     const getToken = (): string | null => {
@@ -241,7 +241,7 @@ export default function MyVoicesPage() {
             console.error("Preview error:", error);
             setIsPlayingPreview(false);
 
-            const errorMessage = error.message || "Unknown error";
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
             // Show detailed error message
             if (errorMessage.includes("Voice preview service is currently unavailable")) {

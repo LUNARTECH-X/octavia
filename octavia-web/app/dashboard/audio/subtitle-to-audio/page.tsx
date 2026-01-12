@@ -433,6 +433,7 @@ export default function SubtitleToAudioPage() {
       let lastError = null;
       
       for (const url of downloadUrls) {
+        if (!url) continue;
         try {
           console.log('Trying download URL:', url);
           

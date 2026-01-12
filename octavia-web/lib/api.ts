@@ -727,6 +727,83 @@ class ApiService {
     }
   }
 
+  // Update user profile
+  async updateUserProfile(data: { name: string; email: string }): Promise<ApiResponse<User>> {
+    const body = JSON.stringify(data);
+    return this.request<User>('/api/user/profile', {
+      method: 'PUT',
+      body: body,
+    }, true);
+  }
+
+  // Change password
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse> {
+    const body = JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword
+    });
+    return this.request('/api/user/change-password', {
+      method: 'POST',
+      body: body,
+    }, true);
+  }
+
+  // Delete user account
+  async deleteUserAccount(): Promise<ApiResponse> {
+    return this.request('/api/user/account', {
+      method: 'DELETE',
+    }, true);
+  }
+
+  // Update user settings
+  async updateUserSettings(settings: {
+    notifications: {
+      translationComplete: boolean;
+      emailNotifications: boolean;
+      weeklySummary: boolean;
+    };
+    language: string;
+    time_zone: string;
+  }): Promise<ApiResponse<{
+    settings: {
+      notifications: {
+        translationComplete: boolean;
+        emailNotifications: boolean;
+        weeklySummary: boolean;
+      };
+      language: string;
+      time_zone: string;
+    };
+  }>> {
+    const body = JSON.stringify(settings);
+    return this.request<{
+      settings: {
+        notifications: {
+          translationComplete: boolean;
+          emailNotifications: boolean;
+          weeklySummary: boolean;
+        };
+        language: string;
+        time_zone: string;
+      };
+    }>('/api/user/settings', {
+      method: 'PUT',
+      body: body,
+    }, true);
+  }
+
+  // Translate video file
+  async translateVideo(file: File, targetLanguage: string): Promise<ApiResponse<{ job_id: string }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('target_language', targetLanguage);
+
+    return this.request<{ job_id: string }>('/api/translate/video', {
+      method: 'POST',
+      body: formData,
+    }, true);
+  }
+
 
   // Debug webhook endpoint
   async debugWebhook(): Promise<ApiResponse<{

@@ -101,7 +101,7 @@ export default function SubtitleGenerationPage() {
 
         // Redirect to progress page after a short delay
         setTimeout(() => {
-          router.push(`/dashboard/subtitles/progress?jobId=${response.data.job_id}`);
+          router.push(`/dashboard/subtitles/progress?jobId=${response.data?.job_id}`);
         }, 1500);
       } else {
         setError(response.error || 'Failed to start subtitle generation');

@@ -226,7 +226,7 @@ export default function AudioTranslationPage() {
             progress: jobData.progress || 0,
             download_url: jobData.download_url,
             error: jobData.error,
-            message: jobData.message
+            message: (jobData as any).status_message || (jobData as { message?: string }).message
           };
 
           console.log(`Job ${jobId} status: ${job.status}, progress: ${job.progress}`);
