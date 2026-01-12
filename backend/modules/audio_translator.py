@@ -59,10 +59,15 @@ class TranslationConfig:
     use_ollama_post_processing: bool = True
     ollama_model: str = "qwen2.5-coder:1.5b"
     ollama_host: str = "http://localhost:11434"
-    # Ollama LLM post-processing for translation quality
-    use_ollama_post_processing: bool = True
-    ollama_model: str = "qwen2.5-coder:1.5b"
-    ollama_host: str = "http://localhost:11434"
+    ollama_timeout: int = 60  # Increased timeout for slower systems
+    # Ollama-guided sentence boundary detection for CJK languages
+    use_ollama_boundary_detection: bool = True
+    ollama_boundary_model: str = "qwen2.5-coder:1.5b"  # Use reliable model
+    ollama_boundary_timeout: int = 30  # Reasonable timeout for boundary detection
+    min_segment_length_chars: int = 10  # Minimum characters per segment for CJK
+    # High-quality translation settings
+    use_nllb_translation: bool = True  # Use NLLB for better Chinese translation
+    translation_quality_check: bool = True  # Verify translation quality
 
 @dataclass
 class TranslationResult:
@@ -659,51 +664,446 @@ class AudioTranslator:
         segments = [s for s in segments if len(s) >= 2]
         
         return segments
+
+    def _call_ollama_api(self, prompt: str, model: str = None, timeout: int = None) -> Optional[str]:
+        """Call Ollama API with the given prompt"""
+        if model is None:
+            model = self.config.ollama_model
+        
+        if timeout is None:
+            timeout = self.config.ollama_timeout
+
+        try:
+            import urllib.request
+            import urllib.error
+            import json
+
+            url = f"{self.config.ollama_host}/api/generate"
+            data = json.dumps({
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            }).encode('utf-8')
+
+            req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                return result.get('response', '').strip()
+        except Exception as e:
+            logger.warning(f"Ollama API call failed: {e}")
+            return None
+
+    def _detect_sentence_boundaries_with_ollama(self, text: str, source_lang: str) -> Optional[List[Dict]]:
+        """Use Ollama to detect natural sentence boundaries in CJK text to avoid orphaned words"""
+        if not self.config.use_ollama_boundary_detection:
+            return None
+
+        if not self._check_ollama_available():
+            logger.debug("Ollama not available for boundary detection")
+            return None
+
+        lang_names = {'zh': 'Chinese', 'ja': 'Japanese', 'ko': 'Korean'}
+        lang_name = lang_names.get(source_lang, source_lang)
+
+        prompt = f"""You are analyzing {lang_name} text that was transcribed from speech.
+Your task is to identify where natural sentence boundaries should be.
+
+Text to analyze:
+{text}
+
+Guidelines:
+1. Find complete sentences that end with proper punctuation or natural pauses
+2. For Chinese: look for 。！？ or natural breath pauses between words
+3. For Japanese: look for 。！？ or natural sentence endings
+4. For Korean: look for 。！？ or natural sentence endings
+5. DO NOT cut words in half - ensure each segment ends at a complete word boundary
+6. Each segment should be 10-50 characters for optimal translation quality
+
+Example for Chinese:
+Input: "小龙妈妈在家请问小龙在家吗小龙也在家"
+Output:
+[
+    {{"start": 0, "end": "小龙妈妈在家", "reason": "Complete thought about mother being home"}},
+    {{"start": 6, "end": "请问小龙在家吗", "reason": "Question about Xiao Long"}},
+    {{"start": 13, "end": "小龙也在家", "reason": "Statement about Xiao Long also being home"}}
+]
+
+CRITICAL: Make sure each segment ends at a NATURAL word boundary. Do not cut in the middle of a word.
+
+Return ONLY a valid JSON array with this structure:
+[
+    {{"text": "first complete sentence", "reason": "why this is a natural boundary"}},
+    {{"text": "second complete sentence", "reason": "why this is a natural boundary"}}
+]
+
+DO NOT include line breaks or other text outside the JSON:"""
+
+        try:
+            response = self._call_ollama_api(
+                prompt, 
+                self.config.ollama_boundary_model,
+                timeout=self.config.ollama_boundary_timeout
+            )
+            if not response:
+                return None
+
+            import json as json_module
+            response = response.strip()
+
+            if response.startswith('```json'):
+                response = response[7:]
+            if response.startswith('```'):
+                response = response[3:]
+            if response.endswith('```'):
+                response = response[:-3]
+            response = response.strip()
+
+            boundaries = json_module.loads(response)
+            if isinstance(boundaries, list) and len(boundaries) > 0:
+                logger.info(f"Ollama detected {len(boundaries)} natural sentence boundaries")
+                return boundaries
+
+        except Exception as e:
+            logger.warning(f"Failed to parse Ollama boundary detection response: {e}")
+
+        return None
+
+    def _check_for_orphaned_words(self, segments: List[str], source_lang: str) -> Tuple[bool, List[str]]:
+        """Check if any segments end with partial/incomplete words"""
+        if not segments or len(segments) <= 1:
+            return True, []
+
+        if not self._check_ollama_available():
+            return True, []
+
+        prompt = f"""Check these {source_lang} text segments for orphaned/incomplete words at boundaries.
+
+Segments:
+{chr(10).join([f'{i+1}. "{s}"' for i, s in enumerate(segments)])}
+
+For each boundary between segments, check:
+1. Does the segment end with a complete word or natural pause?
+2. Does the next segment start naturally after the previous?
+3. Are any words split across segments?
+
+Respond with JSON in this format:
+{{
+    "clean": true/false,
+    "issues": ["description of issue 1", "description of issue 2"],
+    "suggested_fix": "How to regroup the segments to fix issues"
+}}
+
+Respond with ONLY JSON, no other text:"""
+
+        try:
+            response = self._call_ollama_api(
+                prompt, 
+                self.config.ollama_boundary_model,
+                timeout=self.config.ollama_boundary_timeout
+            )
+            if not response:
+                return True, []
+
+            import json as json_module
+            response = response.strip()
+
+            if response.startswith('```json'):
+                response = response[7:]
+            if response.startswith('```'):
+                response = response[3:]
+            if response.endswith('```'):
+                response = response[:-3]
+            response = response.strip()
+
+            result = json_module.loads(response)
+            is_clean = result.get('clean', True)
+            issues = result.get('issues', [])
+            return is_clean, issues
+
+        except Exception as e:
+            logger.warning(f"Failed to check for orphaned words: {e}")
+            return True, []
+
+    def _regroup_segments(self, text: str, issues: List[str], source_lang: str) -> List[str]:
+        """Regroup segments to fix orphaned word issues"""
+        if not self._check_ollama_available():
+            return []
+
+        prompt = f"""The following {source_lang} text has issues at segment boundaries where words were cut in half.
+
+Original text:
+{text}
+
+Issues detected:
+{chr(10).join([f"- {issue}" for issue in issues])}
+
+Please regroup the text into proper segments that:
+1. End at complete word boundaries
+2. Form natural sentences
+3. Are 10-50 characters each
+4. Do not cut words in half
+
+Respond with ONLY a valid JSON array of segment strings:
+["segment 1", "segment 2", "segment 3"]
+
+DO NOT include any other text:"""
+
+        try:
+            response = self._call_ollama_api(
+                prompt, 
+                self.config.ollama_boundary_model,
+                timeout=self.config.ollama_boundary_timeout
+            )
+            if not response:
+                return []
+
+            import json as json_module
+            response = response.strip()
+
+            if response.startswith('```json'):
+                response = response[7:]
+            if response.startswith('```'):
+                response = response[3:]
+            if response.endswith('```'):
+                response = response[:-3]
+            response = response.strip()
+
+            segments = json_module.loads(response)
+            if isinstance(segments, list) and len(segments) > 0:
+                logger.info(f"Regrouped into {len(segments)} proper segments")
+                return [s for s in segments if s.strip()]
+
+        except Exception as e:
+            logger.warning(f"Failed to regroup segments: {e}")
+
+        return []
+
+    def _segment_chinese_text_with_boundary_detection(self, text: str) -> List[str]:
+        """Smart segmentation for Chinese text with Ollama-guided boundary detection"""
+        import re
+
+        has_punctuation = any(p in text for p in '。！？.!?')
+
+        if has_punctuation:
+            segments = re.split(r'(?<=[。！？.!?])\s*', text)
+            segments = [s.strip() for s in segments if s.strip()]
+        else:
+            segments = self._segment_chinese_text(text)
+
+        if len(segments) <= 1:
+            return segments
+
+        if not self.config.use_ollama_boundary_detection:
+            return segments
+
+        if not self._check_ollama_available():
+            return segments
+
+        is_clean, issues = self._check_for_orphaned_words(segments, 'zh')
+        if is_clean:
+            logger.debug("Segment boundaries are clean, no orphaned words detected")
+            return segments
+
+        logger.info(f"Found {len(issues)} boundary issues, regrouping segments")
+        regrouped = self._regroup_segments(text, issues, 'zh')
+        if regrouped:
+            return regrouped
+
+        ollama_boundaries = self._detect_sentence_boundaries_with_ollama(text, 'zh')
+        if ollama_boundaries:
+            return [b.get('text', b) if isinstance(b, dict) else b for b in ollama_boundaries]
+
+        return segments
     
-    def _translate_chinese_with_context(self, text: str) -> Optional[str]:
-        """Translate Chinese text with context awareness and entity preservation"""
+    def _segment_japanese_text(self, text: str) -> List[str]:
+        """Smart segmentation for Japanese text with boundary detection"""
+        import re
+        
+        has_punctuation = any(p in text for p in '。！？.!?')
+        
+        if has_punctuation:
+            segments = re.split(r'(?<=[。！？.!?])\s*', text)
+            segments = [s.strip() for s in segments if s.strip()]
+        else:
+            # Fallback: split by spaces and group
+            words = text.split()
+            segments = []
+            current_chunk = []
+            current_length = 0
+            
+            for word in words:
+                word_len = len(word)
+                if current_length + word_len <= 15:
+                    current_chunk.append(word)
+                    current_length += word_len
+                else:
+                    if current_chunk:
+                        segments.append(' '.join(current_chunk))
+                    current_chunk = [word]
+                    current_length = word_len
+            
+            if current_chunk:
+                segments.append(' '.join(current_chunk))
+        
+        # Filter very short segments
+        segments = [s for s in segments if len(s) >= 3]
+        
+        # Use Ollama boundary detection if available
+        if len(segments) > 1 and self.config.use_ollama_boundary_detection:
+            is_clean, issues = self._check_for_orphaned_words(segments, 'ja')
+            if not is_clean:
+                regrouped = self._regroup_segments(text, issues, 'ja')
+                if regrouped:
+                    return regrouped
+        
+        return segments
+    
+    def _segment_korean_text(self, text: str) -> List[str]:
+        """Smart segmentation for Korean text with boundary detection"""
+        import re
+        
+        has_punctuation = any(p in text for p in '。！？.!?')
+        
+        if has_punctuation:
+            segments = re.split(r'(?<=[。！？.!?])\s*', text)
+            segments = [s.strip() for s in segments if s.strip()]
+        else:
+            # Split by spaces and group
+            words = text.split()
+            segments = []
+            current_chunk = []
+            current_length = 0
+            
+            for word in words:
+                word_len = len(word)
+                if current_length + word_len <= 15:
+                    current_chunk.append(word)
+                    current_length += word_len
+                else:
+                    if current_chunk:
+                        segments.append(' '.join(current_chunk))
+                    current_chunk = [word]
+                    current_length = word_len
+            
+            if current_chunk:
+                segments.append(' '.join(current_chunk))
+        
+        # Filter very short segments
+        segments = [s for s in segments if len(s) >= 3]
+        
+        # Use Ollama boundary detection if available
+        if len(segments) > 1 and self.config.use_ollama_boundary_detection:
+            is_clean, issues = self._check_for_orphaned_words(segments, 'ko')
+            if not is_clean:
+                regrouped = self._regroup_segments(text, issues, 'ko')
+                if regrouped:
+                    return regrouped
+        
+        return segments
+    
+    def _translate_chinese_with_context(self, text: str, original_segments: List[Dict] = None) -> Tuple[Optional[str], List[Dict]]:
+        """Translate Chinese text with context awareness and entity preservation.
+        
+        Returns:
+            Tuple of (translated_text, translated_segments_with_timing)
+        """
         try:
             if not self.translation_pipeline:
-                return None
+                return None, []
             
             # Extract entities first for consistency
             entities = self._extract_chinese_entities(text)
             
-            # Segment text intelligently
-            segments = self._segment_chinese_text(text)
+            # Segment text intelligently with boundary detection to avoid orphaned words
+            segmented_texts = self._segment_chinese_text_with_boundary_detection(text)
             
-            if len(segments) <= 1:
+            if len(segmented_texts) <= 1:
                 # Single segment - translate directly
                 result = self.translation_pipeline(text, max_length=512, num_beams=4)
-                return result[0]['translation_text']
-            
-            # Translate in groups of 2-3 segments for better context
-            translated_segments = []
-            group_size = 2  # Translate 2 segments together for context
-            
-            for i in range(0, len(segments), group_size):
-                group = segments[i:i + group_size]
-                group_text = ' '.join(group)
+                translated_text = result[0]['translation_text']
                 
-                # Use more beams for better quality
+                # Return segments with original timing
+                if original_segments:
+                    return translated_text, original_segments
+                else:
+                    return translated_text, [{"start": 0, "end": 0, "original_text": text, "translated_text": translated_text}]
+            
+            # Translate each segment and track for timing alignment
+            translated_segments_results = []
+            translated_parts = []
+            
+            # Calculate character positions in original text for alignment
+            char_positions = []
+            pos = 0
+            for seg_text in segmented_texts:
+                char_positions.append((pos, pos + len(seg_text)))
+                pos += len(seg_text)
+            
+            for i, seg_text in enumerate(segmented_texts):
+                # Translate this segment
                 result = self.translation_pipeline(
-                    group_text, 
+                    seg_text, 
                     max_length=512, 
                     num_beams=4,
                     temperature=0.3
                 )
                 translated = result[0]['translation_text'].strip()
-                translated_segments.append(translated)
+                translated_parts.append(translated)
+                
+                # Find best matching original segment for timing
+                seg_start, seg_end = char_positions[i]
+                
+                best_timing = None
+                if original_segments:
+                    cum_pos = 0
+                    for orig_seg in original_segments:
+                        orig_len = len(orig_seg.get("text", ""))
+                        orig_seg_start = cum_pos
+                        orig_seg_end = cum_pos + orig_len
+                        
+                        # Calculate overlap
+                        overlap_start = max(seg_start, orig_seg_start)
+                        overlap_end = min(seg_end, orig_seg_end)
+                        overlap = max(0, overlap_end - overlap_start)
+                        
+                        if overlap > 0:
+                            best_timing = {
+                                "start": orig_seg.get("start", 0),
+                                "end": orig_seg.get("end", 0),
+                                "original_text": seg_text,
+                                "translated_text": translated,
+                                "words": orig_seg.get("words", [])
+                            }
+                            break
+                        
+                        cum_pos = orig_seg_end
+                
+                if not best_timing:
+                    # Use cumulative timing based on character positions
+                    total_len = len(text)
+                    start_ratio = seg_start / total_len if total_len > 0 else 0
+                    end_ratio = seg_end / total_len if total_len > 0 else 1
+                    
+                    best_timing = {
+                        "start": start_ratio,
+                        "end": end_ratio,
+                        "original_text": seg_text,
+                        "translated_text": translated,
+                        "words": []
+                    }
+                
+                translated_segments_results.append(best_timing)
             
             # Join translated segments
-            translated_text = ' '.join(translated_segments)
+            translated_text = ' '.join(translated_parts)
             translated_text = re.sub(r'\s+', ' ', translated_text).strip()
             
-            return translated_text
+            return translated_text, translated_segments_results
             
         except Exception as e:
             logger.error(f"Context-aware Chinese translation failed: {e}")
-            return None
+            return None, []
     
     def _translate_with_marian(self, text: str) -> Optional[str]:
         """Attempt translation using MarianMT pipeline with optimized CJK settings"""
@@ -723,21 +1123,29 @@ class AudioTranslator:
                 # Check for punctuation first
                 has_punctuation = any(p in text for p in '。！？.!?')
                 
+                # Extract entities first for consistency
+                entities = self._extract_chinese_entities(text)
+                
+                # Mark entities in text for consistent translation
+                marked_text = text
+                for cn, en in entities.items():
+                    marked_text = marked_text.replace(cn, f"[[{en}]]")
+                
                 if has_punctuation:
                     # Split by punctuation for properly punctuated text
-                    sentences = re.split(r'(?<=[。！？.!?])\s*', text)
+                    sentences = re.split(r'(?<=[。！？.!?])\s*', marked_text)
                     sentences = [s.strip() for s in sentences if s.strip()]
                 else:
                     # Whisper transcribes CJK without punctuation - split by spaces
                     # Group 5-10 characters for better translation
-                    words = text.split()
+                    words = marked_text.split()
                     sentences = []
                     current_chunk = []
                     current_length = 0
                     
                     for word in words:
                         word_len = len(word)
-                        if current_length + word_len <= 12 and word_len <= 6:
+                        if current_length + word_len <= 15 and word_len <= 6:
                             current_chunk.append(word)
                             current_length += word_len
                         else:
@@ -759,14 +1167,22 @@ class AudioTranslator:
                                 result = self.translation_pipeline(
                                     sent, 
                                     max_length=512, 
-                                    num_beams=4,
+                                    num_beams=6,  # Increased for better quality
                                     temperature=0.3,
                                     early_stopping=True
                                 )
-                                translated_sentences.append(result[0]['translation_text'])
+                                translated_sent = result[0]['translation_text']
+                                # Restore marked entities
+                                for cn, en in entities.items():
+                                    translated_sent = translated_sent.replace(f"[[{en}]]", en)
+                                translated_sentences.append(translated_sent)
                             except Exception as e:
                                 logger.warning(f"Failed to translate segment {i}: {e}")
-                                translated_sentences.append(sent)
+                                # Restore marked entities in original
+                                restored = sent
+                                for cn, en in entities.items():
+                                    restored = restored.replace(f"[[{en}]]", cn)
+                                translated_sentences.append(restored)
                     
                     return ' '.join(translated_sentences)
             
@@ -774,7 +1190,7 @@ class AudioTranslator:
             result = self.translation_pipeline(
                 text, 
                 max_length=1024, 
-                num_beams=4,
+                num_beams=6,  # Increased for better quality
                 temperature=0.3
             )
             return result[0]['translation_text']
@@ -832,49 +1248,60 @@ class AudioTranslator:
             import urllib.error
             import json
             
-            # Chinese-specific translation prompt with best practices
+            # Enhanced Chinese-specific translation prompt
             if source_lang == 'zh':
-                prompt = """You are a professional Chinese to English translator. Apply these rules:
+                prompt = """You are a professional Chinese-to-English translator specializing in children's dialogue and family conversations. Your task is to polish the following translation to make it sound natural, fluent, and appropriate for its context.
 
-1. NAME TRANSLITERATION (CRITICAL):
-   - "小龙" → "Xiao Long" (not "Xiao Lung", "Little Dragon", or "Bruce")
-   - "大象" → "Elephant" (not "Big Elephant")
-   - Use pinyin-based transliteration for names
-   - Keep family name + given name format
-
-2. FAMILY RELATIONSHIPS:
-   - "爸爸" → "father" (not "dad" unless context suggests intimacy)
-   - "妈妈" → "mother" (not "mom" unless context suggests intimacy)
-   - "爷爷/外公" → "grandfather"
-   - "奶奶/外婆" → "grandmother"
-   - "哥哥/弟弟" → "older brother/younger brother"
-   - "姐姐/妹妹" → "older sister/younger sister"
-
-3. NUMBERS & MEASUREMENTS:
-   - Keep Arabic numerals (1, 2, 3) as-is
-   - Chinese numbers in context: translate appropriately ("三个人" → "three people")
-   - Time expressions: "早上" → "in the morning", "晚上" → "in the evening"
-
-4. GRAMMAR FIXES:
-   - "I'm" → "I am" (unless in direct dialogue)
-   - "He's" → "He is" (unless in direct dialogue)
-   - Fix article usage: "the" where needed, remove extra "the"
-
-5. NATURAL FLUENCY:
-   - Prefer active voice over passive
-   - Keep sentences varied in length
-   - Remove redundant words
-
-6. CONTEXT PRESERVATION:
-   - Maintain the tone (formal/informal)
-   - Keep cultural references intact
-   - Preserve the meaning over literal translation
-
-Output ONLY the corrected translation:
-
+ORIGINAL CHINESE TRANSLATION TO POLISH:
 """ + text + """
 
-Corrected translation:"""
+CRITICAL RULES FOR CHINESE-TO-ENGLISH TRANSLATION:
+
+1. NAME TRANSLITERATION (ABSOLUTELY CRITICAL):
+   - "小龙" → ALWAYS use "Xiao Long" (never "Little Dragon", "Xiao Lung", or "Bruce")
+   - "大象" → ALWAYS use "Elephant" (never "Big Elephant")
+   - "森丽老师" → "Teacher Senli" or "Senli" (teacher + first name, NEVER "Forest Beauty")
+   - "森林老师" → "Teacher Senlin" (NOT "Forest Teacher")
+   - Use pinyin-based transliteration: family name first, given name second
+   - Keep the exact spelling from the original consistently throughout
+
+2. FAMILY RELATIONSHIPS - USE NATURAL ENGLISH:
+   - "爸爸/父亲" → "dad" (in casual children's dialogue, "father" sounds too formal)
+   - "妈妈/母亲" → "mom" (in casual children's dialogue, "mother" sounds too formal)
+   - "爷爷/外公" → "grandpa"
+   - "奶奶/外婆" → "grandma"
+   - "哥哥" → "big brother" (not "elder brother")
+   - "弟弟" → "little brother"
+   - "姐姐" → "big sister"
+   - "妹妹" → "little sister"
+
+3. NATURAL DIALOGUE MARKERS:
+   - Chinese dialogue often uses simple sentences without "said"
+   - Keep it brief: "Hi, I'm Senli. Hi, teacher."
+   - Avoid: "Hi, my name is Senli, and I am speaking to the teacher."
+   - Use contractions appropriately for casual speech: "I'm", "He's", "She's"
+
+4. CONVERSATIONAL FLUENCY:
+   - Children's dialogue should sound like real children speaking
+   - Short sentences, simple vocabulary
+   - Use "yeah", "okay", "sure" for affirmative responses
+   - "可以可以" → "Sure, sure!" or "OK, OK!" (enthusiastic agreement)
+   - "太好了" → "Great!" or "Perfect!"
+   - "谢谢" → "Thanks!" (not "Thank you" in casual dialogue)
+
+5. CONTEXT PRESERVATION:
+   - Maintain the cheerful, friendly tone of children's conversation
+   - Keep family relationships clear (who is talking to whom)
+   - Preserve the sense of politeness common in Chinese children's shows
+
+6. PUNCTUATION AND FORMATTING:
+   - Use commas naturally in English: "Hi, I'm Senli. Hi, teacher."
+   - End sentences with appropriate punctuation
+   - Keep proper nouns capitalized
+
+OUTPUT: Return ONLY the polished English translation. Do not include any explanations or notes.
+
+POLISHED TRANSLATION:"""
             
             # Japanese-specific prompt
             elif source_lang == 'ja':
@@ -1098,20 +1525,90 @@ Corrected translation:"""
 
             # Initialize translated_text
             translated_text = None
-
+            
             # Use optimized translation for Chinese (context-aware, entity-preserving)
             if self.config.source_lang == 'zh':
                 logger.info("Using optimized Chinese translation (context-aware with entity preservation)")
-                translated_text = self._translate_chinese_with_context(text)
+                translated_text, translated_segments = self._translate_chinese_with_context(text, segments)
                 
                 if translated_text is None:
                     logger.warning("Context-aware Chinese translation failed, using MarianMT fallback")
                     translated_text = self._translate_with_marian(text)
+                    translated_segments = []  # Will be generated below
             
             # Japanese/Korean and other languages use existing sentence-based translation
             elif self.config.source_lang in ['ja', 'ko']:
                 logger.info(f"Using sentence-based translation for {self.config.source_lang}")
-                translated_text = self._translate_by_sentences(text)
+                # Use boundary detection for Japanese/Korean
+                # Store original segments for timing
+                original_segments_for_timing = segments[:]
+                
+                if self.config.source_lang == 'ja':
+                    segmented_texts = self._segment_japanese_text(text)
+                else:
+                    segmented_texts = self._segment_korean_text(text)
+                
+                if len(segmented_texts) <= 1:
+                    translated_text = self._translate_with_marian(text)
+                    translated_segments = []
+                    for seg in original_segments_for_timing:
+                        translated_segments.append({
+                            "start": seg.get("start", 0),
+                            "end": seg.get("end", 0),
+                            "original_text": seg.get("text", ""),
+                            "translated_text": translated_text or seg.get("text", ""),
+                            "words": seg.get("words", [])
+                        })
+                else:
+                    # Translate each segment and preserve timing from original segments
+                    translated_segments = []
+                    translated_parts = []
+                    
+                    # Align segmented texts with original segments by length
+                    orig_segment_lengths = [len(seg.get("text", "")) for seg in original_segments_for_timing]
+                    total_orig_len = sum(orig_segment_lengths)
+                    
+                    for i, seg_text in enumerate(segmented_texts):
+                        # Translate this segment
+                        result = self.translation_pipeline(seg_text, max_length=512, num_beams=4)
+                        trans = result[0]['translation_text']
+                        translated_parts.append(trans)
+                        
+                        # Find the best matching original segment for timing
+                        # Use cumulative length to find which original segment this belongs to
+                        start_pos = sum(len(s) for s in segmented_texts[:i])
+                        end_pos = start_pos + len(seg_text)
+                        
+                        # Find segment that overlaps most with this position
+                        best_seg = None
+                        best_overlap = 0
+                        cum_pos = 0
+                        for j, orig_seg in enumerate(original_segments_for_timing):
+                            seg_len = len(orig_seg.get("text", ""))
+                            seg_start = cum_pos
+                            seg_end = cum_pos + seg_len
+                            
+                            # Calculate overlap
+                            overlap_start = max(start_pos, seg_start)
+                            overlap_end = min(end_pos, seg_end)
+                            overlap = max(0, overlap_end - overlap_start)
+                            
+                            if overlap > best_overlap:
+                                best_overlap = overlap
+                                best_seg = orig_seg
+                            
+                            cum_pos = seg_end
+                        
+                        if best_seg:
+                            translated_segments.append({
+                                "start": best_seg.get("start", 0),
+                                "end": best_seg.get("end", 0),
+                                "original_text": seg_text,
+                                "translated_text": trans,
+                                "words": best_seg.get("words", [])
+                            })
+                    
+                    translated_text = ' '.join(translated_parts)
                 
                 if translated_text is None:
                     logger.warning("Sentence translation failed, using MarianMT fallback")
@@ -1158,14 +1655,21 @@ Corrected translation:"""
         # Clean the translation
         translated_text = self._clean_translation(translated_text)
         
-        # Create translated segments with proper handling for Chinese (character-based) and other languages
+        # Create translated segments with proper handling
+        # Initialize to empty list first
         translated_segments = []
-        if segments:
+        
+        # Skip character-ratio splitting if we already have aligned segments
+        if translated_segments:
+            # Already have aligned segments from translation (Chinese with boundary detection)
+            logger.info(f"Using {len(translated_segments)} pre-aligned translated segments")
+        elif segments:
             source_lang = self.config.source_lang
             is_cjk = source_lang in ['zh', 'ja', 'ko']
 
             if is_cjk:
-                translated_chars = list(translated_text)
+                # Use word-based splitting for CJK instead of character-based to avoid cutting words
+                translated_words = list(translated_text)
                 total_original_chars = sum(len(seg["text"]) for seg in segments)
 
                 char_idx = 0
@@ -1173,26 +1677,36 @@ Corrected translation:"""
                     seg_chars = len(seg["text"])
                     if total_original_chars > 0:
                         ratio = seg_chars / total_original_chars
-                        num_translated_chars = max(1, int(len(translated_chars) * ratio))
+                        num_translated_chars = max(1, int(len(translated_words) * ratio))
                     else:
-                        num_translated_chars = max(1, len(translated_chars) // len(segments))
+                        num_translated_chars = max(1, len(translated_words) // len(segments))
 
                     start_idx = char_idx
-                    end_idx = min(char_idx + num_translated_chars, len(translated_chars))
-                    segment_text = ''.join(translated_chars[start_idx:end_idx])
+                    end_idx = min(char_idx + num_translated_chars, len(translated_words))
+                    
+                    # Find natural break point (sentence boundary or space)
+                    segment_text = ''.join(translated_words[start_idx:end_idx])
+                    
+                    # Try to find a natural break point if segment is long
+                    if end_idx - start_idx > 50:
+                        # Look for sentence endings
+                        for break_pos in range(end_idx - 1, start_idx + 10, -1):
+                            if translated_words[break_pos] in '.!?。！？':
+                                segment_text = ''.join(translated_words[start_idx:break_pos + 1])
+                                break
 
                     if not segment_text.strip():
                         segment_text = seg["text"]
 
                     translated_segments.append({
-                        "start": seg["start"],
-                        "end": seg["end"],
-                        "original_text": seg["text"],
-                        "translated_text": segment_text,
+                        "start": seg.get("start", 0),
+                        "end": seg.get("end", 0),
+                        "original_text": seg.get("text", ""),
+                        "translated_text": segment_text.strip(),
                         "words": seg.get("words", [])
                     })
 
-                    char_idx = end_idx
+                    char_idx = start_idx + len(segment_text)
             else:
                 translated_words = translated_text.split()
                 total_original_words = sum(len(seg["text"].split()) for seg in segments)
@@ -1214,9 +1728,9 @@ Corrected translation:"""
                         segment_text = seg["text"]
 
                     translated_segments.append({
-                        "start": seg["start"],
-                        "end": seg["end"],
-                        "original_text": seg["text"],
+                        "start": seg.get("start", 0),
+                        "end": seg.get("end", 0),
+                        "original_text": seg.get("text", ""),
                         "translated_text": segment_text,
                         "words": seg.get("words", [])
                     })
@@ -2496,6 +3010,40 @@ Corrected translation:"""
             logger.error(f"Voice model selection failed: {e}")
             return self.VOICE_MAPPING.get(target_lang, "en-US-JennyNeural")
 
+    def passthrough_audio(self, audio_path: str) -> TranslationResult:
+        """Fast-path: copy original audio when source == target language (no translation needed)"""
+        import shutil
+        from datetime import datetime
+
+        original_audio = AudioSegment.from_file(audio_path)
+        original_duration_ms = len(original_audio)
+
+        output_path = os.path.join(
+            self.config.temp_dir,
+            f"passthrough_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
+        )
+        shutil.copy(audio_path, output_path)
+
+        logger.info(f"Passthrough: original audio preserved ({original_duration_ms:.0f}ms)")
+
+        return TranslationResult(
+            success=True,
+            original_text="",
+            translated_text="",
+            original_language=self.config.source_lang,
+            target_language=self.config.target_lang,
+            original_duration_ms=original_duration_ms,
+            translated_duration_ms=original_duration_ms,
+            duration_match_percent=100.0,
+            speed_adjustment=1.0,
+            output_path=output_path,
+            timing_segments=[],
+            quality_metrics={},
+            stt_confidence_score=1.0,
+            estimated_wer=0.0,
+            quality_rating="passthrough"
+        )
+
     def process_audio(self, audio_path: str) -> TranslationResult:
         """Complete audio translation pipeline with improved quality"""
         start_time = datetime.now()
@@ -2516,8 +3064,13 @@ Corrected translation:"""
                     duration_match_percent=0,
                     speed_adjustment=1.0,
                     output_path="",
-                    error=error_msg
+                error=error_msg
                 )
+
+            # FAST-PATH: Skip entire pipeline if source == target language
+            if self.config.source_lang == self.config.target_lang:
+                logger.info(f"Same-language passthrough: {self.config.source_lang} -> {self.config.target_lang}")
+                return self.passthrough_audio(audio_path)
 
             # Step 0: Preprocess audio (normalization and de-noising)
             processed_audio_path = self.preprocess_audio(audio_path)

@@ -69,6 +69,7 @@ class PipelineConfig:
     parallel_processing: bool = True
     enable_model_caching: bool = True  # Cache models locally (FREE)
     use_faster_whisper: bool = True  # Open source optimization (FREE)
+    crossfade_ms: int = 50  # Crossfade duration between chunks for smooth audio transitions
 
 @dataclass
 class VideoInfo:
@@ -821,6 +822,19 @@ class VideoTranslationPipeline:
         """Process a single chunk"""
         try:
             self.translator.config.target_lang = target_lang
+
+            # FAST-PATH: Skip entire pipeline if source == target language
+            if self.translator.config.source_lang == target_lang:
+                output_path = os.path.join(self.config.temp_dir, f"passthrough_chunk_{chunk.id:04d}.wav")
+                shutil.copy(chunk.path, output_path)
+                return {
+                    "path": output_path,
+                    "segments": [],
+                    "stt_confidence_score": 1.0,
+                    "estimated_wer": 0.0,
+                    "quality_rating": "passthrough"
+                }
+
             result = self.translator.process_audio(chunk.path)
             
             if result.success:
@@ -838,7 +852,65 @@ class VideoTranslationPipeline:
             logger.error(f"Failed to process chunk {chunk.id}: {e}")
         
         return None
-    
+
+    def combine_audio_chunks_with_crossfade(self, chunk_paths: List[str], crossfade_ms: int = None) -> Optional[AudioSegment]:
+        """Combine audio chunks with crossfade transitions for smooth audio
+
+        Args:
+            chunk_paths: List of file paths to audio chunks (in order)
+            crossfade_ms: Crossfade duration in milliseconds. If None, uses config.crossfade_ms
+
+        Returns:
+            Combined AudioSegment or None if failed
+        """
+        if crossfade_ms is None:
+            crossfade_ms = self.config.crossfade_ms
+
+        if not chunk_paths:
+            logger.warning("No chunk paths provided for combining")
+            return None
+
+        try:
+            chunks = []
+            for path in chunk_paths:
+                if path and os.path.exists(path):
+                    try:
+                        chunk = AudioSegment.from_file(path)
+                        chunks.append(chunk)
+                    except Exception as chunk_error:
+                        logger.warning(f"Failed to load chunk {path}: {chunk_error}")
+                else:
+                    logger.warning(f"Chunk path does not exist: {path}")
+
+            if not chunks:
+                logger.error("No valid chunks to combine")
+                return None
+
+            if len(chunks) == 1:
+                logger.info("Single chunk, no crossfade needed")
+                return chunks[0]
+
+            logger.info(f"Combining {len(chunks)} chunks with {crossfade_ms}ms crossfade")
+
+            combined = chunks[0]
+            for i, chunk in enumerate(chunks[1:], start=1):
+                chunk_length_ms = len(chunk)
+                actual_crossfade = min(crossfade_ms, chunk_length_ms // 2)
+
+                if actual_crossfade > 0:
+                    combined = combined.append(chunk, crossfade=actual_crossfade)
+                else:
+                    combined += chunk
+
+                logger.debug(f"Added chunk {i} with {actual_crossfade}ms crossfade")
+
+            logger.info(f"Successfully combined {len(chunks)} chunks ({len(combined)}ms total)")
+            return combined
+
+        except Exception as e:
+            logger.error(f"Failed to combine audio chunks: {e}")
+            return None
+
     def merge_files_fast(self, video_path: str, audio_path: str, output_path: str) -> bool:
         """Merge audio and video quickly"""
         try:
@@ -988,34 +1060,25 @@ class VideoTranslationPipeline:
                 valid_paths.sort(key=lambda x: x[0])  # Sort by original index
 
                 if valid_paths:
-                    # Start with first valid chunk
-                    first_idx, first_path = valid_paths[0]
                     try:
-                        combined = AudioSegment.from_file(first_path)
-                        logger.info(f"Starting merge with chunk {first_idx}: {first_path}")
-                        # Add remaining chunks
-                        for idx, path in valid_paths[1:]:
-                            try:
-                                chunk = AudioSegment.from_file(path)
-                                combined += chunk
-                                logger.info(f"Added chunk {idx}: {path}")
-                            except Exception as chunk_error:
-                                logger.warning(f"Failed to load chunk {idx}: {chunk_error}")
-                                # Add silence for missing chunk to maintain timing
-                                silence_duration = chunks[idx].duration_ms if idx < len(chunks) else 1000
-                                combined += silence
-                                logger.info(f"Added silence for missing chunk {idx}")
+                        valid_chunk_paths = [path for _, path in valid_paths]
+                        combined = self.combine_audio_chunks_with_crossfade(valid_chunk_paths)
 
-                        combined.export(merged_audio, format="wav")
-                        logger.info(f"Successfully merged {len(valid_paths)} audio chunks to {merged_audio}")
+                        if combined:
+                            combined.export(merged_audio, format="wav")
+                            logger.info(f"Successfully merged {len(valid_paths)} audio chunks to {merged_audio}")
+                        else:
+                            raise Exception("combine_audio_chunks_with_crossfade returned None")
 
                     except Exception as merge_error:
                         logger.error(f"Failed to merge audio chunks: {merge_error}")
                         # Fallback: copy first available chunk
+                        first_idx, first_path = valid_paths[0]
                         try:
                             shutil.copy2(first_path, merged_audio)
-                        except:
-                            logger.error("Fallback audio merge also failed")
+                            logger.warning(f"Fallback: copied first chunk {first_idx} as merged audio")
+                        except Exception as fallback_error:
+                            logger.error(f"Fallback audio merge also failed: {fallback_error}")
                             return {
                                 "success": False,
                                 "error": "Audio merging failed",
