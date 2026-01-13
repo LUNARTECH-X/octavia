@@ -68,6 +68,7 @@ class TranslationConfig:
     # High-quality translation settings
     use_nllb_translation: bool = True  # Use NLLB for better Chinese translation
     translation_quality_check: bool = True  # Verify translation quality
+    use_vad: bool = False  # Disable VAD for translation to preserve timing
 
 @dataclass
 class TranslationResult:

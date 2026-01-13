@@ -70,6 +70,7 @@ class PipelineConfig:
     enable_model_caching: bool = True  # Cache models locally (FREE)
     use_faster_whisper: bool = True  # Open source optimization (FREE)
     crossfade_ms: int = 50  # Crossfade duration between chunks for smooth audio transitions
+    use_vad: bool = False  # Disable VAD to preserve timing (default False for translation)
 
 @dataclass
 class VideoInfo:
@@ -615,7 +616,7 @@ class VideoTranslationPipeline:
                             temp_audio_path,
                             language=None,  # Auto-detect
                             beam_size=1,  # Faster
-                            vad_filter=True
+                            vad_filter=self.config.use_vad  # Use config setting (default False to preserve timing)
                         )
                         detected_lang = info.language
                         confidence = info.language_probability if hasattr(info, 'language_probability') else 0.5
