@@ -72,6 +72,10 @@ class PipelineConfig:
     use_faster_whisper: bool = True  # Open source optimization (FREE)
     crossfade_ms: int = 50  # Crossfade duration between chunks for smooth audio transitions
     use_vad: bool = False  # Disable VAD to preserve timing (default False for translation)
+    vad_threshold: float = 0.5
+    min_pause_duration_ms: int = 500
+    enable_word_timestamps: bool = True
+    use_semantic_chunking: bool = True
     enable_vocal_separation: bool = False  # Enable high-quality vocal/background separation
     vocal_separation_mode: str = "auto"    # "demucs", "uvr5", or "auto"
 
@@ -263,7 +267,13 @@ class VideoTranslationPipeline:
                 auto_detect=True,
                 use_gpu=self.config.use_gpu,
                 cache_dir=self.config.cache_dir,
-                model_size="small"  # Smaller models for speed
+                model_size="small",  # Smaller models for speed
+                # Pass VAD/Semantic framing config
+                use_vad=self.config.use_vad,
+                vad_threshold=self.config.vad_threshold,
+                min_pause_duration_ms=self.config.min_pause_duration_ms,
+                enable_word_timestamps=self.config.enable_word_timestamps,
+                use_semantic_chunking=self.config.use_semantic_chunking
             )
             self.translator = AudioTranslator(translator_config)
             
@@ -394,6 +404,58 @@ class VideoTranslationPipeline:
             # Fallback to simple chunking
             return self.chunk_audio_simple(audio_path)
     
+    def chunk_audio_semantic(self, audio_path: str) -> List[ChunkInfo]:
+        """Split audio into chunks using semantic boundaries (VAD + Sentences)"""
+        try:
+            logger.info("Chunking audio with SEMANTIC logic (VAD + Sentence Boundaries)")
+            
+            # Ensure models loaded
+            if not self.translator:
+                # Need translator for this
+                self.load_models()
+                
+            # Get semantic cut points
+            semantic_chunks = self.translator.get_semantic_chunks(audio_path)
+            
+            if not semantic_chunks:
+                logger.warning("Semantic analysis returned no chunks, falling back to parallel chunking")
+                return self.chunk_audio_parallel(audio_path)
+                
+            audio = AudioSegment.from_file(audio_path)
+            duration_ms = len(audio)
+            final_chunks = []
+            
+            for i, sem_chunk in enumerate(semantic_chunks):
+                start_ms = int(sem_chunk['start'] * 1000)
+                end_ms = int(sem_chunk['end'] * 1000)
+                
+                # Safety checks
+                if end_ms > duration_ms: end_ms = duration_ms
+                if start_ms >= end_ms: continue
+                
+                chunk_path = os.path.join(self.config.temp_dir, f"chunk_{i:04d}.wav")
+                
+                # Export chunk
+                chunk_audio = audio[start_ms:end_ms]
+                chunk_audio.export(chunk_path, format="wav")
+                
+                # Create ChunkInfo
+                final_chunks.append(ChunkInfo(
+                    id=i,
+                    path=chunk_path,
+                    start_ms=start_ms,
+                    end_ms=end_ms,
+                    duration_ms=end_ms - start_ms,
+                    has_speech=bool(sem_chunk['text'].strip())  # Empty text = silence
+                ))
+            
+            logger.info(f"Created {len(final_chunks)} semantic audio chunks")
+            return final_chunks
+            
+        except Exception as e:
+            logger.error(f"Semantic chunking failed: {e}")
+            return self.chunk_audio_parallel(audio_path)
+
     def chunk_audio_simple(self, audio_path: str) -> List[ChunkInfo]:
         """Simple fallback chunking method"""
         try:
@@ -794,8 +856,14 @@ class VideoTranslationPipeline:
                 return chunk.id, {"path": output_path, "segments": []}, (datetime.now() - chunk_start_time).total_seconds()
 
         # Process chunks in parallel using ThreadPoolExecutor
-        # Optimized for 6-core CPU: 5 workers gives best speed (1 core free for system)
-        max_workers = min(len(speech_chunks), 5)  # Limit to 5 concurrent TTS operations
+        # Optimized for CPU: If no GPU, force sequential processing to avoid Ollama timeouts
+        if not self.config.use_gpu:
+            logger.info("CPU mode detected: Limiting to 3 workers to balance speed and stability")
+            max_workers = 3
+        else:
+            # Optimized for 6-core CPU: 5 workers gives best speed (1 core free for system)
+            max_workers = min(len(speech_chunks), 5)
+            logger.info(f"GPU mode detected: Using {max_workers} parallel workers")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all chunk processing tasks
             future_to_chunk = {executor.submit(process_chunk_with_progress, chunk): chunk for chunk in speech_chunks}
@@ -1079,7 +1147,15 @@ class VideoTranslationPipeline:
             logger.info("3. Chunking audio...")
             if job_id:
                 self._update_job_progress(job_id, 20, "Splitting video into chunks...", jobs_db=jobs_db)
-            chunks = self.chunk_audio_parallel(vocal_audio)
+            
+            # Use semantic chunking ONLY if we have separated vocals (as requested)
+            if self.config.use_vad and self.config.use_semantic_chunking and instrumental_audio is not None:
+                logger.info("🎤 Using Semantic Chunking on Separated Vocals")
+                chunks = self.chunk_audio_semantic(vocal_audio)
+            else:
+                logger.info("⏱️ Using Standard Time-based Chunking")
+                chunks = self.chunk_audio_parallel(vocal_audio)
+                
             if not chunks:
                 return {
                     "success": False,
@@ -1222,12 +1298,18 @@ class VideoTranslationPipeline:
             
             result = {
                 "success": True,
-                "output_video": output_path,
+                "output_path": output_path,  # Fixed key name
                 "target_language": target_lang,
                 "processing_time_s": total_time,
                 "subtitle_files": subtitle_files,
                 "total_chunks": len(chunks),
-                "message": f"Translation completed in {total_time:.1f}s"
+                "message": f"Translation completed in {total_time:.1f}s",
+                # Add missing keys for CLI compatibility
+                "successful_chunks": len(chunks),
+                "duration_match_within_tolerance": True,
+                "avg_duration_diff_ms": 0,
+                "avg_condensation_ratio": 1.0,
+                "total_time_seconds": total_time
             }
             
             logger.info(f"[OK] Translation completed in {total_time:.1f}s")

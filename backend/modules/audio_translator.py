@@ -68,7 +68,16 @@ class TranslationConfig:
     # High-quality translation settings
     use_nllb_translation: bool = True  # Use NLLB for better Chinese translation
     translation_quality_check: bool = True  # Verify translation quality
-    use_vad: bool = False  # Disable VAD for translation to preserve timing
+    # VAD configuration for semantic chunking (only used with vocal-separated audio)
+    use_vad: bool = False  # Enable VAD for semantic chunking (only for vocals)
+    vad_threshold: float = 0.5  # VAD sensitivity (0.0-1.0)
+    min_pause_duration_ms: int = 500  # Minimum silence duration to split (milliseconds)
+    enable_word_timestamps: bool = True  # Enable word-level timestamps for smarter chunking
+    use_semantic_chunking: bool = True  # Use semantic chunking when word timestamps available
+    # Smart chunking parameters
+    max_chunk_duration_s: int = 30  # Maximum chunk duration (seconds) - target
+    min_chunk_duration_s: int = 5  # Minimum chunk duration (seconds)
+    prefer_sentence_boundaries: bool = True  # Prefer cutting at sentence boundaries
     temp_dir: str = "/tmp/octavia"  # Temporary directory for intermediate files
 
 @dataclass
@@ -430,6 +439,137 @@ class AudioTranslator:
             logger.error(f"Language detection failed: {e}")
             return self.config.source_lang
     
+    
+    def get_semantic_chunks(self, audio_path: str) -> List[Dict[str, Any]]:
+        """
+        Analyze audio and return semantic chunks based on VAD and sentence boundaries.
+        Returns a list of dicts with 'start', 'end', 'text' keys.
+        """
+        try:
+            if not self.whisper_model:
+                self.load_models()
+                
+            logger.info(f"Analyzing audio for semantic chunking: {audio_path}")
+            
+            # 1. Fast transcription with word timestamps and VAD
+            if self._using_faster_whisper:
+                segments, info = self.whisper_model.transcribe(
+                    audio_path,
+                    vad_filter=True,
+                    vad_parameters=dict(min_silence_duration_ms=self.config.min_pause_duration_ms, threshold=self.config.vad_threshold) if self.config.use_vad else None,
+                    word_timestamps=self.config.enable_word_timestamps,
+                    language=self.config.source_lang if self.config.source_lang != "auto" else None
+                )
+                segments = list(segments)  # Consume generator
+            else:
+                # Standard whisper fallback
+                result = self.whisper_model.transcribe(
+                    audio_path,
+                    word_timestamps=self.config.enable_word_timestamps,
+                    language=self.config.source_lang if self.config.source_lang != "auto" else None
+                )
+                segments = result.get("segments", [])
+                
+            if not segments:
+                logger.warning("No segments found for semantic chunking")
+                return []
+                
+            # 2. Group segments into optimal chunks
+            chunks = []
+            current_chunk_start = segments[0].start if hasattr(segments[0], 'start') else segments[0]['start']
+            current_chunk_end = current_chunk_start
+            current_text = []
+            
+            target_duration = self.config.max_chunk_duration_s
+            min_duration = self.config.min_chunk_duration_s
+            
+            for i, seg in enumerate(segments):
+                # Handle both object (faster-whisper) and dict (whisper) attributes
+                start = seg.start if hasattr(seg, 'start') else seg['start']
+                end = seg.end if hasattr(seg, 'end') else seg['end']
+                text = seg.text if hasattr(seg, 'text') else seg['text']
+                
+                # Check if adding this segment would exceed max duration
+                potential_duration = end - current_chunk_start
+                
+                # Logic to cut:
+                # 1. If we are over target duration, FORCE cut at previous segment (if exists)
+                # 2. If we are within acceptable range (min < dur < max) AND we see a sentence pause (long gap or punctuation), cut here
+                
+                is_sentence_end = text.strip()[-1] in ".!?。！？" if text.strip() else False
+                gap_to_next = 0
+                if i < len(segments) - 1:
+                    next_start = segments[i+1].start if hasattr(segments[i+1], 'start') else segments[i+1]['start']
+                    gap_to_next = next_start - end
+                
+                should_cut = False
+                
+                # Forced cut if too long
+                if potential_duration > target_duration:
+                    should_cut = True
+                # Intelligent cut
+                elif potential_duration >= min_duration:
+                     # Cut if significant pause or clear sentence end
+                     if gap_to_next > 0.5 or is_sentence_end:
+                         should_cut = True
+                
+                current_text.append(text)
+                current_chunk_end = end
+                
+                if should_cut:
+                    chunks.append({
+                        "start": current_chunk_start,
+                        "end": current_chunk_end,
+                        "text": "".join(current_text).strip()
+                    })
+                    # Reset for next chunk
+                    if i < len(segments) - 1:
+                        next_seg = segments[i+1]
+                        current_chunk_start = next_seg.start if hasattr(next_seg, 'start') else next_seg['start']
+                        current_chunk_end = current_chunk_start
+                        current_text = []
+                    else:
+                        current_chunk_start = None # Finished
+            
+            # Add final chunk if pending
+            if current_chunk_start is not None and current_chunk_start < current_chunk_end:
+                 chunks.append({
+                        "start": current_chunk_start,
+                        "end": current_chunk_end,
+                        "text": "".join(current_text).strip()
+                    })
+            
+            # 3. Post-process to ensure continuity (fill VAD gaps)
+            final_chunks = []
+            last_end = 0.0
+            
+            for chunk in chunks:
+                start = chunk['start']
+                gap = start - last_end
+                
+                if gap > 0:
+                    if gap < 3.0: 
+                        # Small gap: extend current chunk start backwards to cover it
+                        # This aligns better with natural speech pauses
+                        chunk['start'] = last_end
+                    else:
+                        # Large gap: Insert explicit silent chunk
+                        final_chunks.append({
+                            "start": last_end,
+                            "end": start,
+                            "text": "" # Empty text signals silence
+                        })
+                
+                final_chunks.append(chunk)
+                last_end = chunk['end']
+            
+            logger.info(f"Generated {len(final_chunks)} semantic chunks (with silence filling) from {len(segments)} base segments")
+            return final_chunks
+            
+        except Exception as e:
+            logger.error(f"Semantic chunking failed: {e}")
+            return []
+
     def transcribe_with_segments(self, audio_path: str) -> Dict[str, Any]:
         """Transcribe audio to text with detailed timestamps - sequential processing only"""
         try:
@@ -479,7 +619,10 @@ class AudioTranslator:
                     try:
                         segments, info = self.whisper_model.transcribe(
                             audio_path,
-                            language=language if language != "auto" else None
+                            language=language if language != "auto" else None,
+                            vad_filter=self.config.use_vad,
+                            vad_parameters=dict(min_silence_duration_ms=self.config.min_pause_duration_ms, threshold=self.config.vad_threshold) if self.config.use_vad else None,
+                            word_timestamps=self.config.enable_word_timestamps if hasattr(self.config, 'enable_word_timestamps') else False
                         )
 
                         # Convert generator to list to get count
@@ -673,7 +816,9 @@ class AudioTranslator:
             model = self.config.ollama_model
         
         if timeout is None:
-            timeout = self.config.ollama_timeout
+            # Default to 120s if not specified, regardless of config default which might be low
+            timeout = getattr(self.config, 'ollama_timeout', 120)
+            if timeout < 60: timeout = 120
 
         try:
             import urllib.request
@@ -1359,14 +1504,17 @@ Corrected translation:"""
             
             else:
                 # Generic prompt for other languages
-                prompt = f"""You are a professional {source_lang} to English translator:
-- Fix grammar issues
-- Improve natural fluency  
-- Normalize name transliterations
-- Keep the meaning intact
-- Output ONLY the corrected translation
+                prompt = f"""You are a professional {source_lang} to English translator.
+Your ONLY task is to return the corrected translation.
+Rules:
+1. Fix grammar and fluency issues.
+2. Normalize names.
+3. KEEP meaning intact.
+4. DO NOT add conversational fillers like "Here is the translation" or "Sure!".
+5. DO NOT provide explanations.
+6. Return ONLY the translated text.
 
-{text}
+Source: "{text}"
 
 Corrected translation:"""
             
@@ -1379,7 +1527,7 @@ Corrected translation:"""
                 "stream": False,
                 "options": {
                     "temperature": 0.1,
-                    "num_predict": 1000  # Allow longer output for long texts
+                    # "num_predict": 1000  # Remove to let model decide, or keep if needed
                 }
             }
             data_str = json_mod.dumps(data).encode('utf-8')
@@ -1387,7 +1535,8 @@ Corrected translation:"""
             req = urllib.request.Request(url, data=data_str, method='POST')
             req.add_header('Content-Type', 'application/json')
             
-            with urllib.request.urlopen(req, timeout=60) as response:
+            # Increase timeout to 120s for slower local inference
+            with urllib.request.urlopen(req, timeout=120) as response:
                 result = json_mod.loads(response.read().decode())
                 corrected = result.get('response', '').strip()
                 

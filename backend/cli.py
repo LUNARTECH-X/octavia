@@ -34,10 +34,19 @@ def translate_video(args):
     pipeline_config = PipelineConfig(
         chunk_size=config_dict.get('processing', {}).get('default_chunk_size', 30),
         max_chunk_size=config_dict.get('processing', {}).get('max_chunk_size', 120),
-        condensation_ratio=config_dict.get('processing', {}).get('max_condensation_ratio', 1.2),
+        max_condensation_ratio=config_dict.get('processing', {}).get('max_condensation_ratio', 1.2),
         timing_tolerance_ms=config_dict.get('processing', {}).get('max_duration_diff_ms', 200),
-        enable_vocal_separation=getattr(args, 'separate', False)
+        enable_vocal_separation=getattr(args, 'separate', False),
+        # Optimize for testing: Enable semantic chunking if separation is on
+        use_vad=getattr(args, 'separate', False),
+        use_semantic_chunking=getattr(args, 'separate', False)
     )
+
+    # Ensure logging is visible for testing
+    import logging
+    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger('modules.pipeline').setLevel(logging.INFO)
+    logging.getLogger('modules.audio_translator').setLevel(logging.INFO)
     
     # Initialize pipeline
     pipeline = VideoTranslationPipeline(pipeline_config)
@@ -48,7 +57,7 @@ def translate_video(args):
         
         # Output result
         print(f"\n Translation completed!")
-        print(f"   Output: {result['output_path']}")
+        print(f"   Output: {result.get('output_path', 'N/A')}")
         print(f"   Duration match: {result['duration_match_within_tolerance']}")
         print(f"   Successful chunks: {result['successful_chunks']}/{result['total_chunks']}")
         print(f"   Total time: {result['total_time_seconds']:.1f}s")

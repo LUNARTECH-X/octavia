@@ -101,6 +101,7 @@ npm install; npm run dev
 
 - **Video Translation**: Complete video dubbing with lip-sync accuracy
 - **Magic Mode**: Advanced vocal separation to preserve background music
+- **Semantic Audio Chunking**: Intelligent splitting of audio based on sentence boundaries and VAD (Voice Activity Detection) for natural phrasing and better lip-sync (enabled with Magic Mode)
 - **Audio Translation**: Podcast and audio file translation
 - **Subtitle Generation**: AI-powered subtitle creation from video/audio
 - **Subtitle Translation**: Context-aware subtitle translation
@@ -110,6 +111,7 @@ npm install; npm run dev
 
 - **End-to-End Pipeline**: Complete video ingestion → transcription → translation → Ollama post-processing → TTS → synchronization → export
 - **Duration Fidelity**: Final output duration matches input exactly (within container constraints)
+- **Semantic Chunking**: Uses VAD (Silero) + sentence boundary detection to split audio at natural pauses, preventing cut-off sentences and improving translation context.
 - **Magic Mode (UVR5/Demucs)**: Professional vocal/instrumental separation for high-quality dubs
 - **Lip-Sync Accuracy**: Segment-level timing within ±100-200ms tolerance
 - **Voice Quality**: Clean, natural TTS with consistent gain and prosody
