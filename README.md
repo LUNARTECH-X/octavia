@@ -100,6 +100,7 @@ npm install; npm run dev
 ## Core Features
 
 - **Video Translation**: Complete video dubbing with lip-sync accuracy
+- **Magic Mode**: Advanced vocal separation to preserve background music
 - **Audio Translation**: Podcast and audio file translation
 - **Subtitle Generation**: AI-powered subtitle creation from video/audio
 - **Subtitle Translation**: Context-aware subtitle translation
@@ -109,6 +110,7 @@ npm install; npm run dev
 
 - **End-to-End Pipeline**: Complete video ingestion → transcription → translation → Ollama post-processing → TTS → synchronization → export
 - **Duration Fidelity**: Final output duration matches input exactly (within container constraints)
+- **Magic Mode (UVR5/Demucs)**: Professional vocal/instrumental separation for high-quality dubs
 - **Lip-Sync Accuracy**: Segment-level timing within ±100-200ms tolerance
 - **Voice Quality**: Clean, natural TTS with consistent gain and prosody
 - **Translation Quality**: Helsinki-NLP MarianMT base + Ollama post-processing for consistent names and natural grammar
@@ -543,6 +545,9 @@ Input: video.mp4
 ```bash
 # Direct video translation (production use)
 python cli.py video --input sample.mp4 --target es
+
+# Video translation with Magic Mode
+python cli.py video --input sample.mp4 --target es --separate
 
 # Generate subtitles only
 python cli.py subtitles --input video.mp4 --format srt --language en
@@ -1253,6 +1258,25 @@ docker-compose up --build
 
 ### **Q: Can I contribute documentation only?**
 **A:** Absolutely! Documentation improvements are highly valued and often the easiest way to start contributing.
+
+---
+
+## Magic Mode Development & Verification
+
+The "Magic Mode" feature (Vocal/Instrumental Separation) was developed through a rigorous testing cycle to ensure professional-grade audio quality.
+
+### Technical Challenges & Fixes
+*   **Dependency Management**: Resolved conflicts between Demucs and existing torch versions by implementing a lazy-loading strategy for the `VocalSeparator` module.
+*   **Pipeline Integration**: Fixed a bug where the vocal separation step was skipped in the standard processing path; integrated it into `VideoTranslationPipeline.process_video_fast`.
+*   **API Consolidation**: Identified and removed redundant route definitions in `app.py` that were causing the `separate` flag to be ignored by the backend.
+*   **Audio Mixing**: Optimized FFmpeg `amix` filters to ensure high-fidelity mixing of translated vocals with original background music without gain distortion.
+
+### Verification History
+During development, the following automated verification suites were used:
+*   **`test_vocal_separator.py`**: Validated Demucs model loading and separation quality across different audio formats.
+*   **`verify_audio_quality.py`**: Automated duration and gain matching checks between source and separated instrumental tracks.
+*   **`test_cjk_vocal_separation.py`**: Specialized verification for CJK (Chinese, Japanese, Korean) languages to ensure proper word alignment after separation.
+*   **`test-integration --separate`**: Full end-to-end system test confirming API -> Pipeline -> Export flow with Magic Mode active.
 
 ---
 

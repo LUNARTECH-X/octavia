@@ -297,7 +297,7 @@ except ImportError:
     PIPELINE_AVAILABLE = False
     logger.warning("Pipeline modules not available. Running in simplified mode.")
 
-async def process_video_translation_job(job_id: str, file_path: str, target_language: str, user_id: str):
+async def process_video_translation_job(job_id: str, file_path: str, target_language: str, user_id: str, separate: bool = False):
     """Background task for video translation"""
     try:
         # Update job status in Supabase
@@ -309,7 +309,7 @@ async def process_video_translation_job(job_id: str, file_path: str, target_lang
             from modules.pipeline import VideoTranslationPipeline, PipelineConfig
 
             # Process video with job_id for progress tracking
-            config = PipelineConfig(chunk_size=DEFAULT_CHUNK_SIZE)
+            config = PipelineConfig(chunk_size=DEFAULT_CHUNK_SIZE, enable_vocal_separation=separate)
             pipeline = VideoTranslationPipeline(config)
             result = pipeline.process_video(file_path, target_language)
 
@@ -971,91 +971,7 @@ async def download_file(file_type: str, file_id: str, current_user: User = Depen
         media_type=media_type,
         filename=f"octavia_{file_type}_{file_id}{os.path.splitext(filename)[1]}"
     )
-@app.post("/api/translate/video")
-async def translate_video(
-    background_tasks: BackgroundTasks,
-    file: UploadFile = File(...),
-    target_language: str = Form("es"),
-    current_user: User = Depends(get_current_user)
-):
-    """Translate video file to another language using enhanced pipeline with audio translation"""
-    try:
-        # Check credits (10 credits for video translation)
-        if current_user.credits < 10:
-            raise HTTPException(400, "Insufficient credits. Need at least 10 credits.")
-
-        # Validate file
-        if not file.filename:
-            raise HTTPException(400, "No file provided")
-
-        # Check file extension
-        valid_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm']
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        if file_ext not in valid_extensions:
-            raise HTTPException(400, f"Invalid video format. Supported formats: {', '.join(valid_extensions)}")
-
-        # Save uploaded file to backend directory
-        file_id = str(uuid.uuid4())
-        file_path = f"backend/temp_video_{file_id}{file_ext}"
-
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            f.write(content)
-
-        # Check file size
-        file_size = os.path.getsize(file_path)
-        if file_size > 500 * 1024 * 1024:  # 500MB max
-            os.remove(file_path)
-            raise HTTPException(400, "File too large. Maximum size is 500MB.")
-
-        # Deduct credits
-        supabase.table("users").update({"credits": current_user.credits - 10}).eq("id", current_user.id).execute()
-
-        # Create job entry with proper output path
-        job_id = str(uuid.uuid4())
-        output_path = f"backend/outputs/translated_video_{job_id}.mp4"
-
-        jobs_db[job_id] = {
-            "id": job_id,
-            "type": "video",
-            "status": "pending",
-            "progress": 0,
-            "file_path": file_path,
-            "target_language": target_language,
-            "user_id": current_user.id,
-            "user_email": current_user.email,
-            "created_at": datetime.utcnow().isoformat(),
-            "message": "Starting enhanced video translation with audio...",
-            "original_filename": file.filename,
-            "output_path": output_path
-        }
-
-        # Process in background using the working pipeline
-        background_tasks.add_task(
-            process_video_translation_job,
-            job_id,
-            file_path,
-            target_language,
-            current_user.id
-        )
-
-        logger.info(f"Started enhanced video translation job {job_id} for user {current_user.email}")
-
-        return {
-            "success": True,
-            "job_id": job_id,
-            "message": "Enhanced video translation with audio started in background",
-            "status_url": f"/api/jobs/{job_id}/status",
-            "remaining_credits": current_user.credits - 10,
-            "features": ["Audio extraction", "Speech transcription", "Text translation", "Voice synthesis", "Video-audio merging"]
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Video translation failed: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Video translation failed: {str(e)}")
+# Note: /api/translate/video is handled in routes/translation_routes.py
 
 @app.get("/api/download/video/{job_id}")
 async def download_video(

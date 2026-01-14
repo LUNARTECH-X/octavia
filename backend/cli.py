@@ -35,7 +35,8 @@ def translate_video(args):
         chunk_size=config_dict.get('processing', {}).get('default_chunk_size', 30),
         max_chunk_size=config_dict.get('processing', {}).get('max_chunk_size', 120),
         condensation_ratio=config_dict.get('processing', {}).get('max_condensation_ratio', 1.2),
-        timing_tolerance_ms=config_dict.get('processing', {}).get('max_duration_diff_ms', 200)
+        timing_tolerance_ms=config_dict.get('processing', {}).get('max_duration_diff_ms', 200),
+        enable_vocal_separation=getattr(args, 'separate', False)
     )
     
     # Initialize pipeline
@@ -139,7 +140,7 @@ def extract_audio_from_video(video_path, output_path):
 
 def test_integration(args):
     """Run integration test with user-provided video file or URL"""
-    if hasattr(args, 'comprehensive') and args.comprehensive:
+    if args.comprehensive:
         return test_comprehensive_integration(args)
     else:
         return test_basic_integration(args)
@@ -155,7 +156,8 @@ def test_basic_integration(args):
         return 1
 
     # Run basic video translation test
-    pipeline = VideoTranslationPipeline()
+    config = PipelineConfig(enable_vocal_separation=getattr(args, 'separate', False))
+    pipeline = VideoTranslationPipeline(config)
 
     try:
         import time
@@ -241,7 +243,8 @@ def test_comprehensive_integration(args):
         print("-" * 40)
 
         video_start = time.time()
-        pipeline = VideoTranslationPipeline()
+        config = PipelineConfig(enable_vocal_separation=getattr(args, 'separate', False))
+        pipeline = VideoTranslationPipeline(config)
         video_result = pipeline.process_video(test_video, args.target_lang)
         video_time = time.time() - video_start
 
@@ -592,6 +595,7 @@ Examples:
     video_parser.add_argument('--target-lang', '-t', default='es', help='Target language (default: es)')
     video_parser.add_argument('--config', '-c', default='config.yaml', help='Configuration file')
     video_parser.add_argument('--output', '-o', help='Output file (default: auto-generated)')
+    video_parser.add_argument('--separate', '--magic-mode', action='store_true', help='Enable high-quality vocal separation (Magic Mode)')
     
     # Subtitle generation command
     subtitle_parser = subparsers.add_parser('subtitles', help='Generate subtitles')
@@ -611,6 +615,7 @@ Examples:
     test_parser.add_argument('--input', '-i', help='Input video file path or URL (optional, will prompt if not provided)')
     test_parser.add_argument('--target-lang', '-t', default='es', help='Target language (default: es)')
     test_parser.add_argument('--comprehensive', action='store_true', help='Test all job types: video, audio, subtitles')
+    test_parser.add_argument('--separate', '--magic-mode', action='store_true', help='Enable high-quality vocal separation (Magic Mode)')
     
     # Metrics command
     metrics_parser = subparsers.add_parser('metrics', help='Show processing metrics')

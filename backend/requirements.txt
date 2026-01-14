@@ -20,6 +20,7 @@ ffmpeg-python
 pydub
 edge-tts
 gtts
+demucs  # UVR5 vocal separation
 
 # Subtitles
 webvtt-py

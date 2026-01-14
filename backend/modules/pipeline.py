@@ -39,6 +39,7 @@ try:
     from modules.audio_translator import AudioTranslator, TranslationConfig, TranslationResult
     from modules.instrumentation import MetricsCollector
     from modules.subtitle_generator import SubtitleGenerator
+    from modules.vocal_separator import VocalSeparator, DemucsModel
     MODULES_AVAILABLE = True
 except ImportError:
     MODULES_AVAILABLE = False
@@ -71,6 +72,8 @@ class PipelineConfig:
     use_faster_whisper: bool = True  # Open source optimization (FREE)
     crossfade_ms: int = 50  # Crossfade duration between chunks for smooth audio transitions
     use_vad: bool = False  # Disable VAD to preserve timing (default False for translation)
+    enable_vocal_separation: bool = False  # Enable high-quality vocal/background separation
+    vocal_separation_mode: str = "auto"    # "demucs", "uvr5", or "auto"
 
 @dataclass
 class VideoInfo:
@@ -117,6 +120,7 @@ class VideoTranslationPipeline:
         self.translator = None
         self.subtitle_generator = None
         self.metrics_collector = None
+        self.vocal_separator = None
         self.model_cache = {}  # In-memory cache (FREE)
 
         # Multi-GPU support
@@ -140,6 +144,16 @@ class VideoTranslationPipeline:
             except Exception as e:
                 logger.warning(f"AI Orchestrator initialization failed: {e}")
                 self.ai_mode = "rule"
+
+        # Initialize vocal separator if available
+        if MODULES_AVAILABLE:
+            try:
+                self.vocal_separator = VocalSeparator.create(
+                    force_cpu_fallback=(self.config.vocal_separation_mode == "uvr5" or not torch.cuda.is_available())
+                )
+                logger.info(f"VocalSeparator initialized: {self.vocal_separator}")
+            except Exception as e:
+                logger.warning(f"VocalSeparator initialization failed: {e}")
 
         # Create directories
         os.makedirs(self.config.temp_dir, exist_ok=True)
@@ -912,14 +926,38 @@ class VideoTranslationPipeline:
             logger.error(f"Failed to combine audio chunks: {e}")
             return None
 
-    def merge_files_fast(self, video_path: str, audio_path: str, output_path: str) -> bool:
-        """Merge audio and video quickly"""
+    def merge_files_fast(self, video_path: str, audio_path: str, output_path: str, instrumental_path: str = None) -> bool:
+        """Merge audio and video quickly, optionally mixing with background audio"""
         try:
-            # Use FFmpeg with optimized settings
+            input_audio = audio_path
+            
+            # If we have an instrumental track, mix it with the translated vocals
+            if instrumental_path and os.path.exists(instrumental_path):
+                logger.info(f"Mixing translated vocals with background music: {instrumental_path}")
+                mixed_audio = os.path.join(self.config.temp_dir, f"mixed_final_{uuid.uuid4().hex[:8]}.wav")
+                
+                # Combine using ffmpeg amix filter for speed and quality
+                cmd = [
+                    'ffmpeg', '-y',
+                    '-i', audio_path,        # Input 0: Translated vocals
+                    '-i', instrumental_path, # Input 1: Original background
+                    '-filter_complex', 'amix=inputs=2:duration=first:dropout_transition=2',
+                    '-ac', '2',
+                    '-ar', '44100',
+                    mixed_audio
+                ]
+                subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if os.path.exists(mixed_audio):
+                    input_audio = mixed_audio
+                    logger.info("Audio mixing complete")
+                else:
+                    logger.warning("Audio mixing failed, using translated vocals only")
+
+            # Use FFmpeg with optimized settings to merge with video
             cmd = [
                 'ffmpeg', '-y',
                 '-i', video_path,
-                '-i', audio_path,
+                '-i', input_audio,
                 '-c:v', 'copy',  # Copy video stream (fast)
                 '-c:a', 'aac',
                 '-b:a', '128k',  # Lower bitrate for speed
@@ -1006,25 +1044,42 @@ class VideoTranslationPipeline:
                     "target_language": target_lang
                 }
             
-            # 2. Extract audio
+            # 2. Extract and pre-process audio
             logger.info("2. Extracting audio...")
             if job_id:
-                self._update_job_progress(job_id, 15, "Extracting audio from video...", jobs_db=jobs_db)
-            audio_path = os.path.join(self.config.temp_dir, "audio.wav")
-            if not self.extract_audio_fast(video_path, audio_path):
-                return {
-                    "success": False,
-                    "error": "Audio extraction failed",
-                    "processing_time_s": (datetime.now() - start_time).total_seconds(),
-                    "output_path": "",
-                    "target_language": target_lang
-                }
+                self._update_job_progress(job_id, 15, "Extracting audio for analysis...", jobs_db=jobs_db)
             
-            # 3. Chunk audio in parallel
+            temp_audio = os.path.join(self.config.temp_dir, f"audio_{uuid.uuid4().hex[:8]}.wav")
+            if not self.extract_audio_fast(video_path, temp_audio):
+                raise Exception("Audio extraction failed")
+            
+            # --- VOCAL SEPARATION INTEGRATION ---
+            instrumental_audio = None
+            vocal_audio = temp_audio
+            
+            if self.config.enable_vocal_separation and self.vocal_separator:
+                try:
+                    logger.info("🎬 Magic Mode: Separating vocals from background music...")
+                    if job_id:
+                        self._update_job_progress(job_id, 20, "Separating vocals from background (Magic Mode)...", jobs_db=jobs_db)
+                    
+                    separation_dir = os.path.join(self.config.temp_dir, "separation")
+                    separation_result = self.vocal_separator.separate_with_fallback(vocal_audio, separation_dir)
+                    
+                    vocal_audio = separation_result.vocals_path
+                    instrumental_audio = separation_result.instrumental_path
+                    logger.info(f"Vocal separation complete. Vocals: {vocal_audio}, Instrumental: {instrumental_audio}")
+                except Exception as e:
+                    logger.warning(f"Vocal separation failed, continuing with original audio: {e}")
+                    vocal_audio = temp_audio
+                    instrumental_audio = None
+            # ------------------------------------
+            
+            # 3. Chunk audio
             logger.info("3. Chunking audio...")
             if job_id:
                 self._update_job_progress(job_id, 20, "Splitting video into chunks...", jobs_db=jobs_db)
-            chunks = self.chunk_audio_parallel(audio_path)
+            chunks = self.chunk_audio_parallel(vocal_audio)
             if not chunks:
                 return {
                     "success": False,
@@ -1117,7 +1172,7 @@ class VideoTranslationPipeline:
             logger.info(f"Final output path: {output_path}")
             
             logger.info(f"Calling merge_files_fast with output_path: {output_path}")
-            if not self.merge_files_fast(video_path, merged_audio, output_path):
+            if not self.merge_files_fast(video_path, merged_audio, output_path, instrumental_path=instrumental_audio):
                 return {
                     "error": "Video merge failed",
                     "processing_time_s": (datetime.now() - start_time).total_seconds(),

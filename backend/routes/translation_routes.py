@@ -881,7 +881,8 @@ async def translate_video(
     current_user: User = Depends(get_current_user),  # Authentication required
     background_tasks: BackgroundTasks = BackgroundTasks(),
     file: UploadFile = File(...),
-    target_language: str = Form("es")
+    target_language: str = Form("es"),
+    separate: bool = Form(False)
 ):
     """Basic video translation - direct processing"""
     try:
@@ -931,6 +932,7 @@ async def translate_video(
             "progress": 0,
             "file_path": file_path,
             "target_language": target_language,
+            "separate": separate,
             "original_filename": file.filename,
             "user_id": current_user.id,
             "user_email": current_user.email,
@@ -972,7 +974,8 @@ async def translate_video(
             job_id,
             file_path,
             target_language,
-            current_user.id
+            current_user.id,
+            separate
         )
 
         return {
@@ -1588,7 +1591,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         except Exception as refund_error:
             print(f"Failed to refund credits: {refund_error}")
 
-async def process_video_job(job_id, file_path, target_language, user_id):
+async def process_video_job(job_id, file_path, target_language, user_id, separate=False):
     """Background task for FULL video translation with AI pipeline"""
     try:
         print(f"Starting FULL AI video translation job {job_id}")
@@ -1629,7 +1632,8 @@ async def process_video_job(job_id, file_path, target_language, user_id):
                     chunk_size=30,  # Process in 30-second chunks
                     # use_gpu defaults to auto-detect in PipelineConfig
                     temp_dir="/tmp/octavia_video",
-                    output_dir="backend/outputs"
+                    output_dir="backend/outputs",
+                    enable_vocal_separation=separate
                 )
 
                 pipeline = VideoTranslationPipeline(config)
@@ -1761,14 +1765,8 @@ async def process_video_job(job_id, file_path, target_language, user_id):
         # FULL AI PIPELINE: Use the complete video translation pipeline
         from modules.pipeline import VideoTranslationPipeline, PipelineConfig
 
-        # Configure pipeline for full processing
-        config = PipelineConfig(
-            chunk_size=30,  # Process in 30-second chunks
-            use_gpu=False,  # Use CPU for broader compatibility
-            temp_dir="/tmp/octavia_video",
-            output_dir="backend/backend/outputs"  # Output to the requested directory
-        )
-
+        # Initialize pipeline
+        config = PipelineConfig()
         pipeline = VideoTranslationPipeline(config)
 
         jobs_db[job_id]["progress"] = 20

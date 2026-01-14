@@ -69,6 +69,7 @@ class TranslationConfig:
     use_nllb_translation: bool = True  # Use NLLB for better Chinese translation
     translation_quality_check: bool = True  # Verify translation quality
     use_vad: bool = False  # Disable VAD for translation to preserve timing
+    temp_dir: str = "/tmp/octavia"  # Temporary directory for intermediate files
 
 @dataclass
 class TranslationResult:
@@ -3018,6 +3019,9 @@ Corrected translation:"""
 
         original_audio = AudioSegment.from_file(audio_path)
         original_duration_ms = len(original_audio)
+
+        # Ensure temp directory exists
+        os.makedirs(self.config.temp_dir, exist_ok=True)
 
         output_path = os.path.join(
             self.config.temp_dir,

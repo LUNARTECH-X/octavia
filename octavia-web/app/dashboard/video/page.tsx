@@ -21,6 +21,7 @@ export default function VideoTranslationPage() {
     estimatedDuration: string;
     detectedLanguage?: string;
   } | null>(null);
+  const [separate, setSeparate] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -104,6 +105,7 @@ export default function VideoTranslationPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('target_language', targetLanguage);
+      formData.append('separate', separate.toString());
 
       // Call the enhanced video translation endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/translate/video`, {
@@ -183,6 +185,7 @@ export default function VideoTranslationPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('target_language', targetLanguage);
+      formData.append('separate', separate.toString());
       formData.append('chunk_size', '10'); // 10s Chunk size for deeper processing
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/translate/video/enhanced`, {
@@ -629,6 +632,35 @@ export default function VideoTranslationPage() {
               <CheckCircle className="w-3.5 h-3.5 text-accent-pink" />
               <span className="text-slate-200 text-xs font-medium">Subtitle Generation</span>
             </div>
+          </div>
+
+          {/* Magic Mode Toggle */}
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <label className="flex items-center justify-between cursor-pointer group/toggle">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${separate ? 'bg-indigo-500/20 shadow-glow border-indigo-500/50' : 'bg-white/5 border-white/10'}`}>
+                  <Sparkles className={`w-5 h-5 ${separate ? 'text-indigo-400' : 'text-slate-500'}`} />
+                </div>
+                <div>
+                  <h4 className="text-white text-sm font-bold flex items-center gap-2">
+                    Magic Mode (Vocal Separation)
+                    {separate && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500 text-white uppercase tracking-wider animate-pulse">Active</span>}
+                  </h4>
+                  <p className="text-slate-400 text-xs">Separate background music from vocals for cleaner dubbing</p>
+                </div>
+              </div>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={separate}
+                  onChange={() => setSeparate(!separate)}
+                  disabled={loading}
+                />
+                <div className={`block w-14 h-8 rounded-full transition-all ${separate ? 'bg-indigo-600 shadow-glow' : 'bg-slate-700'}`}></div>
+                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-all ${separate ? 'transform translate-x-6 shadow-lg' : ''}`}></div>
+              </div>
+            </label>
           </div>
         </div>
       </div>

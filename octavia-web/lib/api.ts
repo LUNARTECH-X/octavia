@@ -793,10 +793,11 @@ class ApiService {
   }
 
   // Translate video file
-  async translateVideo(file: File, targetLanguage: string): Promise<ApiResponse<{ job_id: string }>> {
+  async translateVideo(file: File, targetLanguage: string, separate: boolean = false): Promise<ApiResponse<{ job_id: string }>> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('target_language', targetLanguage);
+    formData.append('separate', separate.toString());
 
     return this.request<{ job_id: string }>('/api/translate/video', {
       method: 'POST',
@@ -1142,7 +1143,7 @@ class ApiService {
         }
 
         console.log(`Endpoint ${endpoint} returned ${response.status}`);
-        
+
         // Continue to next endpoint on 404
         if (response.status === 404) {
           continue;
