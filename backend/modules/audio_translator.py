@@ -57,13 +57,13 @@ class TranslationConfig:
     target_lufs: float = -16.0
     # Ollama LLM post-processing for translation quality
     use_ollama_post_processing: bool = True
-    ollama_model: str = "qwen2.5-coder:1.5b"
+    ollama_model: str = "qwen2.5:1.5b"
     ollama_host: str = "http://localhost:11434"
-    ollama_timeout: int = 60  # Increased timeout for slower systems
+    ollama_timeout: int = 120  # Increased timeout for slower systems
     # Ollama-guided sentence boundary detection for CJK languages
     use_ollama_boundary_detection: bool = True
-    ollama_boundary_model: str = "qwen2.5-coder:1.5b"  # Use reliable model
-    ollama_boundary_timeout: int = 30  # Reasonable timeout for boundary detection
+    ollama_boundary_model: str = "qwen2.5:1.5b"  # Use reliable model
+    ollama_boundary_timeout: int = 60  # Reasonable timeout for boundary detection
     min_segment_length_chars: int = 10  # Minimum characters per segment for CJK
     # High-quality translation settings
     use_nllb_translation: bool = True  # Use NLLB for better Chinese translation
@@ -105,6 +105,19 @@ class TranslationResult:
 class AudioTranslator:
     """Main audio translation class with improved quality"""
     
+    # NLLB-200 model configuration for high-quality CJK translation
+    NLLB_MODEL_NAME = "facebook/nllb-200-distilled-600M"
+    NLLB_LANG_MAP = {
+        "en": "eng_Latn",
+        "zh": "zho_Hans",
+        "ja": "jpn_Jpan",
+        "ko": "kor_Hang",
+        "ru": "rus_Cyrl",
+        "fr": "fra_Latn",
+        "de": "deu_Latn",
+        "es": "spa_Latn"
+    }
+
     # Translation model mapping - Helsinki-NLP models for all language pairs
     MODEL_MAPPING = {
         # English to other languages
@@ -327,42 +340,61 @@ class AudioTranslator:
             if self.config.source_lang != "auto":
                 logger.info("Loading translation model...")
                 model_key = f"{self.config.source_lang}-{self.config.target_lang}"
-                model_name = self.MODEL_MAPPING.get(model_key)
+                
+                # Check if we should use NLLB for this language pair
+                is_cjk = self.config.source_lang in ['zh', 'ja', 'ko']
+                use_nllb = self.config.use_nllb_translation and (is_cjk or self.config.source_lang == 'ru')
+                
+                if use_nllb:
+                    logger.info(f"Loading NLLB-200 model for {model_key}...")
+                    try:
+                        self.nllb_tokenizer = AutoTokenizer.from_pretrained(self.NLLB_MODEL_NAME)
+                        self.nllb_model = AutoModelForSeq2SeqLM.from_pretrained(
+                            self.NLLB_MODEL_NAME,
+                            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                        ).to("cuda" if torch.cuda.is_available() else "cpu")
+                        logger.info(f"[OK] Loaded NLLB-200 model ({self.NLLB_MODEL_NAME})")
+                    except Exception as nllb_err:
+                        logger.warning(f"Failed to load NLLB model: {nllb_err}, falling back to MarianMT")
+                        use_nllb = False
 
-                if model_name is None:
-                    logger.info(f"Same-language translation ({model_key}), skipping translation model")
-                    self.translation_pipeline = None
-                elif not model_name:
-                    logger.warning(f"Model not found for {model_key}, using Helsinki-NLP/opus-mt-mul-en")
-                    model_name = "Helsinki-NLP/opus-mt-mul-en"
+                if not use_nllb:
+                    model_name = self.MODEL_MAPPING.get(model_key)
 
-                    # Load tokenizer and model with optimizations
-                    self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
-                    self.translation_model = MarianMTModel.from_pretrained(model_name)
+                    if model_name is None:
+                        logger.info(f"Same-language translation ({model_key}), skipping translation model")
+                        self.translation_pipeline = None
+                    elif not model_name:
+                        logger.warning(f"Model not found for {model_key}, using Helsinki-NLP/opus-mt-mul-en")
+                        model_name = "Helsinki-NLP/opus-mt-mul-en"
 
-                    # SPEED OPTIMIZATION: Use GPU if available for translation
-                    device = 0 if torch.cuda.is_available() else -1
-                    self.translation_pipeline = pipeline(
-                        "translation",
-                        model=self.translation_model,
-                        tokenizer=self.translation_tokenizer,
-                        device=device,
-                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-                    )
-                else:
-                    # Load tokenizer and model with optimizations
-                    self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
-                    self.translation_model = MarianMTModel.from_pretrained(model_name)
+                        # Load tokenizer and model with optimizations
+                        self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                        self.translation_model = MarianMTModel.from_pretrained(model_name)
 
-                    # SPEED OPTIMIZATION: Use GPU if available for translation
-                    device = 0 if torch.cuda.is_available() else -1
-                    self.translation_pipeline = pipeline(
-                        "translation",
-                        model=self.translation_model,
-                        tokenizer=self.translation_tokenizer,
-                        device=device,
-                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-                    )
+                        # SPEED OPTIMIZATION: Use GPU if available for translation
+                        device = 0 if torch.cuda.is_available() else -1
+                        self.translation_pipeline = pipeline(
+                            "translation",
+                            model=self.translation_model,
+                            tokenizer=self.translation_tokenizer,
+                            device=device,
+                            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                        )
+                    else:
+                        # Load tokenizer and model with optimizations
+                        self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                        self.translation_model = MarianMTModel.from_pretrained(model_name)
+
+                        # SPEED OPTIMIZATION: Use GPU if available for translation
+                        device = 0 if torch.cuda.is_available() else -1
+                        self.translation_pipeline = pipeline(
+                            "translation",
+                            model=self.translation_model,
+                            tokenizer=self.translation_tokenizer,
+                            device=device,
+                            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                        )
             else:
                  logger.info("Skipping translation model load (language auto-detection enabled)")
 
@@ -1144,11 +1176,45 @@ DO NOT include any other text:"""
             is_clean, issues = self._check_for_orphaned_words(segments, 'ko')
             if not is_clean:
                 regrouped = self._regroup_segments(text, issues, 'ko')
-                if regrouped:
-                    return regrouped
-        
         return segments
-    
+
+    def _translate_with_nllb(self, text: str, source_lang: str, target_lang: str) -> Optional[str]:
+        """Translate text using NLLB-200 model for higher quality CJK/Russian"""
+        try:
+            if not self.nllb_model or not self.nllb_tokenizer:
+                logger.warning("NLLB model or tokenizer not loaded, falling back")
+                return None
+
+            # Map language codes to NLLB codes
+            src_nllb = self.NLLB_LANG_MAP.get(source_lang)
+            tgt_nllb = self.NLLB_LANG_MAP.get(target_lang)
+
+            if not src_nllb or not tgt_nllb:
+                logger.warning(f"Language map not found for {source_lang}->{target_lang}")
+                return None
+
+            # Prepare input with correct source language
+            self.nllb_tokenizer.src_lang = src_nllb
+            inputs = self.nllb_tokenizer(text, return_tensors="pt").to(self.nllb_model.device)
+
+            # Generate translation
+            translated_tokens = self.nllb_model.generate(
+                **inputs,
+                forced_bos_token_id=self.nllb_tokenizer.convert_tokens_to_ids(tgt_nllb),
+                max_length=512,
+                num_beams=4,
+                temperature=0.3
+            )
+
+            # Decode
+            translated_text = self.nllb_tokenizer.batch_decode(translated_tokens, skip_special_tokens=True)[0]
+            logger.info(f"[NLLB] '{text[:30]}...' -> '{translated_text[:30]}...'")
+            return translated_text.strip()
+
+        except Exception as e:
+            logger.error(f"NLLB translation failed: {e}")
+            return None
+
     def _translate_chinese_with_context(self, text: str, original_segments: List[Dict] = None) -> Tuple[Optional[str], List[Dict]]:
         """Translate Chinese text with context awareness and entity preservation.
         
@@ -1156,7 +1222,10 @@ DO NOT include any other text:"""
             Tuple of (translated_text, translated_segments_with_timing)
         """
         try:
-            if not self.translation_pipeline:
+            # Check if NLLB should be used
+            use_nllb = self.config.use_nllb_translation and self.nllb_model is not None
+            
+            if not use_nllb and not self.translation_pipeline:
                 return None, []
             
             # Extract entities first for consistency
@@ -1167,8 +1236,16 @@ DO NOT include any other text:"""
             
             if len(segmented_texts) <= 1:
                 # Single segment - translate directly
-                result = self.translation_pipeline(text, max_length=512, num_beams=4)
-                translated_text = result[0]['translation_text']
+                if use_nllb:
+                    translated_text = self._translate_with_nllb(text, "zh", self.config.target_lang)
+                else:
+                    # Generic fallback to MarianMT only if NLLB is disabled
+                    result = self.translation_pipeline(text, max_length=512, num_beams=4)
+                    translated_text = result[0]['translation_text']
+                
+                if not translated_text:
+                    logger.warning("Chinese translation failed to produce output")
+                    return None, []
                 
                 # Return segments with original timing
                 if original_segments:
@@ -1189,13 +1266,20 @@ DO NOT include any other text:"""
             
             for i, seg_text in enumerate(segmented_texts):
                 # Translate this segment
-                result = self.translation_pipeline(
-                    seg_text, 
-                    max_length=512, 
-                    num_beams=4,
-                    temperature=0.3
-                )
-                translated = result[0]['translation_text'].strip()
+                if use_nllb:
+                    translated = self._translate_with_nllb(seg_text, "zh", self.config.target_lang)
+                else:
+                    result = self.translation_pipeline(
+                        seg_text, 
+                        max_length=512, 
+                        num_beams=4,
+                        temperature=0.3
+                    )
+                    translated = result[0]['translation_text'].strip()
+                
+                if not translated:
+                    translated = seg_text # Fallback to original if translation failed
+                
                 translated_parts.append(translated)
                 
                 # Find best matching original segment for timing
@@ -1307,18 +1391,29 @@ DO NOT include any other text:"""
                 if len(sentences) > 1:
                     logger.info(f"Split {len(text)} chars into {len(sentences)} segments for translation")
                     translated_sentences = []
+                    
+                    # Use NLLB if available
+                    use_nllb = self.config.use_nllb_translation and self.nllb_model is not None
+                    
                     for i, sent in enumerate(sentences):
                         if len(sent) > 2:
                             try:
-                                # Use more beams for CJK to improve quality
-                                result = self.translation_pipeline(
-                                    sent, 
-                                    max_length=512, 
-                                    num_beams=6,  # Increased for better quality
-                                    temperature=0.3,
-                                    early_stopping=True
-                                )
-                                translated_sent = result[0]['translation_text']
+                                if use_nllb:
+                                    translated_sent = self._translate_with_nllb(sent, self.config.source_lang, self.config.target_lang)
+                                else:
+                                    # Use more beams for CJK to improve quality
+                                    result = self.translation_pipeline(
+                                        sent, 
+                                        max_length=512, 
+                                        num_beams=6,  # Increased for better quality
+                                        temperature=0.3,
+                                        early_stopping=True
+                                    )
+                                    translated_sent = result[0]['translation_text']
+                                
+                                if not translated_sent:
+                                    translated_sent = sent
+                                    
                                 # Restore marked entities
                                 for cn, en in entities.items():
                                     translated_sent = translated_sent.replace(f"[[{en}]]", en)
@@ -1332,8 +1427,13 @@ DO NOT include any other text:"""
                                 translated_sentences.append(restored)
                     
                     return ' '.join(translated_sentences)
-            
+                
             # Fallback to direct translation with optimized settings
+            # Use NLLB if available
+            if self.config.use_nllb_translation and self.nllb_model is not None:
+                translated = self._translate_with_nllb(text, self.config.source_lang, self.config.target_lang)
+                if translated:
+                    return translated
             result = self.translation_pipeline(
                 text, 
                 max_length=1024, 
@@ -1375,7 +1475,7 @@ DO NOT include any other text:"""
             logger.warning(f"Ollama not available: {e}")
             return False
     
-    def _post_process_translation_with_llm(self, text: str, source_lang: str = "zh") -> str:
+    def _post_process_translation_with_llm(self, text: str, source_lang: str, original_text: str = "", duration: float = 0, context: Dict = None) -> str:
         """Use Ollama LLM to fix translation quality issues for difficult language pairs only"""
         try:
             if not self.config.use_ollama_post_processing:
@@ -1395,128 +1495,99 @@ DO NOT include any other text:"""
             import urllib.error
             import json
             
-            # Enhanced Chinese-specific translation prompt
+            # Setup prompt with context and timing constraints if available
+            context_str = ""
+            if context:
+                prev_text = context.get('prev', '')
+                next_text = context.get('next', '')
+                if prev_text:
+                    context_str += f"- Previous sentence: {prev_text}\n"
+                if next_text:
+                    context_str += f"- Next sentence: {next_text}\n"
+
+            timing_constraint = ""
+            if duration > 0:
+                # Estimate word count based on 3.5 words/second average speech rate
+                max_words = max(5, int(duration * 3.5))
+                timing_constraint = f"3. FIT-TO-TIME: The translation MUST be spoken in approximately {duration:.1f} seconds (roughly {max_words} words)."
+
+            # Chinese-specific prompt with context and timing
             if source_lang == 'zh':
-                prompt = """You are a professional Chinese-to-English translator specializing in children's dialogue and family conversations. Your task is to polish the following translation to make it sound natural, fluent, and appropriate for its context.
+                prompt = f"""You are a professional Chinese to English localization expert. 
+Your task is to refine a raw translation to make it sound natural while fitting it into a specific time window.
 
-ORIGINAL CHINESE TRANSLATION TO POLISH:
-""" + text + """
+INPUT:
+- Original Chinese: "{original_text}"
+- Raw Translation: "{text}"
+- Duration: {duration:.1f} seconds
+{context_str}
 
-CRITICAL RULES FOR CHINESE-TO-ENGLISH TRANSLATION:
+RULES:
+1. NAME TRANSLITERATION: Keep characters consistent: 
+   - "小龙" -> "Xiao Long"
+   - "大象" -> "Elephant"
+   - "森莉" or "森丽" -> "Teacher Senli"
+   - "森林老师" -> "Teacher Senlin" (NEVER "Forest Teacher")
+2. NATURAL FLOW: Ensure the English sounds like it was written by a native speaker.
+{timing_constraint}
+4. NO FILLER: DO NOT include conversational filler (no "Sure!", no "Here is...").
+5. SOLO OUTPUT: Return ONLY the refined text.
 
-1. NAME TRANSLITERATION (ABSOLUTELY CRITICAL):
-   - "小龙" → ALWAYS use "Xiao Long" (never "Little Dragon", "Xiao Lung", or "Bruce")
-   - "大象" → ALWAYS use "Elephant" (never "Big Elephant")
-   - "森丽老师" → "Teacher Senli" or "Senli" (teacher + first name, NEVER "Forest Beauty")
-   - "森林老师" → "Teacher Senlin" (NOT "Forest Teacher")
-   - Use pinyin-based transliteration: family name first, given name second
-   - Keep the exact spelling from the original consistently throughout
-
-2. FAMILY RELATIONSHIPS - USE NATURAL ENGLISH:
-   - "爸爸/父亲" → "dad" (in casual children's dialogue, "father" sounds too formal)
-   - "妈妈/母亲" → "mom" (in casual children's dialogue, "mother" sounds too formal)
-   - "爷爷/外公" → "grandpa"
-   - "奶奶/外婆" → "grandma"
-   - "哥哥" → "big brother" (not "elder brother")
-   - "弟弟" → "little brother"
-   - "姐姐" → "big sister"
-   - "妹妹" → "little sister"
-
-3. NATURAL DIALOGUE MARKERS:
-   - Chinese dialogue often uses simple sentences without "said"
-   - Keep it brief: "Hi, I'm Senli. Hi, teacher."
-   - Avoid: "Hi, my name is Senli, and I am speaking to the teacher."
-   - Use contractions appropriately for casual speech: "I'm", "He's", "She's"
-
-4. CONVERSATIONAL FLUENCY:
-   - Children's dialogue should sound like real children speaking
-   - Short sentences, simple vocabulary
-   - Use "yeah", "okay", "sure" for affirmative responses
-   - "可以可以" → "Sure, sure!" or "OK, OK!" (enthusiastic agreement)
-   - "太好了" → "Great!" or "Perfect!"
-   - "谢谢" → "Thanks!" (not "Thank you" in casual dialogue)
-
-5. CONTEXT PRESERVATION:
-   - Maintain the cheerful, friendly tone of children's conversation
-   - Keep family relationships clear (who is talking to whom)
-   - Preserve the sense of politeness common in Chinese children's shows
-
-6. PUNCTUATION AND FORMATTING:
-   - Use commas naturally in English: "Hi, I'm Senli. Hi, teacher."
-   - End sentences with appropriate punctuation
-   - Keep proper nouns capitalized
-
-OUTPUT: Return ONLY the polished English translation. Do not include any explanations or notes.
-
-POLISHED TRANSLATION:"""
+Refined translation:"""
             
             # Japanese-specific prompt
             elif source_lang == 'ja':
-                prompt = """You are a professional Japanese to English translator. Apply these rules:
+                prompt = f"""You are a professional Japanese to English localization expert. 
+Refine the translation to be natural and fit the timing.
 
-1. NAME TRANSLITERATION:
-   - Use established English equivalents when available
-   - Transliterate unknown names using Japanese pronunciation
+INPUT:
+- Original Japanese: "{original_text}"
+- Raw Translation: "{text}"
+- Duration: {duration:.1f} seconds
+{context_str}
 
-2. GRAMMAR FIXES:
-   - "です" → appropriate English structure
-   - Fix subject/object omissions (Japanese often omits subjects)
-   - Handle respect language appropriately
+RULES:
+1. Subject Preservation: Japanese often omits subjects; ensure they are clear in English.
+2. Natural Rhythm: {timing_constraint if timing_constraint else "Ensure it sounds natural."}
+3. NO FILLER: DO NOT include conversational filler.
+4. SOLO OUTPUT: Return ONLY the refined text.
 
-3. CULTURAL EXPRESSIONS:
-   - Keep cultural context where relevant
-   - Translate idioms by meaning, not literally
-
-4. NUMBERS & TIME:
-   - Convert Japanese numbering appropriately
-   - Handle Japanese era dates if present
-
-Output ONLY the corrected translation:
-
-""" + text + """
-
-Corrected translation:"""
+Refined translation:"""
             
             # Korean-specific prompt  
             elif source_lang == 'ko':
-                prompt = """You are a professional Korean to English translator. Apply these rules:
+                prompt = f"""You are a professional Korean to English localization expert. 
+Refine the translation to be natural and fit the timing.
 
-1. NAME TRANSLITERATION:
-   - Transliterate Korean names to English
-   - Use pinyin-based but Korean-specific conventions
+INPUT:
+- Original Korean: "{original_text}"
+- Raw Translation: "{text}"
+- Duration: {duration:.1f} seconds
+{context_str}
 
-2. HONORIFICS:
-   - Handle Korean honorifics appropriately
-   - "아버지" → "father" or "dad" based on context
+RULES:
+1. Honorifics: Handle Korean honorifics appropriately.
+2. Natural Rhythm: {timing_constraint if timing_constraint else "Ensure it sounds natural."}
+3. NO FILLER: DO NOT include conversational filler.
+4. SOLO OUTPUT: Return ONLY the refined text.
 
-3. GRAMMAR FIXES:
-   - Fix Korean-to-English structural issues
-   - Handle particle translations
-
-4. CULTURAL EXPRESSIONS:
-   - Translate Korean idioms by meaning
-
-Output ONLY the corrected translation:
-
-""" + text + """
-
-Corrected translation:"""
+Refined translation:"""
             
             else:
                 # Generic prompt for other languages
-                prompt = f"""You are a professional {source_lang} to English translator.
-Your ONLY task is to return the corrected translation.
-Rules:
-1. Fix grammar and fluency issues.
-2. Normalize names.
-3. KEEP meaning intact.
-4. DO NOT add conversational fillers like "Here is the translation" or "Sure!".
-5. DO NOT provide explanations.
-6. Return ONLY the translated text.
+                prompt = f"""You are a professional localization expert.
+Refine the raw translation for grammar, fluency, and timing.
 
-Source: "{text}"
+INPUT:
+- Source: "{original_text}"
+- Raw Translation: "{text}"
+- Duration: {duration:.1f} seconds
+{context_str}
 
-Corrected translation:"""
+Refine the text to fit the {duration:.1f}s window while keeping meaning intact.
+Output ONLY the refined text.
+
+Refined translation:"""
             
             url = f"{self.config.ollama_host}/api/generate"
             
@@ -1536,7 +1607,7 @@ Corrected translation:"""
             req.add_header('Content-Type', 'application/json')
             
             # Increase timeout to 120s for slower local inference
-            with urllib.request.urlopen(req, timeout=120) as response:
+            with urllib.request.urlopen(req, timeout=self.config.ollama_timeout) as response:
                 result = json_mod.loads(response.read().decode())
                 corrected = result.get('response', '').strip()
                 
@@ -1556,82 +1627,7 @@ Corrected translation:"""
             logger.error(f"Ollama post-processing failed: {e}")
             return text
     
-    def _load_nllb_model(self):
-        """Load NLLB-200 distilled model for Chinese→English translation"""
-        try:
-            model_name = "facebook/nllb-200-distilled-600M"
-            logger.info(f"Loading NLLB-200 distilled model: {model_name}")
-            self.nllb_tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.nllb_model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-            logger.info("[OK] NLLB-200 distilled model loaded successfully")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to load NLLB model: {e}")
-            return False
     
-    def _translate_with_nllb(self, text: str) -> Optional[str]:
-        """Translate using NLLB-200 distilled model (best for Chinese→English)"""
-        try:
-            if not self.nllb_model:
-                if not self._load_nllb_model():
-                    return None
-            
-            input_length = len(text)
-            
-            inputs = self.nllb_tokenizer(text, return_tensors="pt", src_lang="zho_Hans")
-            
-            max_new_tokens = min(input_length * 2, 1024)
-            
-            translated = self.nllb_model.generate(
-                **inputs,
-                tgt_lang="eng_Latn",
-                max_new_tokens=max_new_tokens,
-                num_beams=1,
-                do_sample=False
-            )
-            
-            result = self.nllb_tokenizer.batch_decode(translated, skip_special_tokens=True)[0]
-            logger.info(f"NLLB translation: '{text[:50]}...' -> '{result[:50]}...'")
-            return result
-        except Exception as e:
-            logger.error(f"NLLB translation failed: {e}")
-            return None
-    
-    def _load_m2m100_model(self):
-        """Load M2M100 model as fallback for translation"""
-        try:
-            model_name = "facebook/m2m100_418M"
-            logger.info(f"Loading M2M100 model: {model_name}")
-            self.m2m100_tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.m2m100_model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-            logger.info("[OK] M2M100 model loaded successfully")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to load M2M100 model: {e}")
-            return False
-    
-    def _translate_with_m2m100(self, text: str) -> Optional[str]:
-        """Translate using M2M100 as fallback (supports 100+ languages)"""
-        try:
-            if not self.m2m100_model:
-                if not self._load_m2m100_model():
-                    return None
-            
-            inputs = self.m2m100_tokenizer(text, return_tensors="pt", src_lang="zh")
-            
-            translated = self.m2m100_model.generate(
-                **inputs,
-                tgt_lang="en",
-                max_new_tokens=len(text) * 2,
-                num_beams=1
-            )
-            
-            result = self.m2m100_tokenizer.batch_decode(translated, skip_special_tokens=True)[0]
-            logger.info(f"M2M100 translation: '{text[:50]}...' -> '{result[:50]}...'")
-            return result
-        except Exception as e:
-            logger.error(f"M2M100 translation failed: {e}")
-            return None
     
     def _translate_with_rule_based(self, text: str, source_lang: str, target_lang: str) -> str:
         """Fallback rule-based translation for unsupported language pairs"""
@@ -1648,6 +1644,8 @@ Corrected translation:"""
     
     def translate_text_with_context(self, text: str, segments: List[Dict]) -> Tuple[str, List[Dict]]:
         """Translate text with segment context preservation. Fails loudly if translation is a no-op or fallback."""
+        # Initialize translated_segments here so it's not cleared later
+        translated_segments = []
         try:
             if not self.translation_pipeline:
                 self.load_models()
@@ -1656,7 +1654,6 @@ Corrected translation:"""
             if self.config.source_lang == self.config.target_lang:
                 logger.info(f"Same-language translation ({self.config.source_lang}-{self.config.target_lang}), returning original text")
                 # Create translated segments that mirror the original segments
-                translated_segments = []
                 if segments:
                     for seg in segments:
                         translated_segments.append({
@@ -1694,13 +1691,22 @@ Corrected translation:"""
                 # Store original segments for timing
                 original_segments_for_timing = segments[:]
                 
+                # Segment text
                 if self.config.source_lang == 'ja':
                     segmented_texts = self._segment_japanese_text(text)
                 else:
                     segmented_texts = self._segment_korean_text(text)
                 
+                # Check for NLLB availability
+                is_cjk = self.config.source_lang in ['zh', 'ja', 'ko']
+                use_nllb = self.config.use_nllb_translation and hasattr(self, 'nllb_model') and self.nllb_model is not None
+                
                 if len(segmented_texts) <= 1:
-                    translated_text = self._translate_with_marian(text)
+                    if use_nllb:
+                        translated_text = self._translate_with_nllb(text, self.config.source_lang, self.config.target_lang)
+                    else:
+                        translated_text = self._translate_with_marian(text)
+                    
                     translated_segments = []
                     for seg in original_segments_for_timing:
                         translated_segments.append({
@@ -1711,26 +1717,24 @@ Corrected translation:"""
                             "words": seg.get("words", [])
                         })
                 else:
-                    # Translate each segment and preserve timing from original segments
+                    # Translate each segment
                     translated_segments = []
                     translated_parts = []
                     
-                    # Align segmented texts with original segments by length
-                    orig_segment_lengths = [len(seg.get("text", "")) for seg in original_segments_for_timing]
-                    total_orig_len = sum(orig_segment_lengths)
-                    
                     for i, seg_text in enumerate(segmented_texts):
                         # Translate this segment
-                        result = self.translation_pipeline(seg_text, max_length=512, num_beams=4)
-                        trans = result[0]['translation_text']
+                        if use_nllb:
+                            trans = self._translate_with_nllb(seg_text, self.config.source_lang, self.config.target_lang)
+                        else:
+                            result = self.translation_pipeline(seg_text, max_length=512, num_beams=4)
+                            trans = result[0]['translation_text']
+                        
                         translated_parts.append(trans)
                         
                         # Find the best matching original segment for timing
-                        # Use cumulative length to find which original segment this belongs to
                         start_pos = sum(len(s) for s in segmented_texts[:i])
                         end_pos = start_pos + len(seg_text)
                         
-                        # Find segment that overlaps most with this position
                         best_seg = None
                         best_overlap = 0
                         cum_pos = 0
@@ -1739,7 +1743,6 @@ Corrected translation:"""
                             seg_start = cum_pos
                             seg_end = cum_pos + seg_len
                             
-                            # Calculate overlap
                             overlap_start = max(start_pos, seg_start)
                             overlap_end = min(end_pos, seg_end)
                             overlap = max(0, overlap_end - overlap_start)
@@ -1777,13 +1780,42 @@ Corrected translation:"""
             else:
                 logger.info(f"Translation result: '{translated_text[:100]}...'")
             
-            # Post-process with Ollama LLM for CJK and Russian (improves quality)
+            # Post-process with Ollama LLM for quality/timing optimization
             if self.config.use_ollama_post_processing and translated_text:
-                logger.info("Post-processing translation with Ollama LLM...")
-                corrected_text = self._post_process_translation_with_llm(translated_text, self.config.source_lang)
-                if corrected_text and corrected_text != translated_text:
-                    logger.info(f"Ollama corrected: '{corrected_text[:100]}...'")
-                    translated_text = corrected_text
+                is_cjk = self.config.source_lang in ['zh', 'ja', 'ko']
+                use_nllb = self.config.use_nllb_translation and hasattr(self, 'nllb_model') and self.nllb_model is not None
+                
+                # Two-Pass Strategy for CJK: Per-segment refinement with context and timing
+                if is_cjk and use_nllb and translated_segments:
+                    logger.info("Solo NLLB Pass 2: Per-segment LLM refinement with timing and context...")
+                    refined_parts = []
+                    for i, seg in enumerate(translated_segments):
+                        orig_text = seg.get('original_text', '')
+                        trans_text = seg.get('translated_text', '')
+                        duration = seg.get('end', 0) - seg.get('start', 0)
+                        
+                        # Gather context
+                        context = {
+                            'prev': translated_segments[i-1].get('original_text', '') if i > 0 else '',
+                            'next': translated_segments[i+1].get('original_text', '') if i < len(translated_segments) - 1 else ''
+                        }
+                        
+                        refined = self._post_process_translation_with_llm(
+                            trans_text, self.config.source_lang, 
+                            original_text=orig_text, duration=duration, context=context
+                        )
+                        seg['translated_text'] = refined
+                        refined_parts.append(refined)
+                    
+                    translated_text = ' '.join(refined_parts)
+                
+                # Standard post-processing (One-Pass or fallback)
+                else:
+                    logger.info("Post-processing translation with Ollama LLM...")
+                    corrected_text = self._post_process_translation_with_llm(translated_text, self.config.source_lang)
+                    if corrected_text and corrected_text != translated_text:
+                        logger.info(f"Ollama corrected: '{corrected_text[:100]}...'")
+                        translated_text = corrected_text
 
             # Ensure we have translated text
             if not translated_text or len(translated_text.strip()) < 1:
@@ -1806,9 +1838,7 @@ Corrected translation:"""
         # Clean the translation
         translated_text = self._clean_translation(translated_text)
         
-        # Create translated segments with proper handling
-        # Initialize to empty list first
-        translated_segments = []
+        # Create translated segments with proper handling if not already created
         
         # Skip character-ratio splitting if we already have aligned segments
         if translated_segments:

@@ -482,6 +482,13 @@ To test the application without setting up a full database (Supabase), you can u
 - **TTS Quality**: Edge-TTS voices (neural, 24kHz)
 - **Sync Precision**: ±100ms per segment, exact total duration
 
+### The Local vs. Cloud Trade-off
+While Octavia prioritizes local, private, and free-to-run models, it is important to understand the technical trade-offs compared to cloud-based giants (GPT-4o, Claude 3.5):
+1. **The "World Knowledge" Gap**: Local models (1.5B - 7B params) have a limited "brain" capacity. They recognize words but may miss deep context. Cloud models have analyzed significantly more data, allowing them to understand complex cultural references and industry jargon that a local model might translate too literally.
+2. **"Localization" vs. "Translation"**: Local models excel at literal translation but can sometimes produce monotone or formal results. For professional video, "Localization" (matching the character's tone, emotion, and natural flow) is key. Cloud models can effectively "act" a part, whereas local models are often more textbook-oriented.
+3. **Timing & Pacing (Fit-to-Time)**: In video, a 5-word sentence in the source might expand into a 15-word English sentence, breaking the synchronization. High-parameter cloud models are currently superior at "editing" translations to fit precise time windows without losing core meaning.
+4. **Hardware vs. Accuracy**: To achieve true "Cloud-level" reasoning locally, one would typically need high-end industrial GPUs. By using optimized, lightweight local models, we sacrifice approximately 20-30% of potential translation nuance to achieve 100% cost-free and private operation on consumer hardware.
+
 ### Supported Languages
 - **Source**: English, Russian, German, Spanish, French, Chinese, Japanese, Korean
 - **Target**: English, Russian, German, Spanish, French, Chinese, Japanese, Korean

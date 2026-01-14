@@ -78,6 +78,7 @@ class PipelineConfig:
     use_semantic_chunking: bool = True
     enable_vocal_separation: bool = False  # Enable high-quality vocal/background separation
     vocal_separation_mode: str = "auto"    # "demucs", "uvr5", or "auto"
+    use_nllb_translation: bool = True     # Use NLLB-200 for higher quality CJK translation
 
 @dataclass
 class VideoInfo:
@@ -273,7 +274,8 @@ class VideoTranslationPipeline:
                 vad_threshold=self.config.vad_threshold,
                 min_pause_duration_ms=self.config.min_pause_duration_ms,
                 enable_word_timestamps=self.config.enable_word_timestamps,
-                use_semantic_chunking=self.config.use_semantic_chunking
+                use_semantic_chunking=self.config.use_semantic_chunking,
+                use_nllb_translation=self.config.use_nllb_translation
             )
             self.translator = AudioTranslator(translator_config)
             
