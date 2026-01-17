@@ -62,11 +62,17 @@ log_handler.setFormatter(formatter)
 # Set up logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(log_handler)
 
-# Also add console handler for debugging
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(formatter)
+# Import and add secret masker
+try:
+    from services.logging_utils import SecretMasker
+    masker = SecretMasker()
+    log_handler.addFilter(masker)
+    console_handler.addFilter(masker)
+except ImportError:
+    print("Warning: services.logging_utils not available, secrets may not be masked in logs")
+
+logger.addHandler(log_handler)
 logger.addHandler(console_handler)
 
 # Constants

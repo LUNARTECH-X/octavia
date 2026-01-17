@@ -190,6 +190,17 @@ class VideoTranslationPipeline:
                 ]
             )
 
+            # Add Secret Masker to sanitize logs
+            root_logger = logging.getLogger()
+            try:
+                from services.logging_utils import SecretMasker
+                masker = SecretMasker()
+                for handler in root_logger.handlers:
+                    handler.addFilter(masker)
+                logger.info("✓ SecretMasker applied to pipeline logs")
+            except ImportError:
+                logger.warning("SecretMasker not available, logs will not be sanitized")
+
             # Set specific log levels for noisy libraries
             logging.getLogger('whisper').setLevel(logging.WARNING)
             logging.getLogger('transformers').setLevel(logging.WARNING)
