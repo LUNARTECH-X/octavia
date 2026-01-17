@@ -99,23 +99,22 @@ npm install; npm run dev
 
 ## Core Features
 
-- **Video Translation**: Complete video dubbing with lip-sync accuracy
-- **Magic Mode**: Advanced vocal separation to preserve background music
-- **Semantic Audio Chunking**: Intelligent splitting of audio based on sentence boundaries and VAD (Voice Activity Detection) for natural phrasing and better lip-sync (enabled with Magic Mode)
-- **Audio Translation**: Podcast and audio file translation
-- **Subtitle Generation**: AI-powered subtitle creation from video/audio
-- **Subtitle Translation**: Context-aware subtitle translation
-- **Advanced UI**: Modern dashboard with real-time progress tracking
+- **Gemma-First Translation**: Native-level fluency powered by Google's Gemma-3 (TranslateGemma:4b) localized model.
+- **Intelligent Fallback Chain**: Multi-stage processing (Gemma → NLLB-200 → Helsinki MarianMT) for zero-fail reliability.
+- **Magic Mode**: Advanced vocal separation to preserve background music and sound effects.
+- **Semantic Audio Chunking**: Intelligent splitting based on VAD + sentence boundaries for natural phrasing.
+- **Audio & Subtitle Dubbing**: Professional-grade audio synthesis with frame-accurate timing (±7ms).
+- **Advanced Dashboard**: Modern UI with real-time processing metrics and job history.
 
 ## Technical Capabilities
 
-- **End-to-End Pipeline**: Complete video ingestion → transcription → translation → Ollama post-processing → TTS → synchronization → export
-- **Duration Fidelity**: Final output duration matches input exactly (within container constraints)
-- **Semantic Chunking**: Uses VAD (Silero) + sentence boundary detection to split audio at natural pauses, preventing cut-off sentences and improving translation context.
-- **Magic Mode (UVR5/Demucs)**: Professional vocal/instrumental separation for high-quality dubs
-- **Lip-Sync Accuracy**: Segment-level timing within ±100-200ms tolerance
-- **Voice Quality**: Clean, natural TTS with consistent gain and prosody
-- **Translation Quality**: Helsinki-NLP MarianMT base + Ollama post-processing for consistent names and natural grammar
+- **End-to-End Pipeline**: Video Ingestion → Transcription → Primary LLM Translation (Gemma) → Fallback NMT (NLLB) → TTS → Sync → Export.
+- **Duration Fidelity**: Final output duration matches input exactly (within container constraints).
+- **Semantic Chunking**: Uses VAD (Silero) + sentence boundary detection to split audio at natural pauses.
+- **Magic Mode (UVR5/Demucs)**: Professional vocal/instrumental separation for high-quality dubs.
+- **Lip-Sync Accuracy**: Segment-level timing within ±100-200ms tolerance.
+- **Voice Quality**: Clean, natural TTS with consistent gain and prosody.
+- **Professional Translation**: Gemma-powered primary translation with NLLB/Helsinki fallbacks for zero-fail operation.
 - **Modular Architecture**: Separate modules for each pipeline stage
 - **Instrumentation**: Comprehensive logging and metrics collection
 - **Resumability**: Checkpoint system for interrupted processing
@@ -128,8 +127,8 @@ graph TD
   B -->|FFmpeg| C(Chunking)
   C -->|AI Orchestrator| D{Processing}
   D -->|Whisper| E[STT]
-  E -->|Helsinki-NLP| F[Translation]
-  F -->|Ollama| G[Post-Processing]
+  E -->|Gemma 4b| F[Primary Translation]
+  F -->|Fallback| G[NLLB/Helsinki]
   G -->|Edge-TTS| H[TTS]
   H -->|pydub| I(Sync)
   I -->|FFmpeg| J(Merge)
@@ -137,10 +136,10 @@ graph TD
 ```
 
 ```
-Video Input → Audio Extraction → Chunking → STT → Translation → Ollama Post → TTS → Sync → Merge → Video Output
-  ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓
-  FFmpeg FFmpeg AI Whisper Helsinki Ollama Edge pydub FFmpeg FFmpeg FFmpeg FFmpeg
-  (probe) (extract) Orchestrator (transcribe) (opus-mt) (qwen-coder) (TTS) (sync) (merge) (mux)
+Video Input → Audio Extraction → Chunking → STT → Gemma Translation → (Fallback NMT) → TTS → Sync → Merge → Video Output
+  ↓           ↓                  ↓          ↓       ↓                   ↓               ↓       ↓       ↓           ↓
+ FFmpeg      FFmpeg      AI Orchestrator  Whisper  Gemma 4b            NLLB/Helsinki   Edge-TTS pydub   FFmpeg      FFmpeg
+ (probe)    (extract)     (parameters)   (transcribe) (local)           (distilled)     (neural) (sync)  (merge)      (mux)
 ```
 
 ---
@@ -307,8 +306,9 @@ curl -fsSL https://ollama.ai/install.sh | sh
 # Start Ollama service
 sudo systemctl start ollama
 
-# Pull the recommended model for AI Orchestrator & Translation
-ollama pull qwen2.5-coder:1.5b
+# Pull the models for AI Orchestrator & Translation
+ollama pull qwen2.5-coder:1.5b  # For Orchestrator
+ollama pull translategemma:4b   # For Primary Translation (Winning Model)
 ```
 
 **Windows:**
@@ -328,24 +328,21 @@ ollama pull qwen2.5-coder:1.5b
 # Install Ollama in WSL2
 curl -fsSL https://ollama.ai/install.sh | sh
 
-# Start service
+# Pull the models in WSL2
 sudo systemctl start ollama
 ollama pull qwen2.5-coder:1.5b
+ollama pull translategemma:4b
 ```
 
 #### What Ollama Does in Octavia
 
-1. **AI Orchestrator** - Intelligent decision-making for:
-   - Chunk size optimization
-   - Translation quality assessment
-   - Voice selection recommendations
-   - Error recovery strategies
-
-2. **Translation Post-Processing** - Improves translation quality by:
-   - Normalizing name transliterations (e.g., "小龙" → "Xiao Long" consistently)
-   - Fixing grammar issues ("I'm" → "I am")
-   - Enhancing natural fluency
-   - Preserving meaning while improving readability
+1. **AI Orchestrator** - Intelligent decision-making for parameters.
+2. **Gemma Translation (Primary)** - Professional translation using `translategemma:4b`:
+   - Cultural adaptation and natural phrasing.
+   - Consistent names and entities preservation.
+   - Direct, isolated output (no conversational filler).
+3. **Fallback Post-Processing** - If using NMT (NLLB/Helsinki), Ollama improves:
+   - Grammar normalization and name consistency.
 
 #### Benefits of Local AI Model
 

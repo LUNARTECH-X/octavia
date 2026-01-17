@@ -29,3 +29,7 @@ pysrt==1.1.2
 # Utilities
 numpy==1.26.4  # Pinned for compatibility with transformers
 scikit-learn>=1.2.0
+python-dotenv  # For loading .env files
+requests       # For API calls to Ollama/OpenRouter
+nvidia-ml-py   # Fixes torch pynvml deprecation warning
+

@@ -10,6 +10,10 @@ import yaml
 import time
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from modules.pipeline import VideoTranslationPipeline, PipelineConfig
 from modules.instrumentation import MetricsCollector

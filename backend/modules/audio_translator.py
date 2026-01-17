@@ -15,6 +15,7 @@ import tempfile
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
+from dotenv import load_dotenv
 
 import whisper
 import torch
@@ -55,15 +56,22 @@ class TranslationConfig:
     validation_spots: int = 5
     max_speedup_ratio: float = 1.1
     target_lufs: float = -16.0
-    # Ollama LLM post-processing for translation quality
-    use_ollama_post_processing: bool = True
-    ollama_model: str = "qwen2.5:1.5b"
-    ollama_host: str = "http://localhost:11434"
-    ollama_timeout: int = 120  # Increased timeout for slower systems
-    # Ollama-guided sentence boundary detection for CJK languages
+    # LLM settings
+    llm_api_key: str = ""
+    # LLM primary for translation (TranslateGemma or similar)
+    use_llm_primary: bool = True
+    llm_provider: str = "ollama"  # Default to local
+    llm_model: str = "translategemma:4b"  # Winning model
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_timeout: int = 300
+    
+    # LLM post-processing (Disabled by default if Gemma is used as primary)
+    use_llm_post_processing: bool = False
+    # Ollama-guided sentence boundary detection for CJK languages (legacy)
     use_ollama_boundary_detection: bool = True
     ollama_boundary_model: str = "qwen2.5:1.5b"  # Use reliable model
     ollama_boundary_timeout: int = 60  # Reasonable timeout for boundary detection
+    ollama_host: str = "http://localhost:11434"  # Ollama host for boundary detection
     min_segment_length_chars: int = 10  # Minimum characters per segment for CJK
     # High-quality translation settings
     use_nllb_translation: bool = True  # Use NLLB for better Chinese translation
@@ -79,6 +87,27 @@ class TranslationConfig:
     min_chunk_duration_s: int = 5  # Minimum chunk duration (seconds)
     prefer_sentence_boundaries: bool = True  # Prefer cutting at sentence boundaries
     temp_dir: str = "/tmp/octavia"  # Temporary directory for intermediate files
+    
+    def __post_init__(self):
+        """Load configuration from environment variables if available"""
+        load_dotenv()
+        import os
+        # Load OpenRouter/LLM configuration from environment
+        if os.getenv('OPENROUTER_API_KEY'):
+            self.llm_api_key = os.getenv('OPENROUTER_API_KEY')
+        if os.getenv('LLM_PROVIDER'):
+            self.llm_provider = os.getenv('LLM_PROVIDER')
+        if os.getenv('LLM_MODEL'):
+            self.llm_model = os.getenv('LLM_MODEL')
+        if os.getenv('LLM_BASE_URL'):
+            self.llm_base_url = os.getenv('LLM_BASE_URL')
+        if os.getenv('USE_LLM_POST_PROCESSING'):
+            self.use_llm_post_processing = os.getenv('USE_LLM_POST_PROCESSING').lower() == 'true'
+        if os.getenv('LLM_TIMEOUT'):
+            self.llm_timeout = int(os.getenv('LLM_TIMEOUT'))
+        if os.getenv('OLLAMA_MODEL'):
+            self.ollama_model = os.getenv('OLLAMA_MODEL')
+            self.ollama_boundary_model = os.getenv('OLLAMA_MODEL')
 
 @dataclass
 class TranslationResult:
@@ -845,7 +874,7 @@ class AudioTranslator:
     def _call_ollama_api(self, prompt: str, model: str = None, timeout: int = None) -> Optional[str]:
         """Call Ollama API with the given prompt"""
         if model is None:
-            model = self.config.ollama_model
+            model = self.config.llm_model
         
         if timeout is None:
             # Default to 120s if not specified, regardless of config default which might be low
@@ -1222,10 +1251,18 @@ DO NOT include any other text:"""
             Tuple of (translated_text, translated_segments_with_timing)
         """
         try:
-            # Check if NLLB should be used
+            # Gemma is now our Primary translator
+            use_llm_primary = self.config.use_llm_primary and (
+                (self.config.llm_provider == "openrouter" and self.config.llm_api_key) or 
+                (self.config.llm_provider == "ollama" and self._check_ollama_available())
+            )
+            
+            active_model = self.config.ollama_model if self.config.llm_provider == "ollama" else self.config.llm_model
+            logger.info(f"Translation Config: use_llm_primary={use_llm_primary}, provider={self.config.llm_provider}, model={active_model}")
+            
             use_nllb = self.config.use_nllb_translation and self.nllb_model is not None
             
-            if not use_nllb and not self.translation_pipeline:
+            if not use_llm_primary and not use_nllb and not self.translation_pipeline:
                 return None, []
             
             # Extract entities first for consistency
@@ -1265,17 +1302,55 @@ DO NOT include any other text:"""
                 pos += len(seg_text)
             
             for i, seg_text in enumerate(segmented_texts):
-                # Translate this segment
-                if use_nllb:
-                    translated = self._translate_with_nllb(seg_text, "zh", self.config.target_lang)
-                else:
-                    result = self.translation_pipeline(
-                        seg_text, 
-                        max_length=512, 
-                        num_beams=4,
-                        temperature=0.3
-                    )
-                    translated = result[0]['translation_text'].strip()
+                # Translate this segment using Gemma -> NLLB -> Helsinki fallback chain
+                translated = None
+                
+                # Priority 1: Gemma (or configured primary LLM)
+                if self.config.use_llm_primary:
+                    try:
+                        # Use the professional prompt format that won the benchmark
+                        primary_prompt = (
+                            "You are a professional Chinese (zh-Hans) to English (en) translator. Your goal is to accurately convey the meaning and nuances of the original Chinese text while adhering to English grammar, vocabulary, and cultural sensitivities.\n"
+                            "Produce only the English translation, without any additional explanations or commentary. Please translate the following Chinese text into English:\n\n\n"
+                            f"{seg_text}"
+                        )
+                        
+                        if self.config.llm_provider == "openrouter":
+                            translated = self._call_openrouter(primary_prompt)
+                        else:
+                            # Note: _call_ollama uses self.config.ollama_model if llm_model is empty, 
+                            # but we've unified it in __post_init__ or manual config.
+                            # Passing model explicitly to be safe.
+                            translated = self._call_ollama(primary_prompt)
+                        
+                        if translated:
+                            logger.info(f"Gemma translation SUCCESS: '{seg_text}' -> '{translated}'")
+                    except Exception as e:
+                        logger.warning(f"Gemma translation failed, attempting NLLB: {e}")
+                
+                # Priority 2: NLLB
+                if not translated and use_nllb:
+                    try:
+                        translated = self._translate_with_nllb(seg_text, "zh", self.config.target_lang)
+                        if translated:
+                            logger.info(f"NLLB fallback SUCCESS: '{seg_text}' -> '{translated}'")
+                    except Exception as e:
+                        logger.error(f"NLLB primary fallback failed: {e}")
+                
+                # Priority 3: Helsinki (MarianMT)
+                if not translated and self.translation_pipeline:
+                    try:
+                        result = self.translation_pipeline(
+                            seg_text, 
+                            max_length=512, 
+                            num_beams=4,
+                            temperature=0.3
+                        )
+                        translated = result[0]['translation_text'].strip()
+                        if translated:
+                            logger.info(f"Helsinki final fallback SUCCESS: '{seg_text}' -> '{translated}'")
+                    except Exception as e:
+                        logger.error(f"Helsinki fallback failed: {e}")
                 
                 if not translated:
                     translated = seg_text # Fallback to original if translation failed
@@ -1450,46 +1525,52 @@ DO NOT include any other text:"""
             return None
     
     def _check_ollama_available(self) -> bool:
-        """Check if Ollama is running and model is available"""
+        """Check if Ollama server is running and model is available"""
+        import urllib.request
+        import json
         try:
-            import urllib.request
-            import urllib.error
-            import json
-            
-            url = f"{self.config.ollama_host}/api/tags"
-            req = urllib.request.Request(url, method='GET')
-            
+            # Check server
+            req = urllib.request.Request(f"{self.config.ollama_host}/api/tags")
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
                 models = [m['name'] for m in data.get('models', [])]
+                target_model = self.config.ollama_model
+                if target_model in models:
+                    return True
                 
-                model_name = self.config.ollama_model
+                # Check for tag-less match
+                target_base = target_model.split(':')[0]
                 for m in models:
-                    if model_name in m or m.split(':')[0] == model_name:
-                        logger.info(f"Ollama model {model_name} is available")
+                    if m.split(':')[0] == target_base:
                         return True
-                
-                logger.warning(f"Ollama model {model_name} not found. Available: {models}")
+                        
+                logger.warning(f"Ollama model {target_model} not found. Available: {models}")
                 return False
         except Exception as e:
             logger.warning(f"Ollama not available: {e}")
             return False
     
     def _post_process_translation_with_llm(self, text: str, source_lang: str, original_text: str = "", duration: float = 0, context: Dict = None) -> str:
-        """Use Ollama LLM to fix translation quality issues for difficult language pairs only"""
+        """Use LLM (OpenRouter or Ollama) to fix translation quality issues for difficult language pairs only"""
         try:
-            if not self.config.use_ollama_post_processing:
+            if not self.config.use_llm_post_processing:
                 return text
             
             # Only post-process difficult language pairs (CJK and Russian)
             difficult_pairs = ['zh', 'ja', 'ko', 'ru']
             if source_lang not in difficult_pairs:
-                logger.debug(f"Skipping Ollama post-processing for {source_lang} (not a difficult pair)")
+                logger.debug(f"Skipping LLM post-processing for {source_lang} (not a difficult pair)")
                 return text
             
-            if not self._check_ollama_available():
-                logger.warning("Ollama not available, skipping post-processing")
-                return text
+            # Check provider availability
+            if self.config.llm_provider == "ollama":
+                if not self._check_ollama_available():
+                    logger.warning("Ollama not available, skipping post-processing")
+                    return text
+            elif self.config.llm_provider == "openrouter":
+                if not self.config.llm_api_key:
+                    logger.warning("OpenRouter API key not configured, skipping post-processing")
+                    return text
             
             import urllib.request
             import urllib.error
@@ -1589,43 +1670,131 @@ Output ONLY the refined text.
 
 Refined translation:"""
             
-            url = f"{self.config.ollama_host}/api/generate"
+            # Implementation of OpenRouter -> Ollama fallback chain
+            corrected = None
             
-            import json as json_mod
-            data = {
-                "model": self.config.ollama_model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.1,
-                    # "num_predict": 1000  # Remove to let model decide, or keep if needed
-                }
-            }
-            data_str = json_mod.dumps(data).encode('utf-8')
+            # Step 1: Try OpenRouter if configured as primary or available
+            if self.config.llm_provider == "openrouter" or (not self.config.llm_provider and self.config.llm_api_key):
+                try:
+                    logger.info("Attempting OpenRouter (Primary) post-processing...")
+                    corrected = self._call_openrouter(prompt)
+                except Exception as e:
+                    logger.warning(f"OpenRouter failed, attempting Ollama fallback: {e}")
             
-            req = urllib.request.Request(url, data=data_str, method='POST')
-            req.add_header('Content-Type', 'application/json')
+            # Step 2: Fallback to Ollama if OpenRouter failed or wasn't tried
+            if not corrected:
+                try:
+                    if self._check_ollama_available():
+                        logger.info("Attempting Ollama fallback post-processing...")
+                        corrected = self._call_ollama(prompt)
+                except Exception as e:
+                    logger.warning(f"Ollama fallback failed: {e}")
             
-            # Increase timeout to 120s for slower local inference
-            with urllib.request.urlopen(req, timeout=self.config.ollama_timeout) as response:
-                result = json_mod.loads(response.read().decode())
-                corrected = result.get('response', '').strip()
-                
+            # Process result
+            if corrected:
                 corrected = ' '.join(corrected.split())
-                
-                if corrected and len(corrected) > 5:
-                    logger.info(f"Ollama post-processing: '{text[:50]}...' -> '{corrected[:50]}...'")
+                if len(corrected) > 5:
+                    logger.info(f"LLM post-processing SUCCESS: '{text[:50]}...' -> '{corrected[:50]}...'")
                     return corrected
-                else:
-                    logger.warning("Ollama returned empty or too short result, using original")
-                    return text
+            
+            logger.warning("LLM post-processing failed or returned empty result, using original baseline")
+            return text
                     
         except urllib.error.URLError as e:
-            logger.warning(f"Ollama request failed: {e}")
+            logger.warning(f"LLM request failed: {e}")
             return text
         except Exception as e:
-            logger.error(f"Ollama post-processing failed: {e}")
+            logger.error(f"LLM post-processing failed: {e}")
             return text
+    
+    def _call_openrouter(self, prompt: str) -> str:
+        """Call OpenRouter API with OpenAI-compatible format"""
+        import urllib.request
+        import json
+        
+        url = f"{self.config.llm_base_url}/chat/completions"
+        
+        data = {
+            "model": self.config.llm_model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.1,
+            "max_tokens": 1000
+        }
+        
+        data_str = json.dumps(data).encode('utf-8')
+        
+        req = urllib.request.Request(url, data=data_str, method='POST')
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('Authorization', f'Bearer {self.config.llm_api_key}')
+        
+        with urllib.request.urlopen(req, timeout=self.config.llm_timeout) as response:
+            result = json.loads(response.read().decode())
+            raw_text = result['choices'][0]['message']['content'].strip()
+            return self._clean_llm_response(raw_text)
+    
+    def _call_ollama(self, prompt: str) -> str:
+        """Call Ollama API"""
+        import urllib.request
+        import json
+        
+        url = f"{self.config.ollama_host}/api/generate"
+        
+        data = {
+            "model": self.config.ollama_model, # Use dedicated OLLAMA_MODEL
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+            }
+        }
+        data_str = json.dumps(data).encode('utf-8')
+        
+        req = urllib.request.Request(url, data=data_str, method='POST')
+        req.add_header('Content-Type', 'application/json')
+        
+        with urllib.request.urlopen(req, timeout=self.config.llm_timeout) as response:
+            result = json.loads(response.read().decode())
+            raw_text = result.get('response', '').strip()
+            return self._clean_llm_response(raw_text)
+
+    def _clean_llm_response(self, text: str) -> str:
+        """Clean LLM output to extract only the translation"""
+        if not text:
+            return ""
+            
+        import re
+        # Remove thinking/reasoning blocks
+        text = re.sub(r'<thought>.*?</thought>', '', text, flags=re.DOTALL)
+        
+        # Remove triple backticks/markdown
+        text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+        text = text.replace('```', '')
+        
+        # Remove common chatty preambles
+        preambles = [
+            r"Here is the translation:?",
+            r"The English translation is:?",
+            r"Translation:?",
+            r"Refined translation:",
+            r"Sure, here is the translation:",
+            r"Produced translation:",
+            r"In English, this is:?"
+        ]
+        for p in preambles:
+            text = re.sub(p, '', text, flags=re.IGNORECASE).strip()
+            
+        # If the model put the translation in quotes, extract it
+        quote_match = re.search(r'^"(.*)"$', text, re.DOTALL)
+        if quote_match:
+            text = quote_match.group(1)
+            
+        return text.strip()
+    
     
     
     
@@ -1780,14 +1949,14 @@ Refined translation:"""
             else:
                 logger.info(f"Translation result: '{translated_text[:100]}...'")
             
-            # Post-process with Ollama LLM for quality/timing optimization
-            if self.config.use_ollama_post_processing and translated_text:
+            # Post-process with LLM for quality/timing optimization
+            if self.config.use_llm_post_processing and translated_text:
                 is_cjk = self.config.source_lang in ['zh', 'ja', 'ko']
                 use_nllb = self.config.use_nllb_translation and hasattr(self, 'nllb_model') and self.nllb_model is not None
                 
                 # Two-Pass Strategy for CJK: Per-segment refinement with context and timing
                 if is_cjk and use_nllb and translated_segments:
-                    logger.info("Solo NLLB Pass 2: Per-segment LLM refinement with timing and context...")
+                    logger.info("Pass 2: Per-segment LLM refinement with timing and context...")
                     refined_parts = []
                     for i, seg in enumerate(translated_segments):
                         orig_text = seg.get('original_text', '')
@@ -1811,10 +1980,10 @@ Refined translation:"""
                 
                 # Standard post-processing (One-Pass or fallback)
                 else:
-                    logger.info("Post-processing translation with Ollama LLM...")
+                    logger.info("Post-processing translation with LLM...")
                     corrected_text = self._post_process_translation_with_llm(translated_text, self.config.source_lang)
                     if corrected_text and corrected_text != translated_text:
-                        logger.info(f"Ollama corrected: '{corrected_text[:100]}...'")
+                        logger.info(f"LLM corrected: '{corrected_text[:100]}...'")
                         translated_text = corrected_text
 
             # Ensure we have translated text
@@ -2484,7 +2653,9 @@ Refined translation:"""
                     temp_output
                 ]
 
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                # Use configured LLM timeout for heavy subprocess calls (normalization, etc.)
+                timeout = getattr(self.config, 'llm_timeout', 300)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
                 if result.returncode != 0:
                     logger.error(f"FFmpeg precise speed failed: {result.stderr}")

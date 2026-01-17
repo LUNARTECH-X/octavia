@@ -307,7 +307,9 @@ Based on this analysis: {context}
 Recommend optimal parameters in JSON format:
 {{"chunk_size": 30, "model": "base", "workers": 4, "speed": 1.0, "temp": 0.7, "reasoning": "brief"}}"""
 
-            timeout = 60 if audio_analysis.get('speech_ratio', 0) > 0.6 else 30
+            # Respect LLM_TIMEOUT from environment, fallback to 300s
+            env_timeout = int(os.getenv('LLM_TIMEOUT', 300))
+            timeout = max(env_timeout, 60 if audio_analysis.get('speech_ratio', 0) > 0.6 else 30)
 
             response = requests.post(
                 f"{self.ollama_url}/api/generate",
