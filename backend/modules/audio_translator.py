@@ -61,9 +61,11 @@ class TranslationConfig:
     # LLM primary for translation (TranslateGemma or similar)
     use_llm_primary: bool = True
     llm_provider: str = "ollama"  # Default to local
-    llm_model: str = "translategemma:4b"  # Winning model
+    llm_model: str = "translategemma:4b"  # Primary model for non-CJK translation
     llm_base_url: str = "https://openrouter.ai/api/v1"
     llm_timeout: int = 300
+    # Fallback models for non-CJK translation (tried in order if primary fails)
+    llm_fallback_models: str = "qwen2.5:3b,llama3.2:latest"
     
     # LLM post-processing (Disabled by default if Gemma is used as primary)
     use_llm_post_processing: bool = False
@@ -1305,28 +1307,31 @@ DO NOT include any other text:"""
                 # Translate this segment using Gemma -> NLLB -> Helsinki fallback chain
                 translated = None
                 
-                # Priority 1: Gemma (or configured primary LLM)
+                                # Priority 1: Primary LLM (Gemma)
                 if self.config.use_llm_primary:
-                    try:
-                        # Use the professional prompt format that won the benchmark
-                        primary_prompt = (
-                            "You are a professional Chinese (zh-Hans) to English (en) translator. Your goal is to accurately convey the meaning and nuances of the original Chinese text while adhering to English grammar, vocabulary, and cultural sensitivities.\n"
-                            "Produce only the English translation, without any additional explanations or commentary. Please translate the following Chinese text into English:\n\n\n"
-                            f"{seg_text}"
-                        )
-                        
-                        if self.config.llm_provider == "openrouter":
-                            translated = self._call_openrouter(primary_prompt)
-                        else:
-                            # Note: _call_ollama uses self.config.ollama_model if llm_model is empty, 
-                            # but we've unified it in __post_init__ or manual config.
-                            # Passing model explicitly to be safe.
-                            translated = self._call_ollama(primary_prompt)
-                        
-                        if translated:
-                            logger.info(f"Gemma translation SUCCESS: '{seg_text}' -> '{translated}'")
-                    except Exception as e:
-                        logger.warning(f"Gemma translation failed, attempting NLLB: {e}")
+                    # Gather context for refined translation
+                    context = {
+                        'prev': segmented_texts[i-1] if i > 0 else '',
+                        'next': segmented_texts[i+1] if i < len(segmented_texts) - 1 else ''
+                    }
+                    
+                    # Estimate duration
+                    duration = 0
+                    if original_segments:
+                        seg_start, seg_end = char_positions[i]
+                        for orig_seg in original_segments:
+                            # Simple overlap check logic
+                            if abs(seg_start - (sum(len(s.get("text", "")) for s in original_segments[:original_segments.index(orig_seg)]))) < 5:
+                                duration = orig_seg.get("end", 0) - orig_seg.get("start", 0)
+                                break
+                    
+                    translated = self._translate_with_llm(
+                        seg_text, 
+                        self.config.source_lang, 
+                        self.config.target_lang,
+                        duration=duration,
+                        context=context
+                    )
                 
                 # Priority 2: NLLB
                 if not translated and use_nllb:
@@ -1762,6 +1767,86 @@ Refined translation:"""
             raw_text = result.get('response', '').strip()
             return self._clean_llm_response(raw_text)
 
+    def _translate_with_llm(self, text: str, source_lang: str, target_lang: str, duration: float = 0, context: Dict = None) -> Optional[str]:
+        """Centralized method for translation using the primary LLM (Gemma/Ollama or OpenRouter)"""
+        try:
+            if not self.config.use_llm_primary:
+                return None
+                
+            # Check availability
+            if self.config.llm_provider == "ollama":
+                if not self._check_ollama_available():
+                    return None
+            elif self.config.llm_provider == "openrouter":
+                if not self.config.llm_api_key:
+                    return None
+
+            # 1. Prepare appropriate prompt based on language
+            context_str = ""
+            if context:
+                prev_text = context.get('prev', '')
+                next_text = context.get('next', '')
+                if prev_text:
+                    context_str += f"- Previous text: {prev_text}\n"
+                if next_text:
+                    context_str += f"- Next text: {next_text}\n"
+
+            timing_constraint = ""
+            if duration > 0:
+                timing_constraint = f"Refine the translation to be spoken in approximately {duration:.1f} seconds."
+
+            # Language-specific prompts for better quality
+            lang_names = {
+                "zh": "Chinese (zh-Hans)",
+                "ja": "Japanese",
+                "ko": "Korean",
+                "es": "Spanish",
+                "fr": "French",
+                "de": "German",
+                "ru": "Russian",
+                "it": "Italian",
+                "pt": "Portuguese"
+            }
+            
+            src_name = lang_names.get(source_lang, source_lang)
+            tgt_name = lang_names.get(target_lang, target_lang)
+
+            if source_lang == 'zh':
+                prompt = (
+                    f"You are a professional {src_name} to {tgt_name} translator. Your goal is to accurately convey the meaning and nuances of the original text while adhering to target language grammar and cultural sensitivities.\n"
+                    "Produce only the translation, without any additional explanations or commentary.\n"
+                    f"{context_str}"
+                    f"{timing_constraint}\n"
+                    f"Translate the following {src_name} text into {tgt_name}:\n\n"
+                    f"{text}"
+                )
+            else:
+                prompt = (
+                    f"You are a professional {src_name} to {tgt_name} localization expert. Translate the following text naturally.\n"
+                    f"Output ONLY the {tgt_name} translation. No chat, no intro.\n"
+                    f"{context_str}"
+                    f"{timing_constraint}\n"
+                    f"Source ({src_name}): {text}\n"
+                    f"Translation ({tgt_name}):"
+                )
+
+            # 2. Call LLM
+            translated = None
+            if self.config.llm_provider == "openrouter":
+                translated = self._call_openrouter(prompt)
+            else:
+                translated = self._call_ollama(prompt)
+                
+            if translated:
+                logger.info(f"LLM translation SUCCESS ({source_lang}->{target_lang}): '{text[:30]}...' -> '{translated[:30]}...'")
+                return translated
+                
+            return None
+        except Exception as e:
+            logger.warning(f"LLM translation failed for {source_lang}->{target_lang}: {e}")
+            return None
+
+
     def _clean_llm_response(self, text: str) -> str:
         """Clean LLM output to extract only the translation"""
         if not text:
@@ -1937,10 +2022,36 @@ Refined translation:"""
                     logger.warning("Sentence translation failed, using MarianMT fallback")
                     translated_text = self._translate_with_marian(text)
             
-            # Non-CJK languages: use MarianMT directly
+                        # Non-CJK languages: Prioritize LLM (Gemma) -> NLLB -> Helsinki fallback chain
             else:
-                logger.info("Using MarianMT for non-CJK language")
-                translated_text = self._translate_with_marian(text)
+                logger.info(f"Using standard translation chain for {self.config.source_lang}")
+                
+                # Priority 1: Primary LLM (Gemma)
+                if self.config.use_llm_primary:
+                    logger.info("Attempting primary LLM translation...")
+                    if hasattr(self, '_translate_with_llm'):
+                        translated_text = self._translate_with_llm(text, self.config.source_lang, self.config.target_lang)
+                    else:
+                        # Fallback if method missing (shouldn't happen with step 1)
+                        if self.config.llm_provider == "openrouter":
+                            translated_text = self._call_openrouter(text)
+                        else:
+                            translated_text = self._call_ollama(text)
+                    
+                    if translated_text:
+                        logger.info(f"Primary LLM SUCCESS for {self.config.source_lang}")
+                
+                # Priority 2: NLLB fallback (if source lang supported)
+                if not translated_text:
+                    is_nllb_supported = self.config.source_lang in self.NLLB_LANG_MAP
+                    if is_nllb_supported and self.config.use_nllb_translation and hasattr(self, 'nllb_model'):
+                        logger.info(f"LLM failed, attempting NLLB fallback for {self.config.source_lang}...")
+                        translated_text = self._translate_with_nllb(text, self.config.source_lang, self.config.target_lang)
+                
+                # Priority 3: Helsinki (MarianMT) final fallback
+                if not translated_text:
+                    logger.info(f"Previous methods failed, using Helsinki-NLP/MarianMT fallback for {self.config.source_lang}")
+                    translated_text = self._translate_with_marian(text)
 
             # Handle translation failure
             if translated_text is None:

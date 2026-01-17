@@ -59,6 +59,10 @@ formatter = logging.Formatter(
 )
 log_handler.setFormatter(formatter)
 
+# Create console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+
 # Set up logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
