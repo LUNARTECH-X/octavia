@@ -143,7 +143,61 @@ def get_translator(source_lang: str, target_lang: str):
         logger.warning(f"Failed to load translator for {key}: {e}")
         return None
 
-# Voice options for TTS
+# gTTS Voice options for TTS
+# gTTS uses language codes - each language has ONE high-quality voice
+# These are the supported languages for Google Text-to-Speech
+GTTS_VOICE_OPTIONS = {
+    "en": {
+        "English": "en"
+    },
+    "es": {
+        "Spanish": "es"
+    },
+    "fr": {
+        "French": "fr"
+    },
+    "de": {
+        "German": "de"
+    },
+    "it": {
+        "Italian": "it"
+    },
+    "pt": {
+        "Portuguese": "pt"
+    },
+    "ru": {
+        "Russian": "ru"
+    },
+    "ja": {
+        "Japanese": "ja"
+    },
+    "ko": {
+        "Korean": "ko"
+    },
+    "zh-cn": {
+        "Chinese (Simplified)": "zh-cn"
+    },
+    "ar": {
+        "Arabic": "ar"
+    },
+    "hi": {
+        "Hindi": "hi"
+    },
+    "nl": {
+        "Dutch": "nl"
+    },
+    "pl": {
+        "Polish": "pl"
+    },
+    "tr": {
+        "Turkish": "tr"
+    },
+    "sv": {
+        "Swedish": "sv"
+    }
+}
+
+# Legacy Edge-TTS options (kept for reference, not used in main translation)
 VOICE_OPTIONS = {
     "en": {
         "Aria (Female)": "en-US-AriaNeural",
@@ -1446,50 +1500,55 @@ async def debug_files(job_id: str, current_user: User = Depends(get_current_user
 
 @app.get("/api/voices/all")
 async def get_all_voices():
-    """Get all available voices grouped by language"""
+    """Get all available gTTS voices grouped by language"""
     voices_by_language = {}
 
-    for lang_code, voices in VOICE_OPTIONS.items():
+    for lang_code, voices in GTTS_VOICE_OPTIONS.items():
         voices_by_language[lang_code] = []
 
         for voice_name, voice_id in voices.items():
-            gender = "Female" if "Female" in voice_name else "Male" if "Male" in voice_name else "Unknown"
             voices_by_language[lang_code].append({
                 "name": voice_name,
                 "voice_id": voice_id,
-                "type": "Synthetic",
                 "language_code": lang_code,
-                "gender": gender,
                 "sample_text": "Hello! This is a preview of the voice."
             })
 
     return {
         "success": True,
+        "tts_engine": "gTTS",
         "voices_by_language": voices_by_language,
-        "total_voices": sum(len(v) for v in voices_by_language.values())
+        "total_voices": sum(len(v) for v in voices_by_language.values()),
+        "info": {
+            "engine": "Google Text-to-Speech (gTTS)",
+            "description": "High-quality crystal-clear voice synthesis using Google Translate TTS",
+            "features": [
+                "Crystal-clear audio quality",
+                "Fast synthesis",
+                "Supports 15+ languages",
+                "No voice selection per language (language code based)"
+            ]
+        }
     }
 
 @app.get("/api/voices/{language}")
 async def get_voices_by_language(language: str):
     """Get voices for a specific language"""
-    if language not in VOICE_OPTIONS:
+    if language not in GTTS_VOICE_OPTIONS:
         return {
             "success": False,
             "error": f"Language '{language}' not supported",
-            "available_languages": list(VOICE_OPTIONS.keys())
+            "available_languages": list(GTTS_VOICE_OPTIONS.keys())
         }
 
-    voices = VOICE_OPTIONS[language]
+    voices = GTTS_VOICE_OPTIONS[language]
     voice_list = []
 
     for voice_name, voice_id in voices.items():
-        gender = "Female" if "Female" in voice_name else "Male" if "Male" in voice_name else "Unknown"
         voice_list.append({
             "name": voice_name,
             "voice_id": voice_id,
-            "type": "Synthetic",
             "language_code": language,
-            "gender": gender,
             "sample_text": "Hello! This is a preview of the voice."
         })
 
@@ -1507,139 +1566,136 @@ async def preview_voice(
     language: str = Form(...),
     current_user: User = Depends(get_current_user)
 ):
-    """Generate a voice preview for the selected voice"""
+    """Generate a voice preview using gTTS"""
+    # Check if user has enough credits (1 credit per preview)
+    # Demo users get free previews
+    is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
+    
+    if not is_demo_user and current_user.credits < 1:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="Not enough credits. Each preview costs 1 credit."
+        )
+
+    # For gTTS, voice_id is the language code (e.g., "en", "es", "fr")
+    # voice_id can be a full code like "en" or "en-uk", or a friendly name
+    lang_code = voice_id
+
+    # If voice_id looks like a friendly name, extract language code
+    if voice_id in GTTS_VOICE_OPTIONS or any(voice_id in v for v in GTTS_VOICE_OPTIONS.values()):
+        # Find the actual language code
+        for lang, voices in GTTS_VOICE_OPTIONS.items():
+            for name, vid in voices.items():
+                if vid == voice_id or name.lower().replace(" (gTTS)", "").replace(" (", "-").replace(")", "") in voice_id.lower():
+                    lang_code = vid
+                    break
+
+    logger.info(f"Generating gTTS voice preview: voice_id={voice_id}, lang_code={lang_code}, text={text[:50]}")
+
+    # Ensure outputs directory exists
+    os.makedirs("outputs", exist_ok=True)
+
+    # Generate output filename
+    preview_filename = f"preview_{uuid.uuid4().hex[:8]}.mp3"
+    output_path = f"outputs/{preview_filename}"
+
+    # Generate speech using gTTS
     try:
-        # Check if user has enough credits (1 credit per preview)
-        if current_user.credits < 1:
-            raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail="Not enough credits. Each preview costs 1 credit."
-            )
+        # Validate language code for gTTS
+        valid_gtts_langs = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh-cn', 'zh-tw', 'ar', 'hi', 'nl', 'pl', 'tr', 'sv']
+        gtts_lang = lang_code.lower()
+        if gtts_lang not in valid_gtts_langs:
+            # Try to map to valid code
+            if '-' in gtts_lang:
+                gtts_lang = gtts_lang.split('-')[0]
+            if gtts_lang not in valid_gtts_langs:
+                gtts_lang = 'en'  # Fallback to English
 
-        # Map voice_id to actual voice name for TTS
-        voice_name_map = {
-            "aria_female": "en-US-AriaNeural",
-            "david_male": "en-US-GuyNeural",
-            "emma_female": "en-US-JennyNeural",
-            "brian_male": "en-US-ChristopherNeural",
-            "elena_female": "es-ES-ElviraNeural",
-            "alvaro_male": "es-ES-AlvaroNeural",
-            "esperanza_female": "es-ES-LauraNeural",
-            "jorge_male": "es-ES-JorgeNeural",
-            "denise_female": "fr-FR-DeniseNeural",
-            "henri_male": "fr-FR-HenriNeural",
-            "katja_female": "de-DE-KatjaNeural",
-            "conrad_male": "de-DE-ConradNeural",
-            "elsa_female": "it-IT-ElsaNeural",
-            "diego_male": "it-IT-DiegoNeural",
-        }
+        tts_success = False
 
-        voice_name = voice_name_map.get(voice_id, "en-US-AriaNeural")
-
-        logger.info(f"Generating voice preview: voice_id={voice_id}, voice_name={voice_name}, text={text[:50]}")
-
-        # Ensure outputs directory exists
-        os.makedirs("outputs", exist_ok=True)
-
-        # Generate output filename
-        preview_filename = f"preview_{uuid.uuid4().hex[:8]}.mp3"
-        output_path = f"outputs/{preview_filename}"
-
-        # Generate speech using gTTS with Coqui TTS fallback
+        # Try gTTS
         try:
-            # Check if language code is valid for gTTS (basic check)
-            # Frontend sends 'en', 'es', 'fr', etc. which gTTS supports
-            lang_code = language.lower().split('-')[0] if '-' in language else language.lower()
-            
-            tts_success = False
-            
-            # Try gTTS first
+            from gtts import gTTS as GoogleTTS
+            logger.info(f"Generating voice preview with gTTS: lang={gtts_lang}, text={text[:50]}")
+
+            tts = GoogleTTS(text=text, lang=gtts_lang, slow=False)
+            tts.save(output_path)
+
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                tts_success = True
+                logger.info(f"gTTS succeeded: {output_path}")
+        except Exception as gtts_error:
+            logger.warning(f"gTTS failed: {gtts_error}, falling back to Coqui TTS")
+
+        # Fallback to Coqui TTS if gTTS failed
+        if not tts_success:
             try:
-                from gtts import gTTS as GoogleTTS
-                logger.info(f"Generating voice preview with gTTS: lang={lang_code}, text={text[:50]}")
-                
-                tts = GoogleTTS(text=text, lang=lang_code, slow=False)
-                tts.save(output_path)
-                
+                from TTS.api import TTS as CoquiTTS
+                logger.info(f"Generating voice preview with Coqui TTS: lang={gtts_lang}, text={text[:50]}")
+
+                # Use a multilingual model
+                coqui = CoquiTTS(model_name="tts_models/multilingual/multi-dataset/your_tts", progress_bar=False)
+
+                # Map language codes to Coqui TTS language codes
+                coqui_lang_map = {
+                    'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de',
+                    'it': 'it', 'pt': 'pt', 'ru': 'ru', 'ja': 'ja',
+                    'ko': 'ko', 'zh-cn': 'zh-cn', 'zh-tw': 'zh-cn'
+                }
+                coqui_lang = coqui_lang_map.get(gtts_lang, 'en')
+
+                # Generate audio
+                coqui.tts_to_file(text=text, file_path=output_path, language=coqui_lang)
+
                 if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
                     tts_success = True
-                    logger.info(f"gTTS succeeded: {output_path}")
-            except Exception as gtts_error:
-                logger.warning(f"gTTS failed: {gtts_error}, falling back to Coqui TTS")
-            
-            # Fallback to Coqui TTS if gTTS failed
-            if not tts_success:
-                try:
-                    from TTS.api import TTS as CoquiTTS
-                    logger.info(f"Generating voice preview with Coqui TTS: lang={lang_code}, text={text[:50]}")
-                    
-                    # Use a multilingual model
-                    coqui = CoquiTTS(model_name="tts_models/multilingual/multi-dataset/your_tts", progress_bar=False)
-                    
-                    # Map language codes to Coqui TTS language codes
-                    coqui_lang_map = {
-                        'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de',
-                        'it': 'it', 'pt': 'pt', 'ru': 'ru', 'ja': 'ja',
-                        'ko': 'ko', 'zh': 'zh-cn'
-                    }
-                    coqui_lang = coqui_lang_map.get(lang_code, 'en')
-                    
-                    # Generate audio
-                    coqui.tts_to_file(text=text, file_path=output_path, language=coqui_lang)
-                    
-                    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                        tts_success = True
-                        logger.info(f"Coqui TTS succeeded: {output_path}")
-                except Exception as coqui_error:
-                    logger.error(f"Coqui TTS also failed: {coqui_error}")
+                    logger.info(f"Coqui TTS succeeded: {output_path}")
+            except Exception as coqui_error:
+                logger.error(f"Coqui TTS also failed: {coqui_error}")
 
-            # Verify file was created and has content
-            if not tts_success or not os.path.exists(output_path):
-                raise Exception(f"All TTS methods failed. Audio file was not created.")
+        # Verify file was created and has content
+        if not tts_success or not os.path.exists(output_path):
+            raise Exception(f"All TTS methods failed. Audio file was not created.")
 
-            file_size = os.path.getsize(output_path)
-            if file_size == 0:
-                os.remove(output_path)
-                raise Exception("Generated audio file is empty after writing")
+        file_size = os.path.getsize(output_path)
+        if file_size == 0:
+            os.remove(output_path)
+            raise Exception("Generated audio file is empty after writing")
 
-            logger.info(f"Voice preview generated: {output_path}, size: {file_size} bytes")
-        except Exception as e:
-            # Clean up if file was created but is invalid
-            if os.path.exists(output_path):
-                try:
-                    os.remove(output_path)
-                    logger.info(f"Cleaned up invalid file: {output_path}")
-                except:
-                    pass
-
-            logger.error(f"Failed to generate audio: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to generate voice preview: {str(e)}"
-            )
-
-        # Deduct 1 credit for preview
-        new_credits = current_user.credits - 1
-
-        # In demo mode, don't update database
-        if not (os.getenv("DEMO_MODE", "false").lower() == "true"):
-            supabase.table("users").update({"credits": new_credits}).eq("id", current_user.id).execute()
-
-        return {
-            "success": True,
-            "preview_url": f"/api/voices/preview-file/{preview_filename}",
-            "credits_remaining": new_credits,
-            "message": "Preview generated successfully"
-        }
-
-    except HTTPException:
-        raise
+        logger.info(f"Voice preview generated: {output_path}, size: {file_size} bytes")
     except Exception as e:
-        logger.error(f"Voice preview error: {e}")
+        # Clean up if file was created but is invalid
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+                logger.info(f"Cleaned up invalid file: {output_path}")
+            except:
+                pass
+
+        logger.error(f"Failed to generate audio: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate preview: {str(e)}"
+            status_code=500,
+            detail=f"Failed to generate voice preview: {str(e)}"
         )
+
+    # Deduct 1 credit for preview (skip for demo users)
+    new_credits = current_user.credits
+    if not is_demo_user:
+        new_credits = current_user.credits - 1
+        # Update database
+        try:
+            supabase.table("users").update({"credits": new_credits}).eq("id", current_user.id).execute()
+        except Exception as e:
+            logger.error(f"Failed to update credits: {e}")
+
+    return {
+        "success": True,
+        "preview_url": f"/api/voices/preview-file/{preview_filename}",
+        "credits_remaining": new_credits,
+        "tts_engine": "gTTS",
+        "language_code": gtts_lang,
+        "message": "Preview generated successfully with gTTS"
+    }
 
 
 @app.get("/api/voices/preview-file/{filename}")
@@ -2778,8 +2834,8 @@ async def root():
     import sys
     
     # Get voice statistics
-    total_voices = sum(len(voices) for voices in VOICE_OPTIONS.values())
-    available_languages = list(VOICE_OPTIONS.keys())
+    total_voices = sum(len(voices) for voices in GTTS_VOICE_OPTIONS.values())
+    available_languages = list(GTTS_VOICE_OPTIONS.keys())
     
     # Get translation model stats
     loaded_translators = list(translator_cache.keys()) if translator_cache else []
@@ -3008,7 +3064,7 @@ async def root():
                         "voices_available": len(voices),
                         "example_voices": list(voices.keys())[:3] if voices else []
                     }
-                    for lang, voices in VOICE_OPTIONS.items()
+                    for lang, voices in GTTS_VOICE_OPTIONS.items()
                 }
             }
         },

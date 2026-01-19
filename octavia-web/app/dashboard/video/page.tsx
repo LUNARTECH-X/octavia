@@ -786,10 +786,10 @@ export default function VideoTranslationPage() {
                     Professional-grade voice synthesis with precise timing control ensures natural speech patterns.
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-slate-400">
-                    <li>Edge-TTS voices with natural prosody and breathing patterns</li>
+                    <li>gTTS (Google Text-to-Speech) for crystal-clear audio quality</li>
                     <li>Speed optimization to match original speech duration</li>
                     <li>Audio normalization to prevent clipping and maintain consistency</li>
-                    <li>Multi-language voice selection with accent-appropriate options</li>
+                    <li>Multi-language support with 15+ language options</li>
                   </ul>
                 </div>
 

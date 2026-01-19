@@ -228,12 +228,12 @@ export default function DashboardPage() {
                     <h2 className="text-xl font-bold text-white mb-2">Welcome back, {currentUser.name}!</h2>
                     <p className="text-slate-400">
                         {currentUser.verified 
-                            ? "Your email is verified and ready for translation magic! ✨"
+                            ? "Your email is verified and ready to start translating."
                             : "Please verify your email to access all features."}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                         <span className={`text-xs px-2 py-1 rounded-full ${currentUser.verified ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'}`}>
-                            {currentUser.verified ? '✅ Verified' : '⚠️ Not Verified'}
+                            {currentUser.verified ? 'Verified' : 'Not Verified'}
                         </span>
                         <span className="text-xs text-slate-500">
                             {currentUser.email}
