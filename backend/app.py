@@ -1625,37 +1625,18 @@ async def preview_voice(
                 tts_success = True
                 logger.info(f"gTTS succeeded: {output_path}")
         except Exception as gtts_error:
-            logger.warning(f"gTTS failed: {gtts_error}, falling back to Coqui TTS")
-
-        # Fallback to Coqui TTS if gTTS failed
-        if not tts_success:
-            try:
-                from TTS.api import TTS as CoquiTTS
-                logger.info(f"Generating voice preview with Coqui TTS: lang={gtts_lang}, text={text[:50]}")
-
-                # Use a multilingual model
-                coqui = CoquiTTS(model_name="tts_models/multilingual/multi-dataset/your_tts", progress_bar=False)
-
-                # Map language codes to Coqui TTS language codes
-                coqui_lang_map = {
-                    'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de',
-                    'it': 'it', 'pt': 'pt', 'ru': 'ru', 'ja': 'ja',
-                    'ko': 'ko', 'zh-cn': 'zh-cn', 'zh-tw': 'zh-cn'
-                }
-                coqui_lang = coqui_lang_map.get(gtts_lang, 'en')
-
-                # Generate audio
-                coqui.tts_to_file(text=text, file_path=output_path, language=coqui_lang)
-
-                if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                    tts_success = True
-                    logger.info(f"Coqui TTS succeeded: {output_path}")
-            except Exception as coqui_error:
-                logger.error(f"Coqui TTS also failed: {coqui_error}")
+            logger.warning(f"gTTS failed: {gtts_error}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Voice preview not available for this language. gTTS failed: {str(gtts_error)}"
+            )
 
         # Verify file was created and has content
         if not tts_success or not os.path.exists(output_path):
-            raise Exception(f"All TTS methods failed. Audio file was not created.")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to generate voice preview. Audio file was not created."
+            )
 
         file_size = os.path.getsize(output_path)
         if file_size == 0:

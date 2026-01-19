@@ -1,33 +1,33 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { api, safeApiResponse, isSuccess } from "@/lib/api";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Video, Rocket, Loader2, Sparkles, FileVideo, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, Video, Rocket, Loader2, Sparkles, FileVideo, CheckCircle, AlertCircle, Play, Pause, Volume2 } from "lucide-react";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function VideoTranslationPage() {
+  const { user, refreshCredits } = useUser();
   const [file, setFile] = useState<File | null>(null);
   const [targetLanguage, setTargetLanguage] = useState("es");
-  const [sourceLanguage, setSourceLanguage] = useState("auto");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [thumbnail, setThumbnail] = useState<string | null>(null);
-  const [aiInsights, setAiInsights] = useState<{
-    estimatedChunks: number;
-    estimatedDuration: string;
-    detectedLanguage?: string;
-  } | null>(null);
   const [separate, setSeparate] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [previewText, setPreviewText] = useState("Hello! This is a preview of how the translated audio will sound.");
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { toast } = useToast();
 
-  // Get authentication token
   const getToken = (): string | null => {
     if (typeof window === 'undefined') return null;
     const userStr = localStorage.getItem('octavia_user');
@@ -43,11 +43,40 @@ export default function VideoTranslationPage() {
     return null;
   };
 
+  const isDemoUser = useMemo(() => {
+    return user?.email === "demo@octavia.com" || false;
+  }, [user]);
+
+  const languageNames: Record<string, string> = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'ru': 'Russian',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'zh-cn': 'Chinese (Mandarin)',
+    'nl': 'Dutch',
+    'pl': 'Polish',
+    'tr': 'Turkish',
+    'sv': 'Swedish'
+  };
+
+  useEffect(() => {
+    return () => {
+      if (audioElement) {
+        audioElement.pause();
+        audioElement.currentTime = 0;
+      }
+    };
+  }, [audioElement]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
 
-      // Validate file type
       const validTypes = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.wmv', '.flv'];
       const fileExtension = selectedFile.name.substring(selectedFile.name.lastIndexOf('.')).toLowerCase();
 
@@ -56,7 +85,6 @@ export default function VideoTranslationPage() {
         return;
       }
 
-      // Validate file size (max 500MB)
       if (selectedFile.size > 500 * 1024 * 1024) {
         setError("File size too large. Maximum size is 500MB");
         return;
@@ -64,17 +92,83 @@ export default function VideoTranslationPage() {
 
       setFile(selectedFile);
       setError(null);
-
-      // Generate AI insights
-      generateAiInsights(selectedFile);
-
-      // Generate thumbnail (simulated)
       generateThumbnail(selectedFile);
     }
   };
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handlePreviewVoice = async () => {
+    if (!targetLanguage) return;
+
+    try {
+      const token = getToken();
+      if (!token && !isDemoUser) {
+        alert("Please log in to preview voices");
+        return;
+      }
+
+      setIsPlayingPreview(true);
+
+      const formData = new FormData();
+      formData.append('voice_id', targetLanguage);
+      formData.append('text', previewText);
+      formData.append('language', targetLanguage);
+
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/voices/preview`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Preview generation failed");
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.preview_url) {
+        const audioUrl = `${API_BASE_URL}${data.preview_url}`;
+        const audio = new Audio(audioUrl);
+
+        audio.onended = () => {
+          setIsPlayingPreview(false);
+        };
+
+        audio.onerror = () => {
+          setIsPlayingPreview(false);
+          alert("Failed to play preview audio");
+        };
+
+        setAudioElement(audio);
+        setPreviewAudioUrl(audioUrl);
+        audio.play().catch((err) => {
+          setIsPlayingPreview(false);
+          alert(`Failed to play audio: ${err.message}`);
+        });
+
+        refreshCredits();
+      }
+    } catch (err) {
+      console.error("Preview error:", err);
+      setIsPlayingPreview(false);
+      alert("Failed to generate voice preview");
+    }
+  };
+
+  const stopPreview = () => {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      setIsPlayingPreview(false);
+    }
   };
 
   const handleStartTranslation = async () => {
@@ -101,13 +195,11 @@ export default function VideoTranslationPage() {
     try {
       console.log("Starting video translation for file:", file.name);
 
-      // Create FormData
       const formData = new FormData();
       formData.append('file', file);
       formData.append('target_language', targetLanguage);
       formData.append('separate', separate.toString());
 
-      // Call the enhanced video translation endpoint
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/translate/video`, {
         method: 'POST',
         headers: {
@@ -142,19 +234,19 @@ export default function VideoTranslationPage() {
           variant: "default",
         });
 
-        // Redirect to progress page with job ID
         router.push(`/dashboard/video/progress?jobId=${data.job_id}`);
 
       } else {
         throw new Error(data.error || data.message || "Failed to start translation");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Translation error:', err);
-      setError(err.message || "Failed to start video translation");
+      const errorMessage = err instanceof Error ? err.message : "Failed to start video translation";
+      setError(errorMessage);
 
       toast({
         title: "Translation failed",
-        description: err.message || "Failed to start translation. Please try again.",
+        description: errorMessage || "Failed to start translation. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -162,661 +254,355 @@ export default function VideoTranslationPage() {
     }
   };
 
-  const handleEnhancedTranslation = async () => {
-    if (!file) {
-      setError("Please select a video file first");
-      return;
-    }
-
-    const token = getToken();
-    if (!token) {
-      setError("Please log in to start translation");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setUploadProgress(10);
-
-    try {
-      console.log("Starting enhanced video translation for file:", file.name);
-
-      // Create FormData with chunk size
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('target_language', targetLanguage);
-      formData.append('separate', separate.toString());
-      formData.append('chunk_size', '10'); // 10s Chunk size for deeper processing
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/translate/video/enhanced`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const responseText = await response.text();
-      console.log('Response status:', response.status);
-      console.log('Response text:', responseText);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse response:', parseError);
-        throw new Error(`Server returned invalid JSON: ${responseText.substring(0, 100)}...`);
-      }
-
-      if (!response.ok) {
-        const errorMessage = data.error || data.detail || data.message || `Upload failed: ${response.statusText}`;
-        throw new Error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage));
-      }
-
-      if (data.success && data.job_id) {
-        setUploadProgress(100);
-
-        toast({
-          title: "Enhanced translation started!",
-          description: "Your video is being processed with enhanced quality. Redirecting to progress page...",
-          variant: "default",
-        });
-
-        router.push(`/dashboard/video/progress?jobId=${data.job_id}`);
-
-      } else {
-        throw new Error(data.error || data.message || "Failed to start enhanced translation");
-      }
-    } catch (err: any) {
-      console.error('Enhanced translation error:', err);
-      setError(err.message || "Failed to start enhanced translation");
-
-      toast({
-        title: "Enhanced translation failed",
-        description: err.message || "Failed to start enhanced translation. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const generateThumbnail = (videoFile: File) => {
+    const videoUrl = URL.createObjectURL(videoFile);
+    setThumbnail(videoUrl);
   };
 
-  const generateAiInsights = (file: File) => {
-    // Get actual duration using a temporary video element
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-
-    video.onloadedmetadata = function () {
-      window.URL.revokeObjectURL(video.src);
-      const duration = video.duration;
-      const durationMinutes = duration / 60;
-
-      // Calculate chunks based on actual duration (10s chunks for deeper analysis)
-      const estimatedChunks = Math.ceil(duration / 10);
-
-      const minutes = Math.floor(duration / 60);
-      const seconds = Math.floor(duration % 60);
-      const formattedDuration = `${minutes}:${String(seconds).padStart(2, '0')}`;
-
-      setAiInsights({
-        estimatedChunks: Math.max(1, estimatedChunks),
-        estimatedDuration: formattedDuration,
-        detectedLanguage: "en" // Default assumption
-      });
-
-      // Simulate language detection delay
-      setTimeout(() => {
-        setAiInsights(prev => prev ? {
-          ...prev,
-          detectedLanguage: "en" // Simulated detection result
-        } : null);
-      }, 2000);
-    };
-
-    video.onerror = function () {
-      // Fallback for error reading metadata
-      const fileSizeMB = file.size / (1024 * 1024);
-      setAiInsights({
-        estimatedChunks: Math.ceil(fileSizeMB), // Rough fallback
-        estimatedDuration: "Unknown",
-        detectedLanguage: "en"
-      });
-    };
-
-    video.src = URL.createObjectURL(file);
-  };
-
-  const generateThumbnail = (file: File) => {
-    // Create a simple placeholder thumbnail
-    // In a real app, this would extract actual frames from the video
-    const canvas = document.createElement('canvas');
-    canvas.width = 320;
-    canvas.height = 180;
-    const ctx = canvas.getContext('2d');
-
-    if (ctx) {
-      // Create gradient background
-      const gradient = ctx.createLinearGradient(0, 0, 320, 180);
-      gradient.addColorStop(0, '#6366f1');
-      gradient.addColorStop(1, '#8b5cf6');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, 320, 180);
-
-      // Add video icon
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.font = '48px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('🎥', 160, 100);
-
-      // Add filename
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.font = '12px Arial';
-      ctx.fillText(file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name, 160, 160);
-
-      setThumbnail(canvas.toDataURL('image/png'));
-    }
-  };
-
-  const removeFile = () => {
+  const clearFile = () => {
     setFile(null);
     setThumbnail(null);
-    setAiInsights(null);
+    setUploadProgress(0);
     setError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
     }
+    setPreviewAudioUrl(null);
+    setIsPlayingPreview(false);
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="font-display text-3xl font-black text-white text-glow-purple">Video AI Translator</h1>
-            <p className="text-slate-400 text-sm">Upload your video and translate it across languages</p>
-          </div>
+    <div className="min-h-screen bg-[#030014]">
+      <main className="relative overflow-hidden rounded-2xl">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]"></div>
         </div>
-      </div>
 
-      {/* Error Display */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-panel border-red-500/30 bg-red-500/10 p-4"
-        >
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5">
-              <div className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center">
-                <AlertCircle className="w-3 h-3 text-red-400" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <p className="text-red-400 text-sm">{error}</p>
-              {error.includes("log in") && (
-                <button
-                  onClick={() => router.push('/login')}
-                  className="mt-2 px-3 py-1 text-xs bg-red-500/20 border border-red-500/30 text-red-400 rounded hover:bg-red-500/30 transition-colors"
-                >
-                  Go to Login
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => setError(null)}
-              className="text-red-400 hover:text-red-300 transition-colors"
-            >
-              <span className="text-xs">✕</span>
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Hidden file input */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept=".mp4,.avi,.mov,.mkv,.webm,.wmv,.flv"
-        className="hidden"
-      />
-
-      {/* Upload Zone */}
-      <motion.div
-        whileHover={!file && !loading ? { scale: 1.01 } : {}}
-        className={`glass-panel glass-panel-high relative border-2 border-dashed transition-all mb-6 overflow-hidden cursor-pointer group
-          ${file ? 'border-green-500/50 cursor-default' :
-            loading ? 'border-primary-purple/30 cursor-wait' :
-              'border-primary-purple/30 hover:border-primary-purple/50'}`}
-        onClick={!file && !loading ? handleUploadClick : undefined}
-      >
-        <div className="glass-shine" />
-        <div className="glow-purple" style={{ width: "300px", height: "300px", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1 }} />
-
-        <div className="relative z-20 py-12 px-6">
-          {file ? (
-            <div className="flex flex-col items-center justify-center gap-3 text-center">
-              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/30 shadow-glow">
-                <Video className="w-8 h-8 text-green-500" />
-              </div>
-              <div>
-                <h3 className="text-white text-lg font-bold mb-1 text-glow-green">{file.name}</h3>
-                <p className="text-slate-400 text-sm">
-                  {(file.size / (1024 * 1024)).toFixed(2)} MB • {aiInsights?.estimatedDuration || 'Duration: Analyzing...'} • Ready to translate
-                </p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="px-2 py-1 bg-green-500/10 border border-green-500/30 rounded text-xs text-green-400">
-                    ✓ Format: {file.name.split('.').pop()?.toUpperCase()}
-                  </span>
-                  <span className="px-2 py-1 bg-blue-500/10 border border-blue-500/30 rounded text-xs text-blue-400">
-                    ✓ Size: OK
-                  </span>
-                  <span className="px-2 py-1 bg-purple-500/10 border border-purple-500/30 rounded text-xs text-purple-400">
-                    ✓ AI Analyzed
-                  </span>
-                </div>
-              </div>
-              {!loading && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeFile();
-                  }}
-                  className="mt-4 px-4 py-2 text-sm bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors flex items-center gap-2"
-                >
-                  <span className="text-xs">✕</span>
-                  Remove File
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-3 text-center">
-              <div className={`flex items-center justify-center w-16 h-16 rounded-2xl ${loading ? 'bg-primary-purple/20' : 'bg-primary-purple/10'} border border-primary-purple/30 shadow-glow group-hover:scale-110 transition-transform`}>
-                {loading ? (
-                  <Loader2 className="w-8 h-8 text-primary-purple-bright animate-spin" />
-                ) : (
-                  <Upload className="w-8 h-8 text-primary-purple-bright" />
-                )}
-              </div>
-              <div>
-                <h3 className="text-white text-lg font-bold mb-1 text-glow-purple">
-                  {loading ? 'Processing...' : 'Drop your video here'}
-                </h3>
-                <p className="text-slate-400 text-sm">
-                  {loading ? 'Video upload in progress...' : 'or click to browse files • MP4, AVI, MOV, MKV, WEBM supported'}
-                </p>
-                <p className="text-slate-500 text-xs mt-2">Max file size: 500MB</p>
-              </div>
-            </div>
-          )}
-
-          {/* Help Button */}
-          {!loading && (
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowHelpModal(true);
-                }}
-                className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
-                aria-label="Help"
-              >
-                <span className="text-sm">?</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </motion.div>
-
-      {/* Progress Bar */}
-      {loading && uploadProgress > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-panel p-4 mb-6"
-        >
-          <div className="flex justify-between text-sm mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-              <span className="text-gray-400">
-                {uploadProgress < 100 ? "Uploading video file..." : "Video uploaded successfully!"}
-              </span>
-            </div>
-            <span className="text-white font-bold">{Math.round(uploadProgress)}%</span>
-          </div>
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <div className="relative max-w-6xl mx-auto px-6 py-12">
+          {/* Header */}
+          <div className="text-center mb-12">
             <motion.div
-              className="h-full bg-gradient-to-r from-primary-purple to-primary-purple-bright"
-              initial={{ width: "0%" }}
-              animate={{ width: `${uploadProgress}%` }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-            />
-          </div>
-        </motion.div>
-      )}
-
-      {/* Configuration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Source Language */}
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block">Source Language</label>
-          <select
-            className="glass-select w-full"
-            value={sourceLanguage}
-            onChange={(e) => setSourceLanguage(e.target.value)}
-            disabled={loading}
-          >
-            <option value="auto">Auto-detect (Recommended)</option>
-            <optgroup label="Popular Languages">
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="it">Italian</option>
-              <option value="pt">Portuguese</option>
-              <option value="ru">Russian</option>
-              <option value="ja">Japanese</option>
-              <option value="ko">Korean</option>
-              <option value="zh">Chinese (Mandarin)</option>
-            </optgroup>
-            <optgroup label="European Languages">
-              <option value="nl">Dutch</option>
-              <option value="pl">Polish</option>
-              <option value="tr">Turkish</option>
-              <option value="sv">Swedish</option>
-              <option value="da">Danish</option>
-              <option value="no">Norwegian</option>
-              <option value="fi">Finnish</option>
-            </optgroup>
-            <optgroup label="Asian Languages">
-              <option value="vi">Vietnamese</option>
-              <option value="th">Thai</option>
-              <option value="id">Indonesian</option>
-              <option value="hi">Hindi</option>
-              <option value="ar">Arabic</option>
-            </optgroup>
-          </select>
-          {aiInsights?.detectedLanguage && sourceLanguage === "auto" && (
-            <p className="text-xs text-accent-cyan mt-1">
-              ✓ Detected: {aiInsights.detectedLanguage.toUpperCase()}
-            </p>
-          )}
-        </div>
-
-        {/* Target Language */}
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block">Target Language</label>
-          <select
-            className="glass-select w-full"
-            value={targetLanguage}
-            onChange={(e) => setTargetLanguage(e.target.value)}
-            disabled={loading}
-          >
-            <optgroup label="Popular Languages">
-              <option value="es">Spanish</option>
-              <option value="en">English</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="it">Italian</option>
-              <option value="pt">Portuguese</option>
-              <option value="ru">Russian</option>
-              <option value="ja">Japanese</option>
-              <option value="ko">Korean</option>
-              <option value="zh">Chinese (Mandarin)</option>
-            </optgroup>
-            <optgroup label="European Languages">
-              <option value="nl">Dutch</option>
-              <option value="pl">Polish</option>
-              <option value="tr">Turkish</option>
-              <option value="sv">Swedish</option>
-              <option value="da">Danish</option>
-              <option value="no">Norwegian</option>
-              <option value="fi">Finnish</option>
-            </optgroup>
-            <optgroup label="Asian Languages">
-              <option value="vi">Vietnamese</option>
-              <option value="th">Thai</option>
-              <option value="id">Indonesian</option>
-              <option value="hi">Hindi</option>
-              <option value="ar">Arabic</option>
-            </optgroup>
-          </select>
-        </div>
-      </div>
-
-      {/* AI Insights Banner */}
-      {aiInsights && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-panel border-accent-cyan/30 bg-accent-cyan/5 mb-6 p-4"
-        >
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5">
-              <div className="w-5 h-5 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center">
-                <Sparkles className="w-3 h-3 text-accent-cyan" />
-              </div>
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white text-sm font-bold mb-1">AI Analysis Complete</h3>
-              <p className="text-slate-300 text-sm">
-                AI will split your {aiInsights.estimatedDuration} video into ~{aiInsights.estimatedChunks} chunks to ensure perfect A/V sync and frame-accurate audio sync.
+            >
+              <h1 className="font-display text-5xl font-black text-white mb-4 text-glow-purple">
+                Video Translation
+              </h1>
+              <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+                Upload a video and translate it into any language with AI-powered lip-sync and voice cloning.
               </p>
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* AI Options */}
-      <div className="glass-panel glass-panel-glow mb-6 p-5 relative overflow-hidden">
-        <div className="glass-shine" />
-        <div className="relative z-10">
-          <div className="flex items-start gap-3 mb-3">
-            <Sparkles className="w-5 h-5 text-accent-cyan" />
-            <div>
-              <h3 className="text-white text-sm font-bold mb-1">AI-Powered Features</h3>
-              <p className="text-slate-400 text-xs">Enhance your translation with advanced AI capabilities</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-cyan/10 border border-accent-cyan/30">
-              <CheckCircle className="w-3.5 h-3.5 text-accent-cyan" />
-              <span className="text-slate-200 text-xs font-medium">Voice Synthesis</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary-purple/10 border border-primary-purple/30">
-              <CheckCircle className="w-3.5 h-3.5 text-primary-purple-bright" />
-              <span className="text-slate-200 text-xs font-medium">Lip Sync</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-pink/10 border border-accent-pink/30">
-              <CheckCircle className="w-3.5 h-3.5 text-accent-pink" />
-              <span className="text-slate-200 text-xs font-medium">Subtitle Generation</span>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Magic Mode Toggle */}
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <label className="flex items-center justify-between cursor-pointer group/toggle">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${separate ? 'bg-indigo-500/20 shadow-glow border-indigo-500/50' : 'bg-white/5 border-white/10'}`}>
-                  <Sparkles className={`w-5 h-5 ${separate ? 'text-indigo-400' : 'text-slate-500'}`} />
-                </div>
-                <div>
-                  <h4 className="text-white text-sm font-bold flex items-center gap-2">
-                    Magic Mode (Vocal Separation)
-                    {separate && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500 text-white uppercase tracking-wider animate-pulse">Active</span>}
-                  </h4>
-                  <p className="text-slate-400 text-xs">Separate background music from vocals for cleaner dubbing</p>
-                </div>
-              </div>
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={separate}
-                  onChange={() => setSeparate(!separate)}
-                  disabled={loading}
-                />
-                <div className={`block w-14 h-8 rounded-full transition-all ${separate ? 'bg-indigo-600 shadow-glow' : 'bg-slate-700'}`}></div>
-                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-all ${separate ? 'transform translate-x-6 shadow-lg' : ''}`}></div>
-              </div>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col gap-4">
-        {/* Standard Translation */}
-        <button
-          onClick={handleStartTranslation}
-          disabled={!file || loading}
-          className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <Rocket className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-                <span>Start Translation</span>
-              </>
-            )}
-          </div>
-        </button>
-
-        {/* Enhanced Translation */}
-        <button
-          onClick={handleEnhancedTranslation}
-          disabled={!file || loading}
-          className="glass-panel p-4 text-center border border-primary-purple/30 hover:border-primary-purple/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
-        >
-          <div className="flex items-center justify-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary-purple-bright group-hover:animate-pulse" />
-            <span className="text-primary-purple-bright font-medium">Try Enhanced Mode (Chunk Processing)</span>
-          </div>
-          <p className="text-slate-400 text-xs mt-1">For better quality with long videos</p>
-        </button>
-      </div>
-
-      {/* Credit Information */}
-      <div className="glass-card p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-2 h-2 rounded-full bg-accent-pink animate-pulse"></div>
-          <span className="text-white text-sm font-semibold">Credit Information</span>
-        </div>
-        <ul className="text-slate-400 text-sm space-y-1 pl-2">
-          <li>• Video translation costs <span className="text-accent-pink font-bold">10 credits</span> per job</li>
-          <li>• Enhanced mode provides better quality for complex videos</li>
-          <li>• Processing time depends on video length and complexity</li>
-          <li>• You'll receive both translated video and subtitles</li>
-          <li>• Progress can be tracked in the progress page</li>
-        </ul>
-      </div>
-
-      {/* Debug Info (only in development) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="glass-card p-4 border-dashed border-gray-700/50">
-          <h4 className="text-gray-400 text-sm font-semibold mb-2">Debug Info</h4>
-          <div className="text-xs text-gray-500 space-y-1">
-            <div>Selected File: <span className="text-gray-400">{file?.name || 'None'}</span></div>
-            <div>File Size: <span className="text-gray-400">{file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : 'N/A'}</span></div>
-            <div>Target Language: <span className="text-gray-400">{targetLanguage}</span></div>
-            <div>Loading: <span className="text-gray-400">{loading ? 'Yes' : 'No'}</span></div>
-            <div>Upload Progress: <span className="text-gray-400">{uploadProgress}%</span></div>
-            <div>User Authenticated: <span className="text-gray-400">{getToken() ? 'Yes' : 'No'}</span></div>
-            <div>API Base: <span className="text-gray-400">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}</span></div>
-          </div>
-        </div>
-      )}
-
-      {/* Help Modal */}
-      {showHelpModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          {/* File Upload */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="glass-panel max-w-2xl w-full max-h-[80vh] overflow-y-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-panel glass-panel-glow p-8 mb-8 relative overflow-hidden rounded-2xl"
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">How We Keep Durations Exact</h2>
-                <button
-                  onClick={() => setShowHelpModal(false)}
-                  className="text-slate-400 hover:text-white transition-colors"
+            <div className="glass-shine" />
+            <div className="relative z-10">
+              {!file ? (
+                <div
+                  onClick={handleUploadClick}
+                  className="border-2 border-dashed border-white/20 rounded-2xl p-12 text-center cursor-pointer hover:border-primary-purple/50 hover:bg-white/5 transition-all group"
                 >
-                  <span className="text-lg">✕</span>
-                </button>
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary-purple/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Upload className="w-10 h-10 text-primary-purple-bright" />
+                  </div>
+                  <h3 className="text-white text-xl font-bold mb-2">Upload your video</h3>
+                  <p className="text-slate-400 mb-4">Drag and drop or click to browse</p>
+                  <p className="text-slate-500 text-sm">MP4, AVI, MOV, MKV, WebM, WMV, FLV (Max 500MB)</p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".mp4,.avi,.mov,.mkv,.webm,.wmv,.flv"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-start gap-4">
+                    {thumbnail && (
+                      <div className="w-48 h-32 rounded-lg overflow-hidden flex-shrink-0">
+                        <video src={thumbnail} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-white font-bold text-lg">{file.name}</h3>
+                        <button
+                          onClick={clearFile}
+                          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                        >
+                          <AlertCircle className="w-5 h-5 text-slate-400" />
+                        </button>
+                      </div>
+                      <p className="text-slate-400 text-sm mb-4">
+                        {(file.size / (1024 * 1024)).toFixed(2)} MB
+                      </p>
+
+                      {loading && (
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                              <span className="text-gray-400">
+                                {uploadProgress < 100 ? "Uploading video file..." : "Video uploaded successfully!"}
+                              </span>
+                            </div>
+                            <span className="text-white font-bold">{Math.round(uploadProgress)}%</span>
+                          </div>
+                          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-primary-purple to-primary-purple-bright"
+                              initial={{ width: "0%" }}
+                              animate={{ width: `${uploadProgress}%` }}
+                              transition={{ duration: 0.5 }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Target Language & Voice Preview */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pt-6 border-t border-white/10">
+                    {/* Target Language */}
+                    <div className="glass-card p-4">
+                      <label className="text-white text-sm font-semibold mb-3 block">Translate To</label>
+                      <select
+                        className="glass-select w-full"
+                        value={targetLanguage}
+                        onChange={(e) => {
+                          setTargetLanguage(e.target.value);
+                          if (audioElement) {
+                            audioElement.pause();
+                            audioElement.currentTime = 0;
+                          }
+                          setIsPlayingPreview(false);
+                        }}
+                        disabled={loading}
+                      >
+                        <optgroup label="Popular Languages">
+                          <option value="es">Spanish</option>
+                          <option value="en">English</option>
+                          <option value="fr">French</option>
+                          <option value="de">German</option>
+                          <option value="it">Italian</option>
+                          <option value="pt">Portuguese</option>
+                          <option value="ru">Russian</option>
+                          <option value="ja">Japanese</option>
+                          <option value="ko">Korean</option>
+                          <option value="zh-cn">Chinese (Mandarin)</option>
+                        </optgroup>
+                        <optgroup label="European Languages">
+                          <option value="nl">Dutch</option>
+                          <option value="pl">Polish</option>
+                          <option value="tr">Turkish</option>
+                          <option value="sv">Swedish</option>
+                        </optgroup>
+                        <optgroup label="Other Languages">
+                          <option value="ar">Arabic</option>
+                        </optgroup>
+                      </select>
+                      <p className="text-slate-500 text-xs mt-2">
+                        {languageNames[targetLanguage]} voice will be used for translation
+                      </p>
+                    </div>
+
+                    {/* Voice Preview */}
+                    <div className="glass-card p-4">
+                      <label className="text-white text-sm font-semibold mb-3 block">Voice Preview</label>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Volume2 className="w-4 h-4 text-primary-purple-bright" />
+                        <span className="text-slate-300 text-sm">{languageNames[targetLanguage]}</span>
+                      </div>
+                      <textarea
+                        value={previewText}
+                        onChange={(e) => setPreviewText(e.target.value)}
+                        className="glass-input w-full h-16 p-2 text-sm mb-3"
+                        placeholder="Enter preview text..."
+                      />
+                      <div className="flex items-center gap-3">
+                        {isPlayingPreview ? (
+                          <button
+                            onClick={stopPreview}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors"
+                          >
+                            <Pause className="w-4 h-4" />
+                            Stop
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handlePreviewVoice}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary-purple/20 hover:bg-primary-purple/30 text-primary-purple-bright rounded-lg text-sm transition-colors"
+                          >
+                            <Play className="w-4 h-4" />
+                            Preview Voice
+                          </button>
+                        )}
+                        {isDemoUser && (
+                          <span className="text-green-400 text-xs">Demo: Free</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* File Info */}
+                  {file && (
+                    <div className="glass-panel border-white/10 bg-white/5 mt-6 p-4 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <FileVideo className="w-5 h-5 text-slate-400" />
+                        <div>
+                          <p className="text-slate-300 text-sm">
+                            Video ready for translation to {languageNames[targetLanguage]}
+                          </p>
+                          <p className="text-slate-500 text-xs mt-1">
+                            {(file.size / (1024 * 1024)).toFixed(2)} MB - Processing will begin when you start
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Magic Mode Toggle */}
+                  <div className="glass-panel mt-6 p-4 rounded-xl">
+                    <label className="flex items-center justify-between cursor-pointer group/toggle">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${separate ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-white/5 border-white/10'}`}>
+                          <Sparkles className={`w-5 h-5 ${separate ? 'text-indigo-400' : 'text-slate-500'}`} />
+                        </div>
+                        <div>
+                          <h4 className="text-white text-sm font-bold flex items-center gap-2">
+                            Magic Mode (Vocal Separation)
+                            {separate && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500 text-white uppercase tracking-wider animate-pulse">Active</span>}
+                          </h4>
+                          <p className="text-slate-400 text-xs">Separate background music from vocals for cleaner dubbing</p>
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={separate}
+                          onChange={() => setSeparate(!separate)}
+                          disabled={loading}
+                        />
+                        <div className={`block w-14 h-8 rounded-full transition-all ${separate ? 'bg-indigo-600 shadow-glow' : 'bg-slate-700'}`}></div>
+                        <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-all ${separate ? 'transform translate-x-6 shadow-lg' : ''}`}></div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col gap-4 mt-8">
+                    <button
+                      onClick={handleStartTranslation}
+                      disabled={!file || loading}
+                      className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Rocket className="w-5 h-5" />
+                            <span>Start Translation</span>
+                          </>
+                        )}
+                      </div>
+                    </button>
+
+                    <div className="flex items-center justify-center gap-6 text-xs text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-green-500" />
+                        Secure processing
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-green-500" />
+                        No upload limits
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-green-500" />
+                        Fast delivery
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Features */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="glass-panel p-8"
+          >
+            <h2 className="text-white text-2xl font-bold mb-6 text-center">How It Works</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
+                  <FileVideo className="w-6 h-6 text-blue-400" />
+                </div>
+                <h3 className="text-white font-bold mb-2">1. Upload Video</h3>
+                <p className="text-slate-400 text-sm">
+                  Simply upload your video file. Our AI will analyze the content and prepare it for translation.
+                </p>
               </div>
-
-              <div className="space-y-6 text-sm text-slate-300">
-                <div>
-                  <h3 className="text-white font-semibold mb-2">🎯 Frame-Accurate Duration Matching</h3>
-                  <p className="mb-2">
-                    Our AI ensures the translated video duration exactly matches the original, down to individual frames.
-                    This is achieved through advanced speed adjustment algorithms that maintain perfect lip-sync timing.
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 text-slate-400">
-                    <li>Automatic speed correction when duration differs by more than 100ms</li>
-                    <li>FFmpeg high-precision atempo filtering for exact timing</li>
-                    <li>Segment-level lip-sync verification (±100-200ms tolerance)</li>
-                    <li>Real-time duration validation during processing</li>
-                  </ul>
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-primary-purple/20 flex items-center justify-center mb-4">
+                  <Sparkles className="w-6 h-6 text-primary-purple-bright" />
                 </div>
-
-                <div>
-                  <h3 className="text-white font-semibold mb-2">🔄 Smart Chunk Processing</h3>
-                  <p className="mb-2">
-                    Videos are intelligently split into chunks for efficient processing while maintaining perfect continuity.
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 text-slate-400">
-                    <li>AI-optimized chunk sizes (30-120 seconds) based on speech density</li>
-                    <li>Automatic fallback to single-chunk processing for short videos</li>
-                    <li>Overlap detection to prevent cutting through speech segments</li>
-                    <li>Sequential processing to avoid GPU memory conflicts</li>
-                  </ul>
+                <h3 className="text-white font-bold mb-2">2. AI Processing</h3>
+                <p className="text-slate-400 text-sm">
+                  Our AI transcribes, translates, and generates new speech with perfect timing and lip-sync.
+                </p>
+              </div>
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center mb-4">
+                  <Video className="w-6 h-6 text-green-400" />
                 </div>
+                <h3 className="text-white font-bold mb-2">3. Download Result</h3>
+                <p className="text-slate-400 text-sm">
+                  Receive your translated video with synchronized dubbed audio and optional subtitles.
+                </p>
+              </div>
+            </div>
 
-                <div>
-                  <h3 className="text-white font-semibold mb-2">🎵 Voice Quality & Timing</h3>
-                  <p className="mb-2">
-                    Professional-grade voice synthesis with precise timing control ensures natural speech patterns.
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 text-slate-400">
-                    <li>gTTS (Google Text-to-Speech) for crystal-clear audio quality</li>
-                    <li>Speed optimization to match original speech duration</li>
-                    <li>Audio normalization to prevent clipping and maintain consistency</li>
-                    <li>Multi-language support with 15+ language options</li>
-                  </ul>
+            <div className="mt-8 pt-8 border-t border-white/10">
+              <h3 className="text-white font-bold mb-4">Technical Specifications</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="p-3 rounded-lg bg-white/5">
+                  <p className="text-slate-500 mb-1">Input Formats</p>
+                  <p className="text-white">MP4, AVI, MOV, MKV</p>
                 </div>
-
-                <div>
-                  <h3 className="text-white font-semibold mb-2">🤖 AI Orchestration</h3>
-                  <p className="mb-2">
-                    Advanced AI decision-making dynamically optimizes processing parameters for each video.
-                  </p>
-                  <ul className="list-disc list-inside space-y-1 text-slate-400">
-                    <li>Llama.cpp integration for intelligent parameter tuning</li>
-                    <li>Real-time VAD (Voice Activity Detection) threshold adjustment</li>
-                    <li>Dynamic chunk sizing based on speech complexity</li>
-                    <li>Performance learning from historical processing data</li>
-                  </ul>
+                <div className="p-3 rounded-lg bg-white/5">
+                  <p className="text-slate-500 mb-1">Max File Size</p>
+                  <p className="text-white">500 MB</p>
                 </div>
-
-                <div className="border-t border-white/10 pt-4 mt-6">
-                  <p className="text-center text-slate-400 text-xs">
-                    This ensures your translated videos maintain perfect timing and natural speech flow,
-                    indistinguishable from professionally dubbed content.
-                  </p>
+                <div className="p-3 rounded-lg bg-white/5">
+                  <p className="text-slate-500 mb-1">Languages</p>
+                  <p className="text-white">50+ Languages</p>
+                </div>
+                <div className="p-3 rounded-lg bg-white/5">
+                  <p className="text-slate-500 mb-1">Output</p>
+                  <p className="text-white">MP4 with Audio</p>
                 </div>
               </div>
             </div>
           </motion.div>
         </div>
-      )}
+      </main>
     </div>
   );
 }
