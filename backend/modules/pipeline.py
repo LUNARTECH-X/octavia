@@ -1078,6 +1078,53 @@ class VideoTranslationPipeline:
         except Exception as e:
             logger.error(f"Cleanup failed: {e}")
     
+    def calculate_duration_metrics(self, original_duration_ms: float, translated_audio_path: str) -> Dict[str, Any]:
+        """Calculate duration match metrics between original and translated audio"""
+        try:
+            if not os.path.exists(translated_audio_path):
+                return {
+                    "duration_match_percent": 0.0,
+                    "duration_diff_ms": 0,
+                    "duration_diff_percent": 0.0,
+                    "within_tolerance": False
+                }
+            
+            translated_audio = AudioSegment.from_file(translated_audio_path)
+            translated_duration_ms = len(translated_audio)
+            
+            duration_diff_ms = translated_duration_ms - original_duration_ms
+            duration_diff_percent = (duration_diff_ms / original_duration_ms * 100) if original_duration_ms > 0 else 0
+            
+            duration_match_percent = min(100, max(0, 100 - abs(duration_diff_percent)))
+            
+            tolerance_percent = 15.0  # 15% tolerance
+            within_tolerance = abs(duration_diff_percent) <= tolerance_percent
+            
+            logger.info(f"Duration metrics: original={original_duration_ms:.0f}ms, "
+                       f"translated={translated_duration_ms:.0f}ms, "
+                       f"diff={duration_diff_percent:+.1f}%, "
+                       f"match={duration_match_percent:.1f}%, "
+                       f"within_tolerance={within_tolerance}")
+            
+            return {
+                "duration_match_percent": duration_match_percent,
+                "duration_diff_ms": duration_diff_ms,
+                "duration_diff_percent": duration_diff_percent,
+                "original_duration_ms": original_duration_ms,
+                "translated_duration_ms": translated_duration_ms,
+                "within_tolerance": within_tolerance
+            }
+            
+        except Exception as e:
+            logger.error(f"Duration metrics calculation failed: {e}")
+            return {
+                "duration_match_percent": 0.0,
+                "duration_diff_ms": 0,
+                "duration_diff_percent": 0.0,
+                "within_tolerance": False,
+                "error": str(e)
+            }
+    
     def _update_job_progress(self, job_id: str, progress: int, message: str, chunks_processed: int = None, total_chunks: int = None, available_chunks: list = None, jobs_db: Dict = None):
         """Update job progress in jobs_db"""
         if job_id and jobs_db and job_id in jobs_db:
@@ -1133,6 +1180,12 @@ class VideoTranslationPipeline:
             temp_audio = os.path.join(self.config.temp_dir, f"audio_{uuid.uuid4().hex[:8]}.wav")
             if not self.extract_audio_fast(video_path, temp_audio):
                 raise Exception("Audio extraction failed")
+            
+            # Calculate original audio duration for metrics
+            from pydub import AudioSegment
+            original_audio = AudioSegment.from_file(temp_audio)
+            original_duration_ms = len(original_audio)
+            logger.info(f"Original audio duration: {original_duration_ms:.0f}ms")
             
             # --- VOCAL SEPARATION INTEGRATION ---
             instrumental_audio = None
@@ -1306,6 +1359,9 @@ class VideoTranslationPipeline:
             
             total_time = (datetime.now() - start_time).total_seconds()
             
+            # Calculate duration metrics
+            duration_metrics = self.calculate_duration_metrics(original_duration_ms, merged_audio)
+            
             # Cleanup
             self.cleanup_temp_files()
             
@@ -1319,10 +1375,15 @@ class VideoTranslationPipeline:
                 "message": f"Translation completed in {total_time:.1f}s",
                 # Add missing keys for CLI compatibility
                 "successful_chunks": len(chunks),
-                "duration_match_within_tolerance": True,
-                "avg_duration_diff_ms": 0,
+                "duration_match_within_tolerance": duration_metrics.get("within_tolerance", True),
+                "avg_duration_diff_ms": duration_metrics.get("duration_diff_ms", 0),
                 "avg_condensation_ratio": 1.0,
-                "total_time_seconds": total_time
+                "total_time_seconds": total_time,
+                # Duration metrics
+                "duration_match_percent": duration_metrics.get("duration_match_percent", 100.0),
+                "duration_diff_percent": duration_metrics.get("duration_diff_percent", 0.0),
+                "original_duration_ms": duration_metrics.get("original_duration_ms", 0),
+                "translated_duration_ms": duration_metrics.get("translated_duration_ms", 0)
             }
             
             logger.info(f"[OK] Translation completed in {total_time:.1f}s")
@@ -1344,7 +1405,13 @@ class VideoTranslationPipeline:
                 "error": str(e),
                 "processing_time_s": (datetime.now() - start_time).total_seconds() if 'start_time' in locals() else 0,
                 "output_path": "",
-                "target_language": target_lang
+                "target_language": target_lang,
+                "duration_match_within_tolerance": False,
+                "duration_match_percent": 0.0,
+                "avg_duration_diff_ms": 0,
+                "successful_chunks": 0,
+                "total_chunks": 0,
+                "message": f"Translation failed: {str(e)}"
             }
     
     def process_video(self, video_path: str, target_lang: str = "de") -> Dict[str, Any]:

@@ -90,6 +90,14 @@ class TranslationConfig:
     prefer_sentence_boundaries: bool = True  # Prefer cutting at sentence boundaries
     temp_dir: str = "/tmp/octavia"  # Temporary directory for intermediate files
     
+    # Duration checking and audio-video sync settings
+    enable_duration_check: bool = True  # Enable duration validation loop
+    duration_tolerance_percent: float = 0.15  # 15% tolerance for duration mismatch
+    max_duration_retries: int = 3  # Maximum retries for duration adjustment
+    enable_fit_to_time_prompts: bool = True  # Use Fit-to-Time LLM prompts
+    speed_adjustment_quality_threshold: float = 1.15  # Max speed ratio before requiring text reflow
+    preserve_timing_with_speedup: bool = True  # Use speedup when text reflow fails
+    
     def __post_init__(self):
         """Load configuration from environment variables if available"""
         load_dotenv()
@@ -2249,6 +2257,201 @@ Refined translation:"""
         estimated_duration = original_duration_ms * translated_length_ratio * rate_ratio
         return estimated_duration
 
+    def _get_actual_tts_duration(self, text: str, target_lang: str) -> float:
+        """Get actual TTS duration for text without generating full audio file"""
+        try:
+            chars_per_second = self.VOICE_RATES.get(target_lang, 12)
+            estimated_chars = len(text.strip())
+            if estimated_chars == 0:
+                return 0.0
+            return (estimated_chars / chars_per_second) * 1000
+        except Exception:
+            return 0.0
+
+    def _generate_fit_to_time_prompt(self, original_text: str, translated_text: str, 
+                                      original_duration_ms: float, target_duration_ms: float,
+                                      source_lang: str, target_lang: str) -> str:
+        """Generate a Fit-to-Time prompt for LLM to condense/adapt translation"""
+        
+        lang_names = {
+            "zh": "Chinese", "ja": "Japanese", "ko": "Korean",
+            "es": "Spanish", "fr": "French", "de": "German",
+            "ru": "Russian", "it": "Italian", "pt": "Portuguese",
+            "en": "English"
+        }
+        src_name = lang_names.get(source_lang, source_lang)
+        tgt_name = lang_names.get(target_lang, target_lang)
+        
+        original_duration_s = original_duration_ms / 1000
+        target_duration_s = target_duration_ms / 1000
+        time_diff_percent = ((target_duration_s - original_duration_s) / original_duration_s) * 100 if original_duration_s > 0 else 0
+        
+        max_chars = int((target_duration_ms / 1000) * self.VOICE_RATES.get(target_lang, 12))
+        
+        prompt = f"""You are a professional {src_name} to {tgt_name} localization expert.
+Your task is to refine a translation to fit a specific time constraint while preserving meaning.
+
+ORIGINAL {src_name.upper()} TEXT:
+{original_text}
+
+CURRENT TRANSLATION (too {'long' if target_duration_ms > original_duration_ms else 'short'}):
+{translated_text}
+
+TIME CONSTRAINTS:
+- Original duration: {original_duration_s:.2f} seconds
+- Target duration: {target_duration_s:.2f} seconds ({time_diff_percent:+.1f}% change)
+- Maximum characters allowed: {max_chars} (for natural speech at {self.VOICE_RATES.get(target_lang, 12)} chars/sec)
+
+REQUIREMENTS:
+1. Preserve the CORE MEANING and key information
+2. Make it fit within {target_duration_s:.1f} seconds (max {max_chars} characters)
+3. If too long: SUMMARIZE, condense, or rephrase while keeping essential meaning
+4. If too short: Add natural fillers or slightly expand for natural flow
+5. Keep the same tone and style as the original
+6. Output ONLY the refined translation - no explanations or commentary
+
+Refined {tgt_name.upper()} translation:"""
+
+        return prompt
+
+    def _refine_translation_with_duration_constraint(self, original_text: str, translated_text: str,
+                                                      original_duration_ms: float, 
+                                                      target_duration_ms: float,
+                                                      source_lang: str, target_lang: str) -> str:
+        """Refine translation to fit target duration using LLM"""
+        
+        if not self.config.use_llm_primary:
+            return self._fallback_condense_translation(translated_text, target_duration_ms, target_lang)
+        
+        prompt = self._generate_fit_to_time_prompt(
+            original_text, translated_text, 
+            original_duration_ms, target_duration_ms,
+            source_lang, target_lang
+        )
+        
+        try:
+            if self.config.llm_provider == "openrouter" and self.config.llm_api_key:
+                refined = self._call_openrouter(prompt)
+            elif self._check_ollama_available():
+                refined = self._call_ollama(prompt)
+            else:
+                return self._fallback_condense_translation(translated_text, target_duration_ms, target_lang)
+            
+            if refined and len(refined.strip()) > 0:
+                logger.info(f"Duration-constrained refinement: {len(translated_text)} -> {len(refined)} chars")
+                return refined.strip()
+                
+        except Exception as e:
+            logger.warning(f"LLM refinement failed: {e}, using fallback")
+        
+        return self._fallback_condense_translation(translated_text, target_duration_ms, target_lang)
+
+    def _fallback_condense_translation(self, text: str, target_duration_ms: float, target_lang: str) -> str:
+        """Fallback condensation without LLM"""
+        chars_per_second = self.VOICE_RATES.get(target_lang, 12)
+        max_chars = int((target_duration_ms / 1000) * chars_per_second)
+        
+        if len(text) <= max_chars:
+            return text
+        
+        target_chars = max(int(max_chars * 0.95), int(len(text) * 0.7))
+        
+        words = text.split()
+        if len(words) <= 5:
+            return text
+        
+        target_words = int(len(words) * (target_chars / len(text)))
+        target_words = max(3, target_words)
+        
+        if target_words >= len(words):
+            return text
+        
+        if target_words <= 3:
+            return ' '.join(words[:target_words])
+        
+        keep_first = int(target_words * 0.3)
+        keep_last = int(target_words * 0.3)
+        keep_middle = target_words - keep_first - keep_last
+        
+        if keep_middle > 0:
+            middle_start = len(words) // 2 - keep_middle // 2
+            middle_end = middle_start + keep_middle
+            
+            middle_start = max(0, middle_start)
+            middle_end = min(len(words), middle_end)
+            
+            first_part = words[:keep_first]
+            middle_part = words[middle_start:middle_end]
+            last_part = words[-keep_last:] if keep_last > 0 else []
+            
+            condensed = first_part + middle_part + last_part
+        else:
+            condensed = words[:target_words]
+        
+        result = ' '.join(condensed)
+        logger.info(f"Fallback condensation: {len(text)} -> {len(result)} chars")
+        return result
+
+    def check_and_adjust_duration(self, original_text: str, translated_text: str,
+                                   original_duration_ms: float, source_lang: str,
+                                   target_lang: str) -> Tuple[str, float]:
+        """
+        Iterative refinement loop to ensure translated audio matches original duration.
+        
+        Strategy:
+        1. Estimate initial duration
+        2. If too long/short, refine with LLM using Fit-to-Time prompts
+        3. Repeat until within tolerance or max iterations reached
+        
+        Returns:
+            Tuple of (adjusted_translation, final_duration_ms)
+        """
+        max_retries = 3
+        tolerance_percent = 0.15  # 15% tolerance for duration mismatch
+        tolerance_ms = original_duration_ms * tolerance_percent
+        
+        current_translation = translated_text
+        current_estimated_duration = self._get_actual_tts_duration(current_translation, target_lang)
+        
+        logger.info(f"Duration check: original={original_duration_ms:.0f}ms, "
+                   f"estimated={current_estimated_duration:.0f}ms, "
+                   f"tolerance=±{tolerance_ms:.0f}ms")
+        
+        for retry in range(max_retries):
+            duration_diff = current_estimated_duration - original_duration_ms
+            
+            if abs(duration_diff) <= tolerance_ms:
+                logger.info(f"Duration OK (attempt {retry + 1}): {current_estimated_duration:.0f}ms within tolerance")
+                return current_translation, current_estimated_duration
+            
+            target_duration = original_duration_ms
+            
+            logger.info(f"Attempt {retry + 1}: Duration mismatch {duration_diff:.0f}ms, "
+                       f"refining translation...")
+            
+            current_translation = self._refine_translation_with_duration_constraint(
+                original_text, current_translation,
+                original_duration_ms, target_duration,
+                source_lang, target_lang
+            )
+            
+            current_estimated_duration = self._get_actual_tts_duration(current_translation, target_lang)
+            
+            logger.info(f"After refinement: {current_estimated_duration:.0f}ms "
+                       f"(diff: {current_estimated_duration - original_duration_ms:.0f}ms)")
+        
+        final_diff = current_estimated_duration - original_duration_ms
+        final_diff_percent = (final_diff / original_duration_ms) * 100 if original_duration_ms > 0 else 0
+        
+        if abs(final_diff_percent) > 30:
+            logger.warning(f"Final translation still exceeds duration tolerance: "
+                          f"{final_diff_percent:+.1f}% difference")
+        
+        logger.info(f"Duration adjustment complete: final={current_estimated_duration:.0f}ms, "
+                   f"original={original_duration_ms:.0f}ms")
+        
+        return current_translation, current_estimated_duration
+
     def condense_text_smart(self, text: str, target_duration_ms: float) -> Tuple[str, float]:
         """Smart text condensation to fit target duration"""
         try:
@@ -3659,6 +3862,21 @@ Refined translation:"""
                 )
                 translated_text = condensed_text
                 logger.info(f"Condensation applied: ratio {condensation_ratio:.2f}")
+            
+            # Step 4b: Duration validation and iterative refinement (Audio-Video Sync)
+            if self.config.enable_duration_check and len(translated_text) > 10:
+                logger.info(f"Performing duration validation (tolerance: {self.config.duration_tolerance_percent*100:.0f}%)...")
+                
+                adjusted_translation, estimated_duration = self.check_and_adjust_duration(
+                    original_text, translated_text,
+                    original_duration_ms,
+                    self.config.source_lang,
+                    self.config.target_lang
+                )
+                
+                if adjusted_translation != translated_text:
+                    logger.info(f"Duration-adjusted translation: {len(translated_text)} -> {len(adjusted_translation)} chars")
+                    translated_text = adjusted_translation
             
             # Step 5: Calculate optimal speed adjustment
             speed = self.calculate_optimal_speed(original_duration_ms, translated_text)

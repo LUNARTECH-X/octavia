@@ -70,3 +70,64 @@ For the best results, combine **Strategy 1 (Semantic Chunking)** with **Strategy
 1.  Chunk audio by sentence.
 2.  Ask LLM to translate and summarize to fit the duration.
 3.  If still too long, speed up audio slightly (Strategy 4).
+
+---
+
+## Implementation Details
+
+The Octavia video translation pipeline implements the following duration synchronization features:
+
+### Duration Configuration
+```python
+# In TranslationConfig:
+enable_duration_check: bool = True           # Enable duration validation loop
+duration_tolerance_percent: float = 0.15    # 15% tolerance for duration mismatch
+max_duration_retries: int = 3                # Maximum retries for duration adjustment
+enable_fit_to_time_prompts: bool = True      # Use Fit-to-Time LLM prompts
+speed_adjustment_quality_threshold: float = 1.15  # Max speed ratio before requiring text reflow
+```
+
+### Duration Checking Flow
+1.  **Initial Translation**: Translate text using standard pipeline
+2.  **Duration Estimation**: Estimate duration using character count and language-specific rates
+3.  **Validation Check**: Compare estimated duration with original (15% tolerance)
+4.  **Iterative Refinement**: If mismatch exceeds tolerance:
+    -   Generate "Fit-to-Time" prompt with original text, current translation, and target duration
+    -   Send to LLM for condensed/adapted translation
+    -   Re-estimate duration
+    -   Repeat up to `max_duration_retries` times
+5.  **Fallback**: If LLM refinement fails, use rule-based text condensation
+6.  **Speed Adjustment**: Apply audio speed-up (up to 15%) if text still exceeds duration
+
+### Fit-to-Time Prompt Example
+```
+You are a professional Chinese to English localization expert.
+Your task is to refine a translation to fit a specific time constraint.
+
+ORIGINAL CHINESE TEXT:
+小龙妈妈在家请问小龙在家吗小龙也在家
+
+CURRENT TRANSLATION (too long):
+Little Dragon's mother is at home. Please ask if Little Dragon is at home. Little Dragon is also at home.
+
+TIME CONSTRAINTS:
+- Original duration: 6.0 seconds
+- Target duration: 5.0 seconds (-16.7% change)
+- Maximum characters allowed: 65
+
+REQUIREMENTS:
+1. Preserve the CORE MEANING and key information
+2. Make it fit within 5.0 seconds
+3. SUMMARIZE or rephrase if too long
+4. Keep the same tone and style
+5. Output ONLY the refined translation
+
+Refined ENGLISH translation:
+```
+
+### Duration Metrics
+The pipeline tracks and reports:
+- `duration_match_percent`: How closely the translated audio matches original duration
+- `duration_diff_percent`: Percentage difference between original and translated duration
+- `within_tolerance`: Boolean indicating if duration is within configured tolerance
+- `original_duration_ms` / `translated_duration_ms`: Actual durations in milliseconds
