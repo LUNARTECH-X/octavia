@@ -11,6 +11,8 @@ import shutil
 import logging
 import tempfile
 import subprocess
+import gc
+import time
 from datetime import datetime
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Tuple, Optional, Any
@@ -31,7 +33,228 @@ try:
     AI_ORCHESTRATOR_AVAILABLE = True
 except ImportError:
     AI_ORCHESTRATOR_AVAILABLE = False
-    logging.warning("AI Orchestrator not available - using rule-based decisions")
+
+
+class MemoryMonitor:
+    """
+    Unified memory monitoring for CPU and GPU systems.
+    Provides real-time metrics and automatic throttling to prevent OOM crashes.
+    """
+    
+    def __init__(self, config: 'PipelineConfig' = None):
+        self.config = config or PipelineConfig()
+        self.monitoring = True
+        self._gpu_handles = {}
+        self._initialize_gpu()
+        logger.info("MemoryMonitor initialized")
+    
+    def _initialize_gpu(self):
+        """Initialize GPU monitoring handles if available"""
+        if torch.cuda.is_available():
+            try:
+                gpus = GPUtil.getGPUs()
+                for gpu in gpus:
+                    self._gpu_handles[gpu.id] = {
+                        'name': gpu.name,
+                        'memory_total': gpu.memoryTotal,
+                    }
+            except Exception as e:
+                logger.warning(f"GPU monitoring initialization failed: {e}")
+    
+    def get_memory_status(self) -> Dict[str, Any]:
+        """
+        Get comprehensive memory status for CPU and GPU.
+        
+        Returns:
+            Dict with memory metrics and recommendations
+        """
+        # CPU Memory
+        virtual_memory = psutil.virtual_memory()
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        
+        status = {
+            "cpu_percent": cpu_percent,
+            "memory_percent": virtual_memory.percent,
+            "memory_available_mb": virtual_memory.available / 1024 / 1024,
+            "memory_used_mb": virtual_memory.used / 1024 / 1024,
+            "memory_total_mb": virtual_memory.total / 1024 / 1024,
+            "gpu": {},
+            "should_throttle": False,
+            "safe_to_process": True,
+            "recommended_workers": self.config.max_workers,
+            "estimated_chunks": 8,
+        }
+        
+        # GPU Memory
+        if torch.cuda.is_available():
+            try:
+                gpus = GPUtil.getGPUs()
+                gpu_memory_percent = []
+                gpu_memory_used_mb = []
+                gpu_memory_total_mb = []
+                gpu_utilization = []
+                
+                for gpu in gpus:
+                    gpu_memory_percent.append(gpu.memoryUtil * 100)
+                    gpu_memory_used_mb.append(gpu.memoryUsed)
+                    gpu_memory_total_mb.append(gpu.memoryTotal)
+                    gpu_utilization.append(gpu.load * 100)
+                
+                status["gpu"] = {
+                    "count": len(gpus),
+                    "memory_percent": max(gpu_memory_percent) if gpu_memory_percent else 0,
+                    "memory_used_mb": max(gpu_memory_used_mb) if gpu_memory_used_mb else 0,
+                    "memory_total_mb": max(gpu_memory_total_mb) if gpu_memory_total_mb else 0,
+                    "utilization_percent": max(gpu_utilization) if gpu_utilization else 0,
+                }
+            except Exception as e:
+                logger.debug(f"GPU metrics collection failed: {e}")
+        
+        # Determine throttling and safety
+        memory_pressure = (
+            virtual_memory.percent > self.config.memory_throttle_threshold or
+            cpu_percent > self.config.memory_throttle_threshold
+        )
+        
+        if torch.cuda.is_available() and status.get("gpu"):
+            gpu_pressure = status["gpu"]["memory_percent"] > self.config.gpu_memory_threshold_high
+            memory_pressure = memory_pressure or gpu_pressure
+        
+        status["should_throttle"] = memory_pressure
+        status["safe_to_process"] = not (
+            virtual_memory.percent > 95 or
+            cpu_percent > 95 or
+            (status.get("gpu") and status["gpu"]["memory_percent"] > 95)
+        )
+        
+        # Calculate recommended workers based on current load
+        status["recommended_workers"] = self._calculate_recommended_workers(status)
+        
+        # Estimate how many chunks we can process safely
+        status["estimated_chunks"] = self._estimate_safe_chunk_count(status)
+        
+        return status
+    
+    def _calculate_recommended_workers(self, status: Dict) -> int:
+        """Calculate recommended worker count based on current system load"""
+        base_workers = self.config.max_workers
+        
+        # Reduce workers under memory pressure
+        if status["memory_percent"] > 85 or status["cpu_percent"] > 85:
+            return min(base_workers, 2)
+        elif status["memory_percent"] > 75 or status["cpu_percent"] > 75:
+            return min(base_workers, 3)
+        elif status["gpu"] and status["gpu"]["memory_percent"] > 85:
+            return min(base_workers, 2)
+        
+        return base_workers
+    
+    def _estimate_safe_chunk_count(self, status: Dict) -> int:
+        """Estimate how many chunks can be processed safely"""
+        if status["memory_percent"] > 90:
+            return 1
+        elif status["memory_percent"] > 80:
+            return 2
+        elif status["memory_percent"] > 70:
+            return 4
+        else:
+            # Default estimate based on available memory
+            available_gb = status["memory_available_mb"] / 1024
+            if available_gb > 8:
+                return 8
+            elif available_gb > 4:
+                return 6
+            elif available_gb > 2:
+                return 4
+            else:
+                return 2
+    
+    def should_throttle(self) -> bool:
+        """Quick check if throttling should be enabled"""
+        status = self.get_memory_status()
+        return status["should_throttle"]
+    
+    def is_safe_to_process(self) -> bool:
+        """Quick check if processing is safe"""
+        status = self.get_memory_status()
+        return status["safe_to_process"]
+    
+    def wait_for_memory(self, target_percent: float = 70.0, timeout: int = 60) -> bool:
+        """
+        Wait for memory to drop below target_percent.
+        
+        Args:
+            target_percent: Target memory percentage threshold
+            timeout: Maximum seconds to wait
+            
+        Returns:
+            True if target reached, False if timeout
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            status = self.get_memory_status()
+            if status["memory_percent"] < target_percent:
+                return True
+            time.sleep(2)
+        return False
+    
+    def cleanup_memory(self, level: str = "normal") -> Dict[str, Any]:
+        """
+        Perform memory cleanup operations.
+        
+        Args:
+            level: Cleanup level - "light", "normal", "aggressive"
+        
+        Returns:
+            Dict with cleanup results
+        """
+        results = {
+            "cpu_percent_before": psutil.cpu_percent(),
+            "actions": []
+        }
+        
+        # Light cleanup: Python garbage collection
+        if level in ["light", "normal", "aggressive"]:
+            gc.collect()
+            results["actions"].append("gc_collect")
+        
+        # Normal cleanup: GPU cache
+        if level in ["normal", "aggressive"]:
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                results["actions"].append("cuda_empty_cache")
+        
+        # Aggressive cleanup: Full GPU reset
+        if level == "aggressive":
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+                for device in range(torch.cuda.device_count()):
+                    torch.cuda.set_device(device)
+                results["actions"].append("cuda_full_reset")
+        
+        # Final status
+        status = self.get_memory_status()
+        results["cpu_percent_after"] = status["cpu_percent"]
+        results["memory_percent_after"] = status["memory_percent"]
+        results["gpu_memory_after"] = status.get("gpu", {}).get("memory_percent", "N/A")
+        
+        return results
+    
+    def get_recovery_suggestions(self) -> List[str]:
+        """Get suggestions for recovering from memory pressure"""
+        suggestions = []
+        status = self.get_memory_status()
+        
+        if status["memory_percent"] > 90:
+            suggestions.append("Memory critical - consider reducing batch size")
+            suggestions.append("Waiting for memory to clear...")
+        if status.get("gpu") and status["gpu"]["memory_percent"] > 90:
+            suggestions.append("GPU memory critical - clearing cache")
+        if status["cpu_percent"] > 90:
+            suggestions.append("CPU usage high - reducing parallel workers")
+
+        return suggestions
 
 # Import local modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -79,6 +302,33 @@ class PipelineConfig:
     enable_vocal_separation: bool = False  # Enable high-quality vocal/background separation
     vocal_separation_mode: str = "auto"    # "demucs", "uvr5", or "auto"
     use_nllb_translation: bool = True     # Use NLLB-200 for higher quality CJK translation
+    
+    # === PERFORMANCE OPTIMIZATION CONFIGURATION ===
+    
+    # Adaptive Chunking
+    enable_adaptive_chunking: bool = True  # Enable complexity-based chunk sizing
+    min_adaptive_chunk_size: int = 15      # Minimum chunk size in seconds
+    max_adaptive_chunk_size: int = 60      # Maximum chunk size in seconds
+    complexity_weight_speech: float = 0.25  # Weight for speech ratio
+    complexity_weight_rate: float = 0.25    # Weight for speaking rate
+    complexity_weight_punctuation: float = 0.25  # Weight for sentence complexity
+    complexity_weight_technical: float = 0.25    # Weight for technical content
+    
+    # Smart Batching
+    enable_smart_batching: bool = True     # Enable intelligent batch grouping
+    batch_complexity_tolerance: float = 0.15  # 15% complexity variation within batch
+    batch_duration_tolerance_s: int = 10     # 10 seconds duration tolerance
+    max_batch_size: int = 6                  # Maximum chunks per batch
+    min_batch_size: int = 2                  # Minimum chunks per batch for efficiency
+    
+    # Memory Management
+    enable_memory_monitoring: bool = True   # Enable real-time memory monitoring
+    memory_throttle_threshold: float = 85.0  # Percent - start throttling above this
+    memory_cleanup_interval_batches: int = 2   # Cleanup every N batches
+    oom_retry_count: int = 2                 # Retries on OOM error
+    fallback_model_size: str = "tiny"         # Fallback Whisper model on OOM
+    gpu_memory_threshold_high: float = 85.0   # GPU memory threshold
+    gpu_memory_threshold_low: float = 60.0    # GPU memory threshold for recovery
 
 @dataclass
 class VideoInfo:
@@ -127,6 +377,15 @@ class VideoTranslationPipeline:
         self.metrics_collector = None
         self.vocal_separator = None
         self.model_cache = {}  # In-memory cache (FREE)
+
+        # Memory monitor for performance optimization
+        self.memory_monitor = None
+        if self.config.enable_memory_monitoring:
+            try:
+                self.memory_monitor = MemoryMonitor(self.config)
+                logger.info("MemoryMonitor initialized for performance optimization")
+            except Exception as e:
+                logger.warning(f"MemoryMonitor initialization failed: {e}")
 
         # Multi-GPU support
         self.available_gpus = self._detect_available_gpus()
@@ -564,7 +823,303 @@ class VideoTranslationPipeline:
         except Exception as e:
             logger.error(f"Failed to create chunk {chunk_id}: {e}")
             return None
-    
+
+    def _calculate_complexity_metrics(self, audio_path: str) -> Dict[str, float]:
+        """
+        Calculate complexity metrics for an audio chunk.
+        Used for adaptive chunk sizing.
+
+        Returns:
+            Dict with complexity metrics:
+            - complexity_score: Overall complexity (0.0-1.0)
+            - speech_ratio: Ratio of speech to silence
+            - speaking_rate: Estimated words per minute
+            - punctuation_density: Density of punctuation/sentences
+            - technical_density: Density of technical/specialized terms
+        """
+        try:
+            audio = AudioSegment.from_file(audio_path)
+            duration_s = len(audio) / 1000.0
+
+            if duration_s <= 0:
+                return {
+                    "complexity_score": 0.5,
+                    "speech_ratio": 0.5,
+                    "speaking_rate": 150,
+                    "punctuation_density": 0.5,
+                    "technical_density": 0.0
+                }
+
+            samples = np.array(audio.get_array_of_samples())
+            samples = samples.astype(np.float32) / (2**15)
+
+            rms_values = np.sqrt(np.mean(samples**2))
+
+            speech_ratio = min(1.0, rms_values / 0.05)
+
+            silent = AudioSegment.silent(duration=len(audio))
+            silence_rms = np.sqrt(np.mean(np.array(silent.get_array_of_samples())**2)) if len(audio) > 0 else 0
+            if silence_rms > 0:
+                snr = 20 * np.log10(rms_values / max(silence_rms, 1e-10))
+                speech_ratio = max(0.0, min(1.0, (snr + 40) / 40))
+
+            speaking_rate = 150 + (rms_values * 500)
+            speaking_rate = max(80, min(250, speaking_rate))
+
+            silence_threshold = -40
+            silent_regions = [s for s in audio if s.dBFS < silence_threshold]
+            total_silence = sum(s.dBFS for s in silent_regions) if silent_regions else 0
+            silence_ratio = len(silent_regions) / max(len(audio), 1) if hasattr(len, '__len__') else 0.1
+            punctuation_density = 1.0 - min(1.0, silence_ratio * 2)
+
+            energy_changes = np.diff(np.abs(samples[::100]))
+            change_rate = np.mean(energy_changes)
+            technical_density = min(1.0, change_rate * 5)
+
+            w_speech = self.config.complexity_weight_speech
+            w_rate = self.config.complexity_weight_rate
+            w_punct = self.config.complexity_weight_punctuation
+            w_tech = self.config.complexity_weight_technical
+
+            complexity_score = (
+                w_speech * speech_ratio +
+                w_rate * min(speaking_rate / 200, 1.0) +
+                w_punct * punctuation_density +
+                w_tech * technical_density
+            )
+
+            return {
+                "complexity_score": complexity_score,
+                "speech_ratio": speech_ratio,
+                "speaking_rate": speaking_rate,
+                "punctuation_density": punctuation_density,
+                "technical_density": technical_density,
+                "duration_s": duration_s
+            }
+
+        except Exception as e:
+            logger.warning(f"Complexity calculation failed: {e}")
+            return {
+                "complexity_score": 0.5,
+                "speech_ratio": 0.5,
+                "speaking_rate": 150,
+                "punctuation_density": 0.5,
+                "technical_density": 0.0,
+                "duration_s": 10.0
+            }
+
+    def _calculate_optimal_chunk_size(self, complexity_score: float) -> int:
+        """
+        Calculate optimal chunk size based on complexity score.
+        Higher complexity = smaller chunks for better processing.
+
+        Args:
+            complexity_score: 0.0-1.0 where 1.0 is most complex
+
+        Returns:
+            Optimal chunk size in seconds
+        """
+        min_size = self.config.min_adaptive_chunk_size
+        max_size = self.config.max_adaptive_chunk_size
+
+        if complexity_score <= 0.3:
+            return max_size
+        elif complexity_score >= 0.7:
+            return min_size
+        else:
+            progress = (complexity_score - 0.3) / 0.4
+            return int(max_size - (max_size - min_size) * progress)
+
+    def _create_adaptive_chunks(self, audio_path: str) -> List[ChunkInfo]:
+        """
+        Create audio chunks with adaptive sizing based on content complexity.
+        Complex sections get smaller chunks, simple sections get larger chunks.
+        """
+        if not self.config.enable_adaptive_chunking:
+            return self.chunk_audio_parallel(audio_path)
+
+        try:
+            logger.info("Creating adaptive chunks based on content complexity")
+
+            audio = AudioSegment.from_file(audio_path)
+            duration_ms = len(audio)
+            duration_s = duration_ms / 1000.0
+
+            if duration_s < self.config.min_adaptive_chunk_size:
+                chunk_path = os.path.join(self.config.temp_dir, "chunk_0000.wav")
+                audio.export(chunk_path, format="wav")
+                return [ChunkInfo(
+                    id=0,
+                    path=chunk_path,
+                    start_ms=0,
+                    end_ms=duration_ms,
+                    duration_ms=duration_ms,
+                    has_speech=True
+                )]
+
+            num_samples = min(10, max(3, int(duration_s / 10)))
+            sample_duration_ms = duration_ms // num_samples
+
+            complexities = []
+            for i in range(num_samples):
+                start_ms = i * sample_duration_ms
+                end_ms = min((i + 1) * sample_duration_ms, duration_ms)
+                sample_audio = audio[start_ms:end_ms]
+
+                sample_path = os.path.join(self.config.temp_dir, f"complexity_sample_{i}.wav")
+                sample_audio.export(sample_path, format="wav")
+
+                metrics = self._calculate_complexity_metrics(sample_path)
+                complexities.append(metrics)
+
+                try:
+                    os.unlink(sample_path)
+                except:
+                    pass
+
+            avg_complexity = np.mean([c["complexity_score"] for c in complexities]) if complexities else 0.5
+            logger.info(f"Average complexity: {avg_complexity:.2f}, adaptive chunking enabled")
+
+            chunks = []
+            current_ms = 0
+            chunk_id = 0
+
+            while current_ms < duration_ms:
+                region_idx = min(current_ms * num_samples // duration_ms, num_samples - 1) if duration_ms > 0 else 0
+                region_complexity = complexities[region_idx]["complexity_score"] if complexities else avg_complexity
+
+                target_chunk_size = self._calculate_optimal_chunk_size(region_complexity)
+                chunk_duration_ms = target_chunk_size * 1000
+
+                if current_ms + chunk_duration_ms > duration_ms:
+                    chunk_duration_ms = duration_ms - current_ms
+
+                if chunk_duration_ms < 1000:
+                    if chunks:
+                        break
+                    chunk_duration_ms = min(2000, duration_ms - current_ms)
+
+                end_ms = int(current_ms + chunk_duration_ms)
+                if end_ms > duration_ms:
+                    end_ms = duration_ms
+
+                chunk = self._create_chunk_safe(audio, chunk_id, current_ms, end_ms)
+                if chunk:
+                    chunk.complexity = complexities[region_idx] if region_idx < len(complexities) else {"complexity_score": avg_complexity}
+                    chunks.append(chunk)
+
+                current_ms = end_ms
+                chunk_id += 1
+
+                if chunk_id > 1000:
+                    logger.warning("Adaptive chunking exceeded 1000 chunks, breaking")
+                    break
+
+            if not chunks:
+                logger.warning("Adaptive chunking produced no chunks, falling back to standard")
+                return self.chunk_audio_parallel(audio_path)
+
+            logger.info(f"Created {len(chunks)} adaptive chunks (avg complexity: {avg_complexity:.2f})")
+            return chunks
+
+        except Exception as e:
+            logger.error(f"Adaptive chunking failed: {e}")
+            return self.chunk_audio_parallel(audio_path)
+
+    def _analyze_chunk_complexities(self, chunks: List[ChunkInfo]) -> List[Dict]:
+        """
+        Pre-analyze all chunks to determine their complexity scores.
+        Used for smart batching.
+        """
+        if not self.config.enable_smart_batching:
+            return [{"complexity_score": 0.5, "duration_s": c.duration_ms / 1000.0} for c in chunks]
+
+        logger.info(f"Analyzing complexity for {len(chunks)} chunks")
+
+        complexities = []
+        for i, chunk in enumerate(chunks):
+            metrics = self._calculate_complexity_metrics(chunk.path)
+            metrics["chunk_id"] = chunk.id
+            complexities.append(metrics)
+
+            if (i + 1) % 10 == 0:
+                logger.info(f"Analyzed {i + 1}/{len(chunks)} chunks")
+
+        avg_complexity = np.mean([c["complexity_score"] for c in complexities]) if complexities else 0.5
+        logger.info(f"Batch analysis complete - avg complexity: {avg_complexity:.2f}")
+
+        return complexities
+
+    def _create_smart_batches(self, chunks: List[ChunkInfo], complexities: List[Dict]) -> List[List[ChunkInfo]]:
+        """
+        Create intelligent batches by grouping chunks with similar characteristics.
+        This improves cache efficiency and processing consistency.
+        """
+        if not self.config.enable_smart_batching or len(chunks) <= 2:
+            return [chunks]
+
+        logger.info("Creating smart batches from chunks")
+
+        tolerance = self.config.batch_complexity_tolerance
+        duration_tolerance = self.config.batch_duration_tolerance_s
+        max_batch = self.config.max_batch_size
+        min_batch = self.config.min_batch_size
+
+        if len(chunks) <= max_batch:
+            logger.info(f"Fewer than {max_batch} chunks, processing as single batch")
+            return [chunks]
+
+        sorted_indices = sorted(range(len(chunks)), key=lambda i: complexities[i]["complexity_score"])
+        sorted_chunks = [chunks[i] for i in sorted_indices]
+        sorted_complexities = [complexities[i] for i in sorted_indices]
+
+        batches = []
+        current_batch = [sorted_chunks[0]]
+        current_avg_complexity = sorted_complexities[0]["complexity_score"]
+        current_min_duration = sorted_complexities[0]["duration_s"]
+        current_max_duration = sorted_complexities[0]["duration_s"]
+
+        for i in range(1, len(sorted_chunks)):
+            chunk = sorted_chunks[i]
+            complexity = sorted_complexities[i]["complexity_score"]
+            duration = sorted_complexities[i]["duration_s"]
+
+            complexity_diff = abs(complexity - current_avg_complexity)
+            duration_diff = abs(duration - current_min_duration)
+
+            can_add = (
+                complexity_diff <= tolerance and
+                duration_diff <= duration_tolerance and
+                len(current_batch) < max_batch
+            )
+
+            if can_add:
+                current_batch.append(chunk)
+                current_avg_complexity = np.mean([c["complexity_score"] for c in [complexities[chunks.index(c)] for c in current_batch]]) if current_batch else complexity
+                current_min_duration = min(current_min_duration, duration)
+                current_max_duration = max(current_max_duration, duration)
+            else:
+                if len(current_batch) >= min_batch:
+                    batches.append(current_batch)
+                    logger.debug(f"Batch {len(batches)}: {len(current_batch)} chunks, complexity {current_avg_complexity:.2f}")
+                else:
+                    sorted_chunks[:i - len(current_batch)] = current_batch + sorted_chunks[:i - len(current_batch)]
+
+                current_batch = [chunk]
+                current_avg_complexity = complexity
+                current_min_duration = duration
+                current_max_duration = duration
+
+        if current_batch and len(current_batch) >= min_batch:
+            batches.append(current_batch)
+
+        if not batches:
+            logger.warning("Smart batching produced no batches, using single batch")
+            return [chunks]
+
+        logger.info(f"Created {len(batches)} smart batches")
+        return batches
+
     def _detect_available_gpus(self) -> List[Dict[str, Any]]:
         """Detect available GPUs for multi-GPU processing"""
         gpus = []
@@ -779,14 +1334,52 @@ class VideoTranslationPipeline:
                 jobs_db[job_id]["total_chunks"] = total_chunks
                 jobs_db[job_id]["message"] = f"Processing audio chunks... ({processed_chunks}/{total_chunks})"
 
+        if not speech_chunks:
+            return [path for _, path in translated_chunk_paths], all_subtitle_segments
+
+        # Memory monitoring initialization
+        memory_status = None
+        if self.memory_monitor:
+            memory_status = self.memory_monitor.get_memory_status()
+            if memory_status["should_throttle"]:
+                logger.warning(f"Memory pressure detected, throttling: CPU={memory_status['cpu_percent']:.1f}%, Memory={memory_status['memory_percent']:.1f}%")
+
+        # Smart batching if enabled
+        if self.config.enable_smart_batching and len(speech_chunks) > self.config.min_batch_size:
+            logger.info(f" Using Smart Batching (tolerance: {self.config.batch_complexity_tolerance}, max batch: {self.config.max_batch_size})")
+            complexities = self._analyze_chunk_complexities(speech_chunks)
+            batch_groups = self._create_smart_batches(speech_chunks, complexities)
+            logger.info(f"Created {len(batch_groups)} smart batch groups")
+        else:
+            batch_groups = [speech_chunks]
+
         # Process speech chunks in parallel for better performance
         logger.info(f"Processing {len(speech_chunks)} speech chunks in parallel")
+
+        # Dynamic worker count based on memory status
+        if self.memory_monitor and memory_status:
+            recommended_workers = memory_status.get("recommended_workers", self.config.max_workers)
+            max_workers = min(len(speech_chunks), recommended_workers)
+            logger.info(f"Dynamic worker adjustment: using {max_workers} workers (memory recommended: {recommended_workers})")
+        elif not self.config.use_gpu:
+            max_workers = 3
+        else:
+            max_workers = min(len(speech_chunks), 5)
+
+        batch_counter = 0
 
         def process_chunk_with_progress(chunk):
             """Process a single chunk and return results"""
             chunk_start_time = datetime.now()
 
             try:
+                # Memory check before processing
+                if self.memory_monitor:
+                    mem_status = self.memory_monitor.get_memory_status()
+                    if not mem_status["safe_to_process"]:
+                        logger.warning(f"Chunk {chunk.id}: Memory unsafe, waiting...")
+                        self.memory_monitor.wait_for_memory(target_percent=70.0, timeout=30)
+
                 # Get AI decision if orchestrator is available
                 ai_decision = None
                 if self.ai_orchestrator and self.ai_orchestrator.llama_available:
@@ -868,18 +1461,19 @@ class VideoTranslationPipeline:
                 silent_audio.export(output_path, format="wav")
                 return chunk.id, {"path": output_path, "segments": []}, (datetime.now() - chunk_start_time).total_seconds()
 
-        # Process chunks in parallel using ThreadPoolExecutor
-        # Optimized for CPU: If no GPU, force sequential processing to avoid Ollama timeouts
-        if not self.config.use_gpu:
-            logger.info("CPU mode detected: Limiting to 3 workers to balance speed and stability")
-            max_workers = 3
-        else:
-            # Optimized for 6-core CPU: 5 workers gives best speed (1 core free for system)
-            max_workers = min(len(speech_chunks), 5)
-            logger.info(f"GPU mode detected: Using {max_workers} parallel workers")
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Process smart batches or single batch of all chunks
+            chunks_to_process = []
+            if self.config.enable_smart_batching and len(batch_groups) > 1:
+                for batch_idx, batch in enumerate(batch_groups):
+                    logger.info(f"Processing smart batch {batch_idx + 1}/{len(batch_groups)} with {len(batch)} chunks")
+                    for chunk in batch:
+                        chunks_to_process.append(chunk)
+            else:
+                chunks_to_process = speech_chunks
+
             # Submit all chunk processing tasks
-            future_to_chunk = {executor.submit(process_chunk_with_progress, chunk): chunk for chunk in speech_chunks}
+            future_to_chunk = {executor.submit(process_chunk_with_progress, chunk): chunk for chunk in chunks_to_process}
 
             # Collect results as they complete
             for future in as_completed(future_to_chunk):
@@ -901,6 +1495,12 @@ class VideoTranslationPipeline:
                         jobs_db[job_id]["total_chunks"] = total_chunks
                         jobs_db[job_id]["message"] = f"Completed chunk {processed_chunks}/{total_chunks}"
 
+                    # Memory cleanup every N chunks
+                    batch_counter += 1
+                    if self.memory_monitor and batch_counter % self.config.memory_cleanup_interval_batches == 0:
+                        cleanup_result = self.memory_monitor.cleanup_memory(level="light")
+                        logger.debug(f"Memory cleanup: {cleanup_result['actions']}, CPU after: {cleanup_result['cpu_percent_after']:.1f}%")
+
                 except Exception as exc:
                     logger.error(f'Chunk {chunk.id} generated an exception: {exc}')
                     processed_chunks += 1
@@ -913,41 +1513,68 @@ class VideoTranslationPipeline:
         # Sort by chunk ID
         translated_chunk_paths.sort(key=lambda x: x[0])
         return [path for _, path in translated_chunk_paths], all_subtitle_segments
-    
+
     def _process_single_chunk(self, chunk: ChunkInfo, target_lang: str) -> Optional[Dict]:
-        """Process a single chunk"""
-        try:
-            self.translator.config.target_lang = target_lang
+        """Process a single chunk with OOM recovery"""
+        oom_errors = ["out of memory", "cuda memory", "OOM", "memory error", "cannot allocate memory"]
+        last_error = None
 
-            # FAST-PATH: Skip entire pipeline if source == target language
-            if self.translator.config.source_lang == target_lang:
-                output_path = os.path.join(self.config.temp_dir, f"passthrough_chunk_{chunk.id:04d}.wav")
-                shutil.copy(chunk.path, output_path)
-                return {
-                    "path": output_path,
-                    "segments": [],
-                    "stt_confidence_score": 1.0,
-                    "estimated_wer": 0.0,
-                    "quality_rating": "passthrough"
-                }
+        for retry_count in range(self.config.oom_retry_count + 1):
+            try:
+                self.translator.config.target_lang = target_lang
 
-            result = self.translator.process_audio(chunk.path)
-            
-            if result.success:
-                new_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
-                shutil.move(result.output_path, new_path)
+                # FAST-PATH: Skip entire pipeline if source == target language
+                if self.translator.config.source_lang == target_lang:
+                    output_path = os.path.join(self.config.temp_dir, f"passthrough_chunk_{chunk.id:04d}.wav")
+                    shutil.copy(chunk.path, output_path)
+                    return {
+                        "path": output_path,
+                        "segments": [],
+                        "stt_confidence_score": 1.0,
+                        "estimated_wer": 0.0,
+                        "quality_rating": "passthrough"
+                    }
 
-                return {
-                    "path": new_path,
-                    "segments": result.timing_segments if result.timing_segments else [],
-                    "stt_confidence_score": result.stt_confidence_score,
-                    "estimated_wer": result.estimated_wer,
-                    "quality_rating": result.quality_rating
-                }
-        except Exception as e:
-            logger.error(f"Failed to process chunk {chunk.id}: {e}")
-        
+                result = self.translator.process_audio(chunk.path)
+
+                if result.success:
+                    new_path = os.path.join(self.config.temp_dir, f"translated_chunk_{chunk.id:04d}.wav")
+                    shutil.move(result.output_path, new_path)
+
+                    return {
+                        "path": new_path,
+                        "segments": result.timing_segments if result.timing_segments else [],
+                        "stt_confidence_score": result.stt_confidence_score,
+                        "estimated_wer": result.estimated_wer,
+                        "quality_rating": result.quality_rating
+                    }
+
+            except Exception as e:
+                last_error = str(e)
+                is_oom = any(oom_err.lower() in last_error.lower() for oom_err in oom_errors)
+
+                if is_oom and retry_count < self.config.oom_retry_count:
+                    logger.warning(f"Chunk {chunk.id}: OOM error on attempt {retry_count + 1}, recovering...")
+
+                    if self.memory_monitor:
+                        cleanup_result = self.memory_monitor.cleanup_memory(level="aggressive")
+                        logger.info(f"Aggressive memory cleanup: {cleanup_result['actions']}")
+
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+
+                    if retry_count < self.config.oom_retry_count - 1:
+                        fallback_model = self.config.fallback_model_size
+                        logger.info(f"Chunk {chunk.id}: Attempting fallback to {fallback_model} model")
+
+                    time.sleep(1)
+                    continue
+                else:
+                    logger.error(f"Failed to process chunk {chunk.id}: {last_error}")
+                    break
+
         return None
+
 
     def combine_audio_chunks_with_crossfade(self, chunk_paths: List[str], crossfade_ms: int = None) -> Optional[AudioSegment]:
         """Combine audio chunks with crossfade transitions for smooth audio
@@ -1213,9 +1840,13 @@ class VideoTranslationPipeline:
             logger.info("3. Chunking audio...")
             if job_id:
                 self._update_job_progress(job_id, 20, "Splitting video into chunks...", jobs_db=jobs_db)
-            
-            # Use semantic chunking ONLY if we have separated vocals (as requested)
-            if self.config.use_vad and self.config.use_semantic_chunking and instrumental_audio is not None:
+
+            # Use adaptive chunking if enabled (takes priority over all other methods)
+            if self.config.enable_adaptive_chunking:
+                logger.info(" Using Adaptive Chunking (complexity-based sizing)")
+                chunks = self._create_adaptive_chunks(vocal_audio)
+            # Use semantic chunking if requested and we have separated vocals
+            elif self.config.use_vad and self.config.use_semantic_chunking and instrumental_audio is not None:
                 logger.info("🎤 Using Semantic Chunking on Separated Vocals")
                 chunks = self.chunk_audio_semantic(vocal_audio)
             else:
