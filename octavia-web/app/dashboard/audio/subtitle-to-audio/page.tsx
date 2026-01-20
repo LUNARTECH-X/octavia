@@ -41,6 +41,9 @@ export default function SubtitleToAudioPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [previewText, setPreviewText] = useState("Hello! This is a preview of how the translated audio will sound.");
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [previewAudioElement, setPreviewAudioElement] = useState<HTMLAudioElement | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   const languageOptions: LanguageOption[] = [
@@ -139,6 +142,72 @@ export default function SubtitleToAudioPage() {
       loadAudioForPlayback();
     }
   }, [jobStatus, downloadUrl, audioUrl]);
+
+  // Handle voice preview
+  const handlePreviewVoice = async () => {
+    if (!voice) return;
+
+    try {
+      const token = getToken();
+      if (!token) {
+        alert("Please log in to preview voices");
+        return;
+      }
+
+      setIsPlayingPreview(true);
+
+      const formData = new FormData();
+      formData.append('voice_id', voice);
+      formData.append('text', previewText);
+      formData.append('language', targetLanguage);
+
+      const response = await fetch(`${API_BASE_URL}/api/voices/preview`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Preview generation failed");
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.preview_url) {
+        const audioUrl = `${API_BASE_URL}${data.preview_url}`;
+        const audio = new Audio(audioUrl);
+
+        audio.onended = () => {
+          setIsPlayingPreview(false);
+        };
+
+        audio.onerror = () => {
+          setIsPlayingPreview(false);
+          alert("Failed to play preview audio");
+        };
+
+        setPreviewAudioElement(audio);
+        audio.play().catch((err) => {
+          setIsPlayingPreview(false);
+          alert(`Failed to play audio: ${err.message}`);
+        });
+      }
+    } catch (err) {
+      console.error("Preview error:", err);
+      setIsPlayingPreview(false);
+      alert("Failed to generate voice preview");
+    }
+  };
+
+  const stopPreview = () => {
+    if (previewAudioElement) {
+      previewAudioElement.pause();
+      previewAudioElement.currentTime = 0;
+    }
+    setIsPlayingPreview(false);
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -830,9 +899,16 @@ export default function SubtitleToAudioPage() {
         </div>
         
         <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block">Select Voice</label>
+          <label className="text-white text-sm font-semibold mb-2 block flex items-center gap-2">
+            <span>Select Voice</span>
+            <Info className="w-3 h-3 text-slate-500" />
+          </label>
+          <div className="flex items-center gap-2 mb-3">
+            <Volume2 className="w-4 h-4 text-primary-purple-bright" />
+            <span className="text-slate-300 text-sm">{voice}</span>
+          </div>
           <select 
-            className="glass-select w-full"
+            className="glass-select w-full mb-3"
             value={voice}
             onChange={(e) => setVoice(e.target.value)}
             disabled={isGenerating || availableVoices.length === 0}
@@ -844,7 +920,33 @@ export default function SubtitleToAudioPage() {
               <option>Loading voices...</option>
             )}
           </select>
-          <p className="text-slate-500 text-xs mt-2">Voice for audio synthesis</p>
+          <textarea
+            value={previewText}
+            onChange={(e) => setPreviewText(e.target.value)}
+            className="glass-input w-full h-16 p-2 text-sm mb-3"
+            placeholder="Enter preview text..."
+            disabled={isGenerating}
+          />
+          <div className="flex items-center gap-3">
+            {isPlayingPreview ? (
+              <button
+                onClick={stopPreview}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors"
+              >
+                <Pause className="w-4 h-4" />
+                Stop
+              </button>
+            ) : (
+              <button
+                onClick={handlePreviewVoice}
+                disabled={isGenerating}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-purple/20 hover:bg-primary-purple/30 text-primary-purple-bright rounded-lg text-sm transition-colors"
+              >
+                <Play className="w-4 h-4" />
+                Preview Voice
+              </button>
+            )}
+          </div>
         </div>
         
         <div className="glass-card p-4">
@@ -872,8 +974,8 @@ export default function SubtitleToAudioPage() {
             <h3 className="text-white text-sm font-bold mb-1">AI Orchestration Process</h3>
             <p className="text-slate-400 text-xs">
               {targetLanguage !== sourceLanguage 
-                ? `1. Parse subtitle file → 2. Translate from ${languageOptions.find(l => l.value === sourceLanguage)?.label} to ${languageOptions.find(l => l.value === targetLanguage)?.label} → 3. Generate natural-sounding audio with "${voice}" voice → 4. Sync timing to match subtitle cues`
-                : '1. Parse subtitle file → 2. Generate natural-sounding audio with "' + voice + '" voice → 3. Sync timing to match subtitle cues'}
+                ? `1. Parse subtitle file → 2. LLM translation (TranslateGemma/NLLB) → 3. Generate audio with ${voice} voice (edge-tts) → 4. Sync timing to match subtitle cues`
+                : `1. Parse subtitle file → 2. Generate audio with "${voice}" voice (edge-tts) → 3. Sync timing to match subtitle cues`}
             </p>
           </div>
         </div>
@@ -1032,8 +1134,8 @@ export default function SubtitleToAudioPage() {
               3
             </div>
             <div>
-              <span className="font-medium text-slate-300">Generate Audio</span>
-              <p className="text-slate-500">Our AI will parse subtitles, translate if needed, and generate perfectly timed audio.</p>
+              <span className="font-medium text-slate-300">AI Processing</span>
+              <p className="text-slate-500">LLM translates text, edge-tts generates natural audio synced to subtitle timing.</p>
             </div>
           </li>
           <li className="flex items-start gap-3">
@@ -1060,36 +1162,16 @@ export default function SubtitleToAudioPage() {
               <h4 className="text-blue-400 font-semibold mb-1">Important Notes</h4>
               <ul className="text-blue-300/80 text-sm space-y-1">
                 <li>• Each audio generation costs <span className="font-bold">5 credits</span></li>
-                <li>• Processing time depends on subtitle length</li>
+                <li>• Processing time depends on subtitle length (1-2 min per subtitle minute)</li>
                 <li>• Audio is synced to match subtitle timing exactly</li>
-                <li>• Supports translation between all listed languages</li>
-                <li>• Output includes natural pauses and proper intonation</li>
+                <li>• LLM-powered translation (TranslateGemma, NLLB) for accurate translations</li>
+                <li>• edge-tts provides natural voice synthesis with proper intonation</li>
                 <li>• Your files are processed securely and deleted after 24 hours</li>
               </ul>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Debug Info (only show in development) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="glass-card p-4 border-dashed border-gray-700/50">
-          <h4 className="text-gray-400 text-sm font-semibold mb-2">Debug Info</h4>
-          <div className="text-xs text-gray-500 space-y-1">
-            <div>Job ID: <span className="text-gray-400">{jobId || 'None'}</span></div>
-            <div>Job Status: <span className="text-gray-400">{jobStatus}</span></div>
-            <div>Download URL: <span className="text-gray-400 truncate block">{downloadUrl || 'None'}</span></div>
-            <div>API Base: <span className="text-gray-400">{API_BASE_URL}</span></div>
-            <div>Selected File: <span className="text-gray-400">{selectedFile?.name || 'None'}</span></div>
-            <div>User Credits: <span className="text-gray-400">{user?.credits || 0}</span></div>
-            <div>Available Voices: <span className="text-gray-400">{availableVoices.length}</span></div>
-            <div>Source Language: <span className="text-gray-400">{sourceLanguage}</span></div>
-            <div>Target Language: <span className="text-gray-400">{targetLanguage}</span></div>
-            <div>Selected Voice: <span className="text-gray-400">{voice}</span></div>
-            <div>Output Format: <span className="text-gray-400">{outputFormat}</span></div>
-          </div>
-        </div>
-      )}
 
       {/* Hidden Audio Element */}
       <audio ref={audioRef} preload="metadata" />

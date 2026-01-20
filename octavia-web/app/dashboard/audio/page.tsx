@@ -670,7 +670,7 @@ export default function AudioTranslationPage() {
       case "translating":
         return "Translating text with Helsinki NLP...";
       case "synthesizing":
-        return "Generating audio with Coqui TTS...";
+        return "Generating audio with edge-tts...";
       case "delivery":
         return "Preparing download...";
       case "error":
@@ -903,11 +903,11 @@ export default function AudioTranslationPage() {
             </div>
             <div className={`text-center p-2 rounded ${processingStage === "translating" ? 'bg-purple-500/20 border border-purple-500/30' : 'bg-gray-500/10'}`}>
               <div className="text-xs text-gray-400">3. Translate</div>
-              <div className={`text-xs ${processingStage === "translating" ? 'text-purple-400' : 'text-gray-500'}`}>Helsinki NLP</div>
+              <div className={`text-xs ${processingStage === "translating" ? 'text-purple-400' : 'text-gray-500'}`}>LLM Models</div>
             </div>
             <div className={`text-center p-2 rounded ${processingStage === "synthesizing" || processingStage === "delivery" ? 'bg-pink-500/20 border border-pink-500/30' : 'bg-gray-500/10'}`}>
               <div className="text-xs text-gray-400">4. Synthesize</div>
-              <div className={`text-xs ${processingStage === "synthesizing" || processingStage === "delivery" ? 'text-pink-400' : 'text-gray-500'}`}>Coqui TTS</div>
+              <div className={`text-xs ${processingStage === "synthesizing" || processingStage === "delivery" ? 'text-pink-400' : 'text-gray-500'}`}>edge-tts / gTTS</div>
             </div>
           </div>
           
@@ -1054,7 +1054,7 @@ export default function AudioTranslationPage() {
             </div>
             <div>
               <span className="font-medium text-slate-300">Translation</span>
-              <p className="text-slate-500">Helsinki NLP translates the transcribed text to your target language.</p>
+              <p className="text-slate-500">LLM-powered translation (TranslateGemma, NLLB) converts text to your target language.</p>
             </div>
           </li>
           <li className="flex items-start gap-3">
@@ -1063,7 +1063,7 @@ export default function AudioTranslationPage() {
             </div>
             <div>
               <span className="font-medium text-slate-300">Synthesis</span>
-              <p className="text-slate-500">Coqui TTS generates spoken audio from translated text with proper timing.</p>
+              <p className="text-slate-500">edge-tts and gTTS generate spoken audio from translated text with natural voice synthesis.</p>
             </div>
           </li>
           <li className="flex items-start gap-3">
@@ -1109,12 +1109,12 @@ export default function AudioTranslationPage() {
             <p className="text-slate-400 text-xs">Speech-to-text transcription with 99% accuracy, preserving timing data</p>
           </div>
           <div className="bg-purple-500/10 border border-purple-500/20 p-3 rounded">
-            <div className="text-purple-400 text-xs font-semibold mb-1">2. Helsinki NLP</div>
-            <p className="text-slate-400 text-xs">Neural machine translation with context-aware language models</p>
+            <div className="text-purple-400 text-xs font-semibold mb-1">2. LLM Translation</div>
+            <p className="text-slate-400 text-xs">TranslateGemma, NLLB, or Helsinki NLP models for accurate translations</p>
           </div>
           <div className="bg-pink-500/10 border border-pink-500/20 p-3 rounded">
-            <div className="text-pink-400 text-xs font-semibold mb-1">3. Coqui TTS</div>
-            <p className="text-slate-400 text-xs">Text-to-speech synthesis with natural voice cloning and timing synchronization</p>
+            <div className="text-pink-400 text-xs font-semibold mb-1">3. edge-tts / gTTS</div>
+            <p className="text-slate-400 text-xs">Text-to-speech synthesis with natural voice synthesis</p>
           </div>
           <div className="bg-green-500/10 border border-green-500/20 p-3 rounded">
             <div className="text-green-400 text-xs font-semibold mb-1">4. Audio Processing</div>
@@ -1122,28 +1122,6 @@ export default function AudioTranslationPage() {
           </div>
         </div>
       </div>
-
-      {/* Debug Info (only show in development) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="glass-card p-4 border-dashed border-gray-700/50">
-          <h4 className="text-gray-400 text-sm font-semibold mb-2">Debug Info</h4>
-          <div className="text-xs text-gray-500 space-y-1 mb-4">
-            <div>Job ID: <span className="text-gray-400">{jobId || 'None'}</span></div>
-            <div>Job Status: <span className="text-gray-400">{jobStatus}</span></div>
-            <div>Processing Stage: <span className="text-gray-400">{processingStage}</span></div>
-            <div>Progress: <span className="text-gray-400">{progress}%</span></div>
-            <div>Download URL: <span className="text-gray-400 truncate block">{downloadUrl || 'None'}</span></div>
-            <div>Selected File: <span className="text-gray-400">{selectedFile?.name || 'None'}</span></div>
-            <div>User Credits: <span className="text-gray-400">{user?.credits || 0}</span></div>
-          </div>
-          <button
-            onClick={handleAddTestCredits}
-            className="px-3 py-2 text-xs bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
-          >
-            Add 100 Test Credits
-          </button>
-        </div>
-      )}
     </div>
   );
 }
