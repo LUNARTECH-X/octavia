@@ -1,0 +1,65 @@
+# Optimized Dockerfile for Octavia - With Ollama + TranslateGemma:4b
+# Estimated build time: 60-90 minutes on 10 Mbps connection
+# Image size: ~8-12 GB (includes TranslateGemma:4b model)
+
+# Stage 1: Builder - Install dependencies
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+# Install dependencies in isolated location
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Stage 2: Ollama Runtime - Download models
+FROM ollama/ollama:latest as ollama-downloader
+
+# Download TranslateGemma:4b (2-4GB, takes 10-15 min on 10 Mbps)
+RUN ollama pull translategemma:4b
+
+# Download smaller fallback model
+RUN ollama pull qwen2.5:1.5b
+
+# Stage 3: Runtime - Final image
+FROM python:3.11-slim
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg libsndfile1 curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama runtime (not downloader)
+RUN curl -fsSL https://ollama.ai/install.sh | sh
+
+# Copy installed Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy Ollama models from downloader
+COPY --from=ollama-downloader /usr/share/ollama/.ollama /usr/share/ollama/.ollama
+
+# Set Python path
+ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
+ENV OLLAMA_HOST=0.0.0.0:11434
+
+WORKDIR /app
+
+# Copy application code
+COPY . .
+
+# Expose ports
+EXPOSE 8000
+EXPOSE 11434
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"] || exit 1
+
+# Start Ollama in background, then run FastAPI
+CMD ["/bin/sh", "-c", "ollama serve & sleep 10 && python -m uvicorn app:app --host 0.0.0.0 --port 8000"]

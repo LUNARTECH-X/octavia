@@ -1,0 +1,21 @@
+# docker-compose.prod.yml - Production deployment (Render)
+# Usage: docker-compose -f docker-compose.prod.yml up
+
+services:
+  octavia:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.optimized
+    ports:
+      - "8000:8000"
+    environment:
+      # Use OpenRouter for LLM (no Ollama needed on Render)
+      - LLM_PROVIDER=openrouter
+      - LLM_MODEL=google/gemma-4b
+      # Alternative: Use Ollama if you want to run locally
+      # - OLLAMA_HOST=http://host.docker.internal:11434
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

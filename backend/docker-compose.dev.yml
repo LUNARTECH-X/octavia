@@ -1,0 +1,19 @@
+# docker-compose.dev.yml - Development with Hot Reload
+# Usage: docker-compose -f docker-compose.dev.yml up
+
+services:
+  octavia:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app  # Mount source code for hot reload
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,0 +1,53 @@
+# Lighter Dockerfile - Ollama without pre-baked models
+# Image size: ~4-5 GB
+# Models downloaded on first run (10-15 min)
+# Build time: 30-45 minutes
+
+# Stage 1: Builder - Install dependencies
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Stage 2: Runtime - Final image
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+RUN apt-get update && apt-get install -y \
+    ffmpeg libsndfile1 curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Ollama
+RUN curl -fsSL https://ollama.ai/install.sh | sh
+
+# Copy Python packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
+ENV OLLAMA_HOST=0.0.0.0:11434
+
+WORKDIR /app
+COPY . .
+
+EXPOSE 8000
+EXPOSE 11434
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Startup script to download models if not present
+CMD /bin/sh -c "\
+    if [ ! -d '/usr/share/ollama/.ollama/models/translategemma' ]; then \
+        echo 'Downloading TranslateGemma:4b...' && \
+        ollama pull translategemma:4b; \
+    fi && \
+    ollama serve & \
+    sleep 10 && \
+    python -m uvicorn app:app --host 0.0.0.0 --port 8000"

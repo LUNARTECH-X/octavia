@@ -1,0 +1,39 @@
+# Simple Dockerfile - No Ollama (use local Ollama)
+# Image size: ~3-4 GB
+# Build time: 20-30 minutes
+# Best for: Sharing with others who have their own Ollama
+
+# Stage 1: Builder - Install dependencies
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Stage 2: Runtime - Final image
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+RUN apt-get update && apt-get install -y \
+    ffmpeg libsndfile1 curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages:$PYTHONPATH
+
+WORKDIR /app
+COPY . .
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

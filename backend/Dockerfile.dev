@@ -1,0 +1,24 @@
+# Development Dockerfile with Hot Reload
+# Use this for local development: docker-compose -f docker-compose.dev.yml up
+
+FROM python:3.11-slim
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    ffmpeg libsndfile1 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Run with hot reload (auto-reload on code changes)
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
