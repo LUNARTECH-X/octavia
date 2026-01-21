@@ -398,10 +398,10 @@ class VideoTranslationPipeline:
                 self.ai_orchestrator = AIOchestrator()
                 if self.ai_orchestrator.using_ollama:
                     self.ai_mode = "ollama"
-                    logger.info("✓ AI Orchestrator: Ollama AI mode ACTIVE (deepseek-r1:latest)")
+                    logger.info("[OK] AI Orchestrator: Ollama AI mode ACTIVE (deepseek-r1:latest)")
                 elif self.ai_orchestrator.llama_available:
                     self.ai_mode = "llama"
-                    logger.info("✓ AI Orchestrator: Llama.cpp AI mode ACTIVE")
+                    logger.info("[OK] AI Orchestrator: Llama.cpp AI mode ACTIVE")
                 else:
                     self.ai_mode = "rule"
                     logger.info("AI Orchestrator: Rule-based mode (Ollama not available)")
@@ -456,7 +456,7 @@ class VideoTranslationPipeline:
                 masker = SecretMasker()
                 for handler in root_logger.handlers:
                     handler.addFilter(masker)
-                logger.info("✓ SecretMasker applied to pipeline logs")
+                logger.info("[OK] SecretMasker applied to pipeline logs")
             except ImportError:
                 logger.warning("SecretMasker not available, logs will not be sanitized")
 
@@ -1282,10 +1282,10 @@ class VideoTranslationPipeline:
 
                     # Check if confidence meets threshold
                     if confidence >= min_confidence:
-                        logger.info(f"✓ High confidence language detection: {detected_lang} ({confidence:.2%})")
+                        logger.info(f"[OK] High confidence language detection: {detected_lang} ({confidence:.2%})")
                         return detected_lang
                     else:
-                        logger.warning(f"⚠ Low confidence ({confidence:.2%} < {min_confidence:.0%}), trying longer sample...")
+                        logger.warning(f"[LOW CONFIDENCE] Low confidence ({confidence:.2%} < {min_confidence:.0%}), trying longer sample...")
                         continue
 
                 except Exception as detect_error:
@@ -1294,7 +1294,7 @@ class VideoTranslationPipeline:
 
             # If all samples had low confidence, return the best result we have
             if detected_lang and last_confidence > 0:
-                logger.warning(f"⚠ Using best available detection: {detected_lang} ({last_confidence:.2%}) - consider manual source language selection")
+                logger.warning(f"[LOW CONFIDENCE] Using best available detection: {detected_lang} ({last_confidence:.2%}) - consider manual source language selection")
                 return detected_lang
 
             logger.warning("All language detection attempts failed")

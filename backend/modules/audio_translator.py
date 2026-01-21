@@ -4062,7 +4062,7 @@ def test_audio_translation():
     print(f"{'='*60}")
     
     if result.success:
-        print(f"✓ SUCCESS")
+        print(f"[OK] SUCCESS")
         print(f"  Source language: {result.original_language}")
         print(f"  Target language: {result.target_language}")
         print(f"  Original duration: {result.original_duration_ms:.0f}ms")

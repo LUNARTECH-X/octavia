@@ -203,12 +203,358 @@ docker-compose up --build
 ```
 
 ### Environment Setup
-**For Contributors**: You can skip this section! Use demo mode instead.
 
-For full setup with real database:
-1. Copy example files: `cp .env.example .env && cp .env.local.example .env.local`
-2. Add your API keys to `.env` (Supabase, payment providers)
-3. Configure frontend settings in `.env.local`
+**For Contributors**: You can skip most of this section! Use demo mode (`DEMO_MODE=true`) instead for testing. However, if you want to test the full production features (payments, user accounts, job persistence), follow the steps below.
+
+#### Quick Setup (Demo Mode - Recommended for Contributors)
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Optional: For development, you can leave most values as defaults
+# Just ensure DEMO_MODE=true is set (or not set at all - defaults to false but demo mode works without Supabase)
+
+# Start testing immediately
+cd backend
+DEMO_MODE=true python cli.py test-integration
+```
+
+#### Full Environment Configuration (For Production)
+
+If you're setting up Octavia for production or full development, follow these steps:
+
+##### Step 1: Copy Example Files
+
+```bash
+# Backend environment
+cp .env.example .env
+
+# Frontend environment (if separate config needed)
+cp octavia-web/.env.local.example octavia-web/.env.local
+```
+
+##### Step 2: Required Configuration
+
+The `.env` file contains all settings for the application. Here's what you need to configure:
+
+###### Core Application Settings
+
+| Variable | Description | Required For |
+|----------|-------------|--------------|
+| `DEMO_MODE` | `true` = no database needed (demo), `false` = production | All modes work |
+| `NODE_ENV` | `development` or `production` | Debug logging |
+| `DEBUG` | `true`/`false` | Verbose logging |
+
+###### Supabase Configuration (For Real User Accounts)
+
+```bash
+# Get these from your Supabase project: https://supabase.com
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
+SUPABASE_JWT_SECRET=your-jwt-secret
+SUPABASE_ANON_KEY=your-anon-key
+```
+
+**How to get Supabase credentials:**
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to Settings → API
+3. Copy the Project URL and anon/public key
+4. For service role key, go to Settings → API → Service role (has full access)
+
+###### Payment Integration (Polar.sh)
+
+```bash
+# Get from https://polar.sh
+POLAR_ACCESS_TOKEN=your-polar-access-token
+POLAR_SERVER=sandbox  # Use "sandbox" for testing, "production" for live
+POLAR_WEBHOOK_SECRET=your-webhook-secret
+WEBHOOK_URL=https://your-domain.com/api/payments/webhook/polar
+ENABLE_TEST_MODE=false  # Set true for testing payments
+```
+
+**Test credit card for Polar.sh sandbox:** `4242 4242 4242 4242`
+
+###### LLM Configuration (Ollama - Required for Translation)
+
+```bash
+# Local LLM server (required for translation)
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_TIMEOUT=300
+
+# Models - pull these with: ollama pull model-name
+PRIMARY_OLLAMA_MODEL=qwen2.5:7b   # Best for translation with reasoning
+FALLBACK_OLLAMA_MODEL=qwen2.5:3b  # Smaller backup for limited RAM
+```
+
+**Installation:**
+```bash
+# Linux/macOS
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull qwen2.5:7b
+
+# Windows
+winget install Ollama.Ollama
+ollama pull qwen2.5:7b
+```
+
+###### Fallback LLM (OpenRouter - Optional)
+
+If Ollama is unavailable, Octavia can use cloud LLM:
+
+```bash
+OPENROUTER_API_KEY=your_openrouter_key
+OPENROUTER_MODEL=google/gemma-3-27b-it:free
+```
+
+Get API key from: https://openrouter.ai
+
+##### Step 3: Configure Translation Models
+
+Octavia uses multiple translation methods:
+
+###### Speech-to-Text (Whisper)
+
+```bash
+# Model size: tiny, base, small, medium, large (larger = slower but more accurate)
+WHISPER_MODEL_SIZE=base
+
+# Optimization settings
+USE_FASTER_WHISPER=true  # Recommended: CPU-optimized Whisper
+WHISPER_DEVICE=cpu       # Use "cuda" if you have GPU
+WHISPER_COMPUTE_TYPE=float32  # float32 for CPU, float16 for GPU
+```
+
+###### Machine Translation (Helsinki-NLP)
+
+These are loaded automatically for common language pairs:
+
+| Language Pair | Model |
+|---------------|-------|
+| English → Spanish | `Helsinki-NLP/opus-mt-en-es` |
+| Spanish → English | `Helsinki-NLP/opus-mt-es-en` |
+| English → French | `Helsinki-NLP/opus-mt-en-fr` |
+| French → English | `Helsinki-NLP/opus-mt-fr-en` |
+| English → German | `Helsinki-NLP/opus-mt-en-de` |
+| German → English | `Helsinki-NLP/opus-mt-de-en` |
+| English → Chinese | `Helsinki-NLP/opus-mt-en-zh` |
+| English → Japanese | `Helsinki-NLP/opus-mt-en-ja` |
+| English → Korean | `Helsinki-NLP/opus-mt-en-ko` |
+
+And 20+ more pairs (Italian, Portuguese, Russian, etc.)
+
+###### Text-to-Speech (TTS)
+
+```bash
+# TTS Provider: gtts (Google) or edge-tts (Microsoft)
+TTS_PROVIDER=gtts
+
+# Language codes (not full names)
+TTS_VOICES={"en": "en", "es": "es", "fr": "fr", "de": "de", "it": "it", "pt": "pt", "ja": "ja", "ko": "ko", "zh-cn": "zh-cn"}
+```
+
+##### Step 4: Processing Configuration
+
+```bash
+# Chunk settings for parallel processing
+CHUNK_SIZE=30              # Seconds per chunk (default)
+MIN_CHUNK_SIZE=15          # Minimum chunk size
+MAX_CHUNK_SIZE=60          # Maximum chunk size
+ADAPTIVE_CHUNKING_ENABLED=true  # Smart chunk sizing
+
+# Performance limits
+MAX_WORKERS=4              # Parallel processing workers
+MEMORY_THRESHOLD_PERCENT=90  # Throttle if memory > 90%
+CPU_THRESHOLD_PERCENT=70    # Throttle if CPU > 70%
+```
+
+##### Step 5: Quality Settings
+
+```bash
+# Synchronization precision
+LIP_SYNC_TOLERANCE_MS=200   # Max deviation in milliseconds
+DURATION_TOLERANCE_PERCENT=15  # Allowed duration mismatch %
+
+# Quality validation
+ENABLE_QUALITY_VALIDATION=true
+QUALITY_VALIDATION_SPOTS=5
+QUALITY_VALIDATION_THRESHOLD=0.80
+```
+
+##### Step 6: File & Directory Settings
+
+```bash
+# Temporary files directory
+TEMP_DIR=/tmp/octavia
+
+# Output directories
+OUTPUT_DIR=backend/outputs
+SUBTITLE_OUTPUT_DIR=backend/outputs/subtitles
+PREVIEW_OUTPUT_DIR=backend/outputs/previews
+
+# Auto-cleanup settings
+AUTO_CLEANUP=true
+CLEANUP_AFTER_HOURS=24
+MAX_FILE_AGE_DAYS=7
+
+# Max file sizes (bytes)
+MAX_VIDEO_SIZE_MB=500
+MAX_AUDIO_SIZE_MB=100
+MAX_SUBTITLE_SIZE_MB=10
+```
+
+##### Step 7: Credit System (Optional)
+
+```bash
+# Credit costs per operation
+CREDIT_COST_VIDEO_TRANSLATION=10
+CREDIT_COST_AUDIO_TRANSLATION=10
+CREDIT_COST_SUBTITLE_GENERATION=1
+CREDIT_COST_SUBTITLE_TRANSLATION=5
+CREDIT_COST_SUBTITLE_TO_AUDIO=5
+
+# Default credits for new users
+DEFAULT_CREDITS=1000
+```
+
+##### Step 8: Frontend Configuration
+
+```bash
+# API URLs
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Feature flags
+ENABLE_VIDEO_TRANSLATION=true
+ENABLE_AUDIO_TRANSLATION=true
+ENABLE_SUBTITLE_GENERATION=true
+ENABLE_SUBTITLE_TRANSLATION=true
+ENABLE_SUBTITLE_TO_AUDIO=true
+```
+
+##### Step 9: Logging & Monitoring
+
+```bash
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+LOG_FILE_PATH=artifacts/backend_debug.log
+LOG_MAX_SIZE_MB=10
+LOG_BACKUP_COUNT=5
+
+# Security
+MASK_SECRETS=true
+JWT_SECRET_KEY=your-super-secret-jwt-key
+JWT_EXPIRATION_HOURS=24
+```
+
+##### Step 10: Email Notifications (Optional)
+
+```bash
+# SMTP settings for email notifications
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password  # Use App Password, not regular password
+SMTP_FROM=noreply@your-domain.com
+```
+
+**Getting Gmail App Password:**
+1. Go to Google Account → Security
+2. Enable 2-Step Verification
+3. Go to App Passwords
+4. Create new password for "Mail" app
+
+##### Step 11: Docker & Production Settings
+
+```bash
+# For containerized deployment
+VIDEO_HWACCEL=cuda  # or auto, vaapi, qsv, none
+VIDEO_CODEC=libx264
+VIDEO_CRF=23        # Quality: 18-28 (lower = better)
+VIDEO_PRESET=medium  # Speed/quality tradeoff
+```
+
+#### Complete Example .env File
+
+Here's a minimal working example for development:
+
+```bash
+# Core Settings
+DEMO_MODE=true
+NODE_ENV=development
+DEBUG=true
+
+# Supabase (optional for demo mode)
+# SUPABASE_URL=https://xxx.supabase.co
+# SUPABASE_SERVICE_KEY=xxx
+
+# LLM (Required for translation)
+OLLAMA_HOST=http://localhost:11434
+PRIMARY_OLLAMA_MODEL=qwen2.5:7b
+
+# Translation
+USE_FASTER_WHISPER=true
+WHISPER_MODEL_SIZE=base
+HELSINKI_MODEL_en_es=Helsinki-NLP/opus-mt-en-es
+
+# TTS
+TTS_PROVIDER=gtts
+
+# Processing
+CHUNK_SIZE=30
+MAX_WORKERS=4
+ADAPTIVE_CHUNKING_ENABLED=true
+
+# Quality
+LIP_SYNC_TOLERANCE_MS=200
+DURATION_TOLERANCE_PERCENT=15
+
+# Files
+TEMP_DIR=/tmp/octavia
+OUTPUT_DIR=backend/outputs
+AUTO_CLEANUP=true
+
+# Logging
+LOG_LEVEL=INFO
+MASK_SECRETS=true
+
+# Frontend
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+#### Verify Your Configuration
+
+After setting up your `.env` file, verify everything works:
+
+```bash
+cd backend
+
+# Test configuration loading
+python -c "from config import load_dotenv; import os; print('DEMO_MODE:', os.getenv('DEMO_MODE', 'Not set'))"
+
+# Run integration test
+DEMO_MODE=true python cli.py test-integration --input test_samples/sample_30s_en.mp4
+```
+
+#### Environment Variables Priority
+
+Settings are loaded in this order (later overrides earlier):
+
+1. `.env.example` (defaults)
+2. `.env` (user configuration)
+3. System environment variables (highest priority)
+
+Example of overriding via environment:
+```bash
+DEMO_MODE=true python -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Or on Windows:
+```cmd
+set DEMO_MODE=true
+python -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
 
 ### One-Command Setup & Run
 
@@ -296,7 +642,7 @@ npm run dev
 
 The AI Orchestrator (`backend/modules/ai_orchestrator.py`) manages intelligent decision-making for the translation pipeline. Additionally, Octavia uses a local LLM for **translation post-processing** - fixing name transliterations, improving grammar, and enhancing natural fluency.
 
-**Prerequisite:** Ensure [Ollama](https://ollama.com) is installed and running on your system with the recommended model pulled: `ollama pull qwen2.5-coder:1.5b`.
+**Prerequisite:** Ensure [Ollama](https://ollama.com) is installed and running on your system with the recommended model pulled: `ollama pull deepseek-r1:latest`.
 
 #### Using Ollama (Local LLM)
 
@@ -311,8 +657,8 @@ curl -fsSL https://ollama.ai/install.sh | sh
 sudo systemctl start ollama
 
 # Pull the models for AI Orchestrator & Translation
-ollama pull qwen2.5-coder:1.5b  # For Orchestrator
-ollama pull translategemma:4b   # For Primary Translation (Winning Model)
+ollama pull qwen2.5:7b  # For Primary Translation with reasoning
+ollama pull qwen2.5-coder:1.5b  # For AI Orchestrator decisions
 ```
 
 **Windows:**
@@ -324,7 +670,7 @@ winget install Ollama.Ollama
 net start ollama
 
 :: Pull the recommended model for AI Orchestrator & Translation
-ollama pull qwen2.5-coder:1.5b
+ollama pull qwen2.5:7b
 ```
 
 **Windows (WSL2):**
@@ -334,19 +680,19 @@ curl -fsSL https://ollama.ai/install.sh | sh
 
 # Pull the models in WSL2
 sudo systemctl start ollama
-ollama pull qwen2.5-coder:1.5b
-ollama pull translategemma:4b
+ollama pull qwen2.5:7b
 ```
 
 #### What Ollama Does in Octavia
 
-1. **AI Orchestrator** - Intelligent decision-making for parameters.
-2. **Gemma Translation (Primary)** - Professional translation using `translategemma:4b`:
-   - Cultural adaptation and natural phrasing.
-   - Consistent names and entities preservation.
-   - Direct, isolated output (no conversational filler).
+1. **AI Orchestrator** - Intelligent decision-making for parameters (chunk size, model selection, worker count).
+2. **Primary LLM Translation** - Professional translation using `qwen2.5:7b`:
+   - Deep reasoning for cultural adaptation and natural phrasing
+   - Consistent names and entities preservation
+   - Duration-constrained translation for lip-sync
 3. **Fallback Post-Processing** - If using NMT (NLLB/Helsinki), Ollama improves:
-   - Grammar normalization and name consistency.
+   - Grammar normalization and name consistency
+   - Context-aware improvements
 
 #### Benefits of Local AI Model
 
@@ -354,7 +700,7 @@ ollama pull translategemma:4b
 - **Cost Control**: No API usage fees
 - **Customization**: Fine-tune models for your domain
 - **Offline Operation**: Works without internet
-- **Better Translation**: Names, grammar, and fluency improvements
+- **Better Translation**: Names, grammar, and fluency improvements with reasoning
 
 #### Fallback Behavior
 
@@ -371,10 +717,10 @@ If no local model is configured:
 curl http://localhost:11434/api/tags
 
 # Verify the exact model name needed
-# Our code uses: qwen2.5-coder:1.5b
+# Our code uses: qwen2.5:7b
 
 # Pull the correct model
-ollama pull qwen2.5-coder:1.5b
+ollama pull qwen2.5:7b
 ```
 
 **"Connection refused" errors:**
@@ -389,18 +735,15 @@ sudo systemctl start ollama
 curl http://localhost:11434/api/tags
 ```
 
-**Slow translation post-processing:**
-- The 1.5B model is optimized for speed
-- Translation post-processing adds ~2-5 seconds per chunk
-- If too slow, disable post-processing in `TranslationConfig`:
-  ```python
-  use_ollama_post_processing: bool = False
-  ```
+**Slow translation:**
+- The 7B model requires 8GB+ RAM
+- If too slow, use smaller model: `ollama pull qwen2.5:3b`
+- Or reduce chunk size: `CHUNK_SIZE=15`
 
 **Different model names in curl vs ollama list:**
 ```bash
-# Ollama may show: qwen2.5-coder:1.5b
-# curl may show: qwen2.5-coder:latest
+# Ollama may show: qwen2.5:7b
+# curl may show: qwen2.5:latest
 
 # Use the exact name from ollama list
 ollama list

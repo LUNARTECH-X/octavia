@@ -252,7 +252,7 @@ def test_comprehensive_integration(args):
 
     try:
         # Phase 1: Video Translation Test
-        print("\n🎬 Phase 1: Testing Video Translation Job")
+        print("\nPhase 1: Testing Video Translation Job")
         print("-" * 40)
 
         video_start = time.time()
@@ -284,7 +284,7 @@ def test_comprehensive_integration(args):
         print(f"   Output: {video_output}")
 
         # Phase 2: Audio Translation Test
-        print("\n🎵 Phase 2: Testing Audio Translation Job")
+        print("\nPhase 2: Testing Audio Translation Job")
         print("-" * 40)
 
         # Extract audio from video (cross-platform path)
@@ -326,7 +326,7 @@ def test_comprehensive_integration(args):
             print("   Status: FAILED - Audio extraction failed")
 
         # Phase 3: Subtitle Generation Test
-        print("\n📝 Phase 3: Testing Subtitle Generation Job")
+        print("\nPhase 3: Testing Subtitle Generation Job")
         print("-" * 40)
 
         subtitle_start = time.time()
@@ -379,7 +379,7 @@ Final subtitle segment.
         print(f"   Segments: {results['subtitle_generation']['segments']}")
 
         # Phase 4: Subtitle Translation Test (always passes - framework ready)
-        print("\n🌐 Phase 4: Testing Subtitle Translation Job")
+        print("\nPhase 4: Testing Subtitle Translation Job")
         print("-" * 40)
 
         # Subtitle translation framework is ready - mark as passed
@@ -422,7 +422,7 @@ Final subtitle segment.
                 all_passed = False
 
         print()
-        print(f"Overall Status: {'✅ ALL TESTS PASSED' if all_passed else '❌ SOME TESTS FAILED'}")
+        print(f"Overall Status: {'ALL TESTS PASSED' if all_passed else 'SOME TESTS FAILED'}")
 
         # Save comprehensive report
         report = {

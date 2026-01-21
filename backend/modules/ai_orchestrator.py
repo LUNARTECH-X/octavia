@@ -101,7 +101,7 @@ class AIOchestrator:
         if self._test_ollama_connection():
             self.llama_available = True
             self.using_ollama = True
-            logger.info("✓ Connected to Ollama server for AI decisions!")
+            logger.info("[OK] Connected to Ollama server for AI decisions!")
         # Try to load Llama model directly using llama-cpp-python
         elif self.llama_model_path and os.path.exists(self.llama_model_path):
             self._load_llama_model()
@@ -181,7 +181,7 @@ class AIOchestrator:
             
             if self._test_llama_connection():
                 self.llama_available = True
-                logger.info("✓ Llama.cpp server started successfully")
+                logger.info("[OK] Llama.cpp server started successfully")
                 return True
             else:
                 logger.error("Llama.cpp server failed to start properly")
@@ -228,7 +228,7 @@ class AIOchestrator:
             )
             
             self.llama_available = True
-            logger.info("✓ Llama model loaded successfully via llama-cpp-python!")
+            logger.info("[OK] Llama model loaded successfully via llama-cpp-python!")
             
         except ImportError:
             logger.warning("llama-cpp-python not installed - using rule-based decisions")
