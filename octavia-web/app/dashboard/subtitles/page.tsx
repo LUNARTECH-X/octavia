@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { FileVideo, Captions, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { api, safeApiResponse, isSuccess } from "@/lib/api";
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,36 @@ export default function SubtitleGenerationPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Check for project context on mount
+  useEffect(() => {
+    const projectContext = localStorage.getItem('octavia_project_context');
+    if (projectContext) {
+      try {
+        const context = JSON.parse(projectContext);
+        if (context.fileUrl && context.projectType === 'Subtitle Generation') {
+          // Fetch the blob and create a File object
+          fetch(context.fileUrl)
+            .then(response => response.blob())
+            .then(blob => {
+              const projectFile = new File([blob], context.fileName, { type: context.fileType });
+              setSelectedFile(projectFile);
+              setError(null);
+              setSuccess(null);
+              // Clear the project context after using it
+              localStorage.removeItem('octavia_project_context');
+            })
+            .catch(error => {
+              console.error('Failed to load file from project context:', error);
+              localStorage.removeItem('octavia_project_context');
+            });
+        }
+      } catch (error) {
+        console.error('Failed to parse project context:', error);
+        localStorage.removeItem('octavia_project_context');
+      }
+    }
+  }, []);
 
   const handleFileSelect = useCallback((file: File) => {
     // Check file type

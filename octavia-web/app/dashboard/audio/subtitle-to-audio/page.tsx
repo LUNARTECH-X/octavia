@@ -82,6 +82,34 @@ export default function SubtitleToAudioPage() {
     refreshCredits();
   }, []);
 
+  // Check for project context on mount
+  useEffect(() => {
+    const projectContext = localStorage.getItem('octavia_project_context');
+    if (projectContext) {
+      try {
+        const context = JSON.parse(projectContext);
+        if (context.fileUrl && context.projectType === 'Subtitle to Audio') {
+          // Fetch the blob and create a File object
+          fetch(context.fileUrl)
+            .then(response => response.blob())
+            .then(blob => {
+              const projectFile = new File([blob], context.fileName, { type: context.fileType });
+              setSelectedFile(projectFile);
+              // Clear the project context after using it
+              localStorage.removeItem('octavia_project_context');
+            })
+            .catch(error => {
+              console.error('Failed to load file from project context:', error);
+              localStorage.removeItem('octavia_project_context');
+            });
+        }
+      } catch (error) {
+        console.error('Failed to parse project context:', error);
+        localStorage.removeItem('octavia_project_context');
+      }
+    }
+  }, []);
+
   // Load available voices when target language changes
   useEffect(() => {
     const loadVoices = async () => {

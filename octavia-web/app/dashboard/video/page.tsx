@@ -73,6 +73,36 @@ export default function VideoTranslationPage() {
     };
   }, [audioElement]);
 
+  // Check for project context on mount
+  useEffect(() => {
+    const projectContext = localStorage.getItem('octavia_project_context');
+    if (projectContext) {
+      try {
+        const context = JSON.parse(projectContext);
+        if (context.fileUrl && context.projectType === 'Video Translation') {
+          // Fetch the blob and create a File object
+          fetch(context.fileUrl)
+            .then(response => response.blob())
+            .then(blob => {
+              const projectFile = new File([blob], context.fileName, { type: context.fileType });
+              setFile(projectFile);
+              setError(null);
+              generateThumbnail(projectFile);
+              // Clear the project context after using it
+              localStorage.removeItem('octavia_project_context');
+            })
+            .catch(error => {
+              console.error('Failed to load file from project context:', error);
+              localStorage.removeItem('octavia_project_context');
+            });
+        }
+      } catch (error) {
+        console.error('Failed to parse project context:', error);
+        localStorage.removeItem('octavia_project_context');
+      }
+    }
+  }, []);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];

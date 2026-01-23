@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Folder, Plus, Clock, CheckCircle, AlertCircle, Edit, Trash2, X, Save } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 interface Project {
@@ -80,6 +81,7 @@ const getStatusBadge = (status: string) => {
 };
 
 export default function ProjectsPage() {
+    const router = useRouter();
     const { toast } = useToast();
     const [projects, setProjects] = useState<Project[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -205,11 +207,8 @@ export default function ProjectsPage() {
     };
 
     const handleProjectClick = (project: Project) => {
-        // For now, just show a toast. In a full implementation, this could navigate to project details
-        toast({
-            title: project.name,
-            description: project.description || `A ${project.type.toLowerCase()} project`,
-        });
+        // Navigate to project details page
+        router.push(`/dashboard/projects/${project.id}`);
     };
 
     return (
@@ -337,9 +336,9 @@ export default function ProjectsPage() {
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="glass-panel max-w-md w-full p-6"
+                            className="glass-panel max-w-sm w-full p-4"
                         >
-                            <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center justify-between mb-3">
                                 <h2 className="text-xl font-bold text-white">
                                     {editingProject ? 'Edit Project' : 'Create New Project'}
                                 </h2>
@@ -351,7 +350,7 @@ export default function ProjectsPage() {
                                 </button>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-2">
                                         Project Name *
@@ -366,7 +365,7 @@ export default function ProjectsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
                                         Project Type
                                     </label>
                                     <select
@@ -381,7 +380,7 @@ export default function ProjectsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
                                         Status
                                     </label>
                                     <select
@@ -396,7 +395,7 @@ export default function ProjectsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
                                         Number of Files
                                     </label>
                                     <input
@@ -409,7 +408,7 @@ export default function ProjectsPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
                                         Description
                                     </label>
                                     <textarea
@@ -422,7 +421,7 @@ export default function ProjectsPage() {
                                 </div>
                             </div>
 
-                            <div className="flex gap-3 mt-6">
+                            <div className="flex gap-3 mt-3">
                                 <button
                                     onClick={() => setIsModalOpen(false)}
                                     className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors"

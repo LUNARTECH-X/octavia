@@ -38,6 +38,35 @@ export default function AudioTranslationPage() {
     console.log(`Browser WAV support: ${supportsWav}`);
   }, []);
 
+  // Check for project context on mount
+  useEffect(() => {
+    const projectContext = localStorage.getItem('octavia_project_context');
+    if (projectContext) {
+      try {
+        const context = JSON.parse(projectContext);
+        if (context.fileUrl && context.projectType === 'Audio Translation') {
+          // Fetch the blob and create a File object
+          fetch(context.fileUrl)
+            .then(response => response.blob())
+            .then(blob => {
+              const projectFile = new File([blob], context.fileName, { type: context.fileType });
+              setSelectedFile(projectFile);
+              setError(null);
+              // Clear the project context after using it
+              localStorage.removeItem('octavia_project_context');
+            })
+            .catch(error => {
+              console.error('Failed to load file from project context:', error);
+              localStorage.removeItem('octavia_project_context');
+            });
+        }
+      } catch (error) {
+        console.error('Failed to parse project context:', error);
+        localStorage.removeItem('octavia_project_context');
+      }
+    }
+  }, []);
+
   // Add test credits for development
   const handleAddTestCredits = async () => {
     try {
