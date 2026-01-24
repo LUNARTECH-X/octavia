@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { AudioLines, Play, Loader2, Upload, FileAudio, X, Download } from "lucide-react";
+import { AudioLines, Play, Loader2, Upload, FileAudio, X, Download, CheckCircle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { api, ApiResponse } from "@/lib/api"; // Import your API service
 import { useUser } from "@/contexts/UserContext";
@@ -22,7 +22,7 @@ export default function AudioTranslationPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [audioPlaybackSupported, setAudioPlaybackSupported] = useState(true);
-  
+
   // Polling interval reference
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -33,7 +33,7 @@ export default function AudioTranslationPage() {
     // Check if browser supports audio playback
     const tempAudio = document.createElement('audio');
     const supportsWav = tempAudio.canPlayType('audio/wav') !== '' ||
-                       tempAudio.canPlayType('audio/wave') !== '';
+      tempAudio.canPlayType('audio/wave') !== '';
     setAudioPlaybackSupported(supportsWav);
     console.log(`Browser WAV support: ${supportsWav}`);
   }, []);
@@ -100,11 +100,11 @@ export default function AudioTranslationPage() {
     // Validate file type
     const validTypes = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/x-m4a', 'audio/x-aac'];
     const fileType = file.type;
-    
+
     // Also check file extension
     const validExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4', '.aac'];
     const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-    
+
     if (!validTypes.includes(fileType) && !validExtensions.includes(fileExt)) {
       setError("Please upload MP3, WAV, FLAC, OGG, or M4A files only.");
       return;
@@ -140,16 +140,16 @@ export default function AudioTranslationPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const file = e.dataTransfer.files[0];
-    
+
     if (file) {
       const validTypes = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/x-m4a'];
       const fileType = file.type;
-      
+
       const validExtensions = ['.mp3', '.wav', '.flac', '.ogg', '.m4a', '.mp4'];
       const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-      
+
       if (!validTypes.includes(fileType) && !validExtensions.includes(fileExt)) {
         setError("Please upload MP3, WAV, FLAC, OGG, or M4A files only.");
         return;
@@ -188,20 +188,20 @@ export default function AudioTranslationPage() {
     try {
       console.log('Starting audio translation:', selectedFile.name);
       console.log('Target language:', targetLanguage);
-      
+
       // Use the API service to translate audio
       const response = await api.translateAudio({
         file: selectedFile,
         sourceLanguage,
         targetLanguage
       });
-      
+
       console.log('API Response:', response);
 
       if (!response.success) {
         throw new Error(response.error || response.message || "Failed to start translation job");
       }
-      
+
       if (response.job_id) {
         setJobId(response.job_id);
         setProgress(30);
@@ -542,7 +542,7 @@ export default function AudioTranslationPage() {
             // Check if browser supports WAV playback
             const tempAudio = document.createElement('audio');
             const canPlayWav = tempAudio.canPlayType('audio/wav') !== '' ||
-                              tempAudio.canPlayType('audio/wave') !== '';
+              tempAudio.canPlayType('audio/wave') !== '';
 
             if (canPlayWav) {
               correctedBlob = new Blob([audioBlob], { type: 'audio/wav' });
@@ -599,7 +599,7 @@ export default function AudioTranslationPage() {
             }
 
             setError(errorMessage + " Please try downloading the file instead.");
-        setAudioPlaybackSupported(false); // Disable playback attempts
+            setAudioPlaybackSupported(false); // Disable playback attempts
             setIsPlaying(false);
             setAudioPlaybackSupported(false); // Disable playback for this job
 
@@ -725,7 +725,7 @@ export default function AudioTranslationPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-h-screen">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
@@ -735,10 +735,10 @@ export default function AudioTranslationPage() {
           </div>
           <div className="glass-card px-4 py-2">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary-purple-bright animate-pulse"></div>
-              <span className="text-white text-sm">Credits: <span className="font-bold">{user?.credits || 0}</span></span>
+              <div className="w-2 h-2 rounded-full bg-primary-purple-bright animate-pulse" />
+              <span className="text-white text-sm font-medium">Credits: <span className="font-bold text-lg">{user?.credits || 0}</span></span>
             </div>
-            <p className="text-slate-400 text-xs mt-1">10 credits per translation</p>
+            <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider">Available Balance</p>
           </div>
         </div>
       </div>
@@ -794,13 +794,13 @@ export default function AudioTranslationPage() {
           className="hidden"
           disabled={isProcessing}
         />
-        
+
         <motion.div
           whileHover={!selectedFile && !isProcessing ? { scale: 1.01 } : {}}
           className={`glass-panel glass-panel-high relative border-2 border-dashed transition-all mb-6 overflow-hidden
-            ${selectedFile ? 'border-green-500/50 cursor-default' : 
-              isProcessing ? 'border-primary-purple/30 cursor-wait' : 
-              'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
+            ${selectedFile ? 'border-green-500/50 cursor-default' :
+              isProcessing ? 'border-primary-purple/30 cursor-wait' :
+                'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
         >
           <div className="glass-shine" />
           <div className="glow-purple" style={{ width: "300px", height: "300px", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1 }} />
@@ -858,7 +858,7 @@ export default function AudioTranslationPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="glass-card p-4">
           <label className="text-white text-sm font-semibold mb-2 block">Source Language</label>
-          <select 
+          <select
             value={sourceLanguage}
             onChange={(e) => setSourceLanguage(e.target.value)}
             className="glass-select w-full"
@@ -874,7 +874,7 @@ export default function AudioTranslationPage() {
 
         <div className="glass-card p-4">
           <label className="text-white text-sm font-semibold mb-2 block">Target Language</label>
-          <select 
+          <select
             value={targetLanguage}
             onChange={(e) => setTargetLanguage(e.target.value)}
             className="glass-select w-full"
@@ -897,14 +897,13 @@ export default function AudioTranslationPage() {
         >
           <div className="flex justify-between text-sm mb-2">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${
-                processingStage === "uploading" ? 'bg-blue-500 animate-pulse' :
-                processingStage === "transcribing" ? 'bg-yellow-500 animate-pulse' :
-                processingStage === "translating" ? 'bg-purple-500 animate-pulse' :
-                processingStage === "synthesizing" ? 'bg-pink-500 animate-pulse' :
-                processingStage === "delivery" ? 'bg-green-500 animate-pulse' :
-                'bg-gray-500'
-              }`}></div>
+              <div className={`w-2 h-2 rounded-full ${processingStage === "uploading" ? 'bg-blue-500 animate-pulse' :
+                  processingStage === "transcribing" ? 'bg-yellow-500 animate-pulse' :
+                    processingStage === "translating" ? 'bg-purple-500 animate-pulse' :
+                      processingStage === "synthesizing" ? 'bg-pink-500 animate-pulse' :
+                        processingStage === "delivery" ? 'bg-green-500 animate-pulse' :
+                          'bg-gray-500'
+                }`}></div>
               <span className="text-gray-400">
                 {getStageDescription()}
               </span>
@@ -919,7 +918,7 @@ export default function AudioTranslationPage() {
               transition={{ duration: 0.5 }}
             />
           </div>
-          
+
           {/* Stage breakdown */}
           <div className="grid grid-cols-4 gap-2 mt-4">
             <div className={`text-center p-2 rounded ${processingStage === "uploading" ? 'bg-blue-500/20 border border-blue-500/30' : 'bg-gray-500/10'}`}>
@@ -939,7 +938,7 @@ export default function AudioTranslationPage() {
               <div className={`text-xs ${processingStage === "synthesizing" || processingStage === "delivery" ? 'text-pink-400' : 'text-gray-500'}`}>edge-tts / gTTS</div>
             </div>
           </div>
-          
+
           {jobId && (
             <p className="text-slate-500 text-xs mt-2">Job ID: {jobId}</p>
           )}
@@ -1004,7 +1003,7 @@ export default function AudioTranslationPage() {
             </button>
           </>
         ) : (
-          <button 
+          <button
             onClick={handleUpload}
             disabled={!selectedFile || isProcessing || (user?.credits || 0) < 10}
             className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
@@ -1052,105 +1051,47 @@ export default function AudioTranslationPage() {
         </motion.div>
       )}
 
-      {/* Instructions */}
-      <div className="glass-card p-4 mt-8">
-        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-          <AudioLines className="w-5 h-5 text-primary-purple-bright" />
-          How Audio Translation Works:
-        </h3>
-        <ol className="text-slate-400 text-sm space-y-3 pl-2">
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              1
+      {/* Instructions & Technical Details */}
+      {!isProcessing && jobStatus !== "completed" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-8">
+          <div className="glass-card p-4 lg:col-span-2">
+            <h3 className="text-white font-bold text-lg mb-3 flex items-center gap-2">
+              <AudioLines className="w-5 h-5 text-primary-purple-bright" />
+              Neural Audio Workflow
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { title: "Speech Recognition", desc: "Faster Whisper decodes audio to text." },
+                { title: "Smart Translation", desc: "Context-aware LLM refinement." },
+                { title: "Synthesized Audio", desc: "gTTS & Edge-TTS high-fidelity audio." },
+                { title: "Audio Mastering", desc: "Final audio mixing and normalization." }
+              ].map((item, i) => (
+                <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/5">
+                  <h4 className="text-white font-bold text-sm mb-1">{item.title}</h4>
+                  <p className="text-slate-500 text-xs leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
             </div>
-            <div>
-              <span className="font-medium text-slate-300">Upload Audio File</span>
-              <p className="text-slate-500">Select your audio file (MP3, WAV, FLAC, OGG, M4A). Maximum size: 100MB.</p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              2
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">Transcription</span>
-              <p className="text-slate-500">OpenAI Whisper transcribes the audio to text with timestamps.</p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              3
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">Translation</span>
-              <p className="text-slate-500">LLM-powered translation (TranslateGemma, NLLB) converts text to your target language.</p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              4
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">Synthesis</span>
-              <p className="text-slate-500">edge-tts and gTTS generate spoken audio from translated text with natural voice synthesis.</p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              5
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">Delivery</span>
-              <p className="text-slate-500">Download your translated audio file with synchronized voice synthesis.</p>
-            </div>
-          </li>
-        </ol>
-        
-        <div className="mt-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-blue-400 font-semibold mb-1">Important Notes</h4>
-              <ul className="text-blue-300/80 text-sm space-y-1">
-                <li>• Each audio translation costs <span className="font-bold">10 credits</span></li>
-                <li>• Processing time depends on audio length (approximately 1-2 minutes per minute of audio)</li>
-                <li>• Supports translation between all listed languages</li>
-                <li>• Output format: MP3 with high-quality voice synthesis</li>
-                <li>• Your files are processed securely and deleted after 24 hours</li>
-              </ul>
-            </div>
+          </div>
+          <div className="glass-card p-4 border-indigo-500/10 h-min">
+            <h3 className="text-white font-bold text-lg mb-3">Audio Specs</h3>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-2 text-xs text-slate-400">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p>High-fidelity output (MP3/WAV).</p>
+              </li>
+              <li className="flex items-start gap-2 text-xs text-slate-400">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p>Costs 10 credits per generation.</p>
+              </li>
+              <li className="flex items-start gap-2 text-xs text-slate-400">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p>Secure 24-hour file deletion.</p>
+              </li>
+            </ul>
           </div>
         </div>
-      </div>
-
-      {/* Technical Details */}
-      <div className="glass-card p-4">
-        <h3 className="text-white font-semibold mb-3">Technical Process</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded">
-            <div className="text-blue-400 text-xs font-semibold mb-1">1. OpenAI Whisper</div>
-            <p className="text-slate-400 text-xs">Speech-to-text transcription with 99% accuracy, preserving timing data</p>
-          </div>
-          <div className="bg-purple-500/10 border border-purple-500/20 p-3 rounded">
-            <div className="text-purple-400 text-xs font-semibold mb-1">2. LLM Translation</div>
-            <p className="text-slate-400 text-xs">TranslateGemma, NLLB, or Helsinki NLP models for accurate translations</p>
-          </div>
-          <div className="bg-pink-500/10 border border-pink-500/20 p-3 rounded">
-            <div className="text-pink-400 text-xs font-semibold mb-1">3. edge-tts / gTTS</div>
-            <p className="text-slate-400 text-xs">Text-to-speech synthesis with natural voice synthesis</p>
-          </div>
-          <div className="bg-green-500/10 border border-green-500/20 p-3 rounded">
-            <div className="text-green-400 text-xs font-semibold mb-1">4. Audio Processing</div>
-            <p className="text-slate-400 text-xs">Final audio mixing, normalization, and format conversion to MP3</p>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

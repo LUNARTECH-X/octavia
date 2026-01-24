@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FileText, AudioWaveform, Sparkles, Upload, Download, X, Loader2, Info, Play, Pause, Volume2 } from "lucide-react";
+import { FileText, AudioWaveform, Sparkles, Upload, Download, X, Loader2, Info, Play, Pause, Volume2, CheckCircle } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +31,7 @@ export default function SubtitleToAudioPage() {
   const [jobStatus, setJobStatus] = useState<string>("idle");
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [sourceLanguage, setSourceLanguage] = useState("en");
   const [targetLanguage, setTargetLanguage] = useState("es");
   const [voice, setVoice] = useState("Aria (Female)");
@@ -243,7 +243,7 @@ export default function SubtitleToAudioPage() {
 
     const validExtensions = ['.srt', '.vtt', '.ass', '.ssa', '.txt'];
     const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-    
+
     if (!validExtensions.includes(fileExt)) {
       setError("Please upload SRT, VTT, ASS, SSA, or TXT files only.");
       return;
@@ -263,11 +263,11 @@ export default function SubtitleToAudioPage() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    
+
     if (file) {
       const validExtensions = ['.srt', '.vtt', '.ass', '.ssa', '.txt'];
       const fileExt = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-      
+
       if (validExtensions.includes(fileExt)) {
         const maxSize = 10 * 1024 * 1024;
         if (file.size > maxSize) {
@@ -340,7 +340,7 @@ export default function SubtitleToAudioPage() {
       console.log('Target language:', targetLanguage);
       console.log('Voice:', voice);
       console.log('Format:', outputFormat);
-      
+
       const response = await fetch(`${API_BASE_URL}/api/generate/subtitle-audio`, {
         method: 'POST',
         headers: {
@@ -364,12 +364,12 @@ export default function SubtitleToAudioPage() {
       if (!response.ok) {
         throw new Error(data.error || data.detail || data.message || `Upload failed: ${response.statusText}`);
       }
-      
+
       if (data.success && data.job_id) {
         setJobId(data.job_id);
         setJobStatus("processing");
         setUploadProgress(30);
-        
+
         // Start polling for job status
         pollJobStatus(data.job_id);
 
@@ -397,7 +397,7 @@ export default function SubtitleToAudioPage() {
     const poll = async () => {
       attempts++;
       console.log(`Polling job ${jobId}, attempt ${attempts}`);
-      
+
       try {
         const response = await fetch(`${API_BASE_URL}/api/generate/subtitle-audio/status/${jobId}`, {
           headers: token ? {
@@ -411,7 +411,7 @@ export default function SubtitleToAudioPage() {
 
         const data = await response.json();
         console.log('Poll response:', data);
-        
+
         if (data.success || data.status) {
           const jobProgress = data.progress || 0;
           const calculatedProgress = 30 + (jobProgress * 0.7);
@@ -420,16 +420,16 @@ export default function SubtitleToAudioPage() {
           if (data.status === "completed") {
             setJobStatus("completed");
             setUploadProgress(100);
-            
+
             // Set download URL from the response
-            const downloadUrl = data.download_url || 
-                               `${API_BASE_URL}/api/download/subtitle-audio/${jobId}`;
+            const downloadUrl = data.download_url ||
+              `${API_BASE_URL}/api/download/subtitle-audio/${jobId}`;
             setDownloadUrl(downloadUrl);
             setIsGenerating(false);
             clearInterval(pollInterval);
-            
+
             console.log('Job completed! Download URL:', downloadUrl);
-            
+
             toast({
               title: "Audio generated successfully!",
               description: "Your audio file is ready to download.",
@@ -439,7 +439,7 @@ export default function SubtitleToAudioPage() {
             setJobStatus("failed");
             setIsGenerating(false);
             clearInterval(pollInterval);
-            
+
             toast({
               title: "Generation failed",
               description: data.error || "Failed to generate audio.",
@@ -451,7 +451,7 @@ export default function SubtitleToAudioPage() {
               setJobStatus("failed");
               setIsGenerating(false);
               clearInterval(pollInterval);
-              
+
               toast({
                 title: "Generation timeout",
                 description: "Audio generation took too long. Please try again.",
@@ -463,7 +463,7 @@ export default function SubtitleToAudioPage() {
           setJobStatus("failed");
           setIsGenerating(false);
           clearInterval(pollInterval);
-          
+
           toast({
             title: "Generation failed",
             description: data.error || "Job status check failed",
@@ -476,7 +476,7 @@ export default function SubtitleToAudioPage() {
           setJobStatus("failed");
           setIsGenerating(false);
           clearInterval(pollInterval);
-          
+
           toast({
             title: "Generation timeout",
             description: "Failed to check generation status",
@@ -488,7 +488,7 @@ export default function SubtitleToAudioPage() {
 
     // Start polling
     pollInterval = setInterval(poll, 2000);
-    
+
     // Cleanup on component unmount
     return () => {
       if (pollInterval) {
@@ -515,7 +515,7 @@ export default function SubtitleToAudioPage() {
       console.log('Job ID:', jobId);
       console.log('Output format:', outputFormat);
       console.log('API Base URL:', API_BASE_URL);
-      
+
       // Try multiple possible download endpoints, but prioritize the one from job status
       const downloadUrls = [
         downloadUrl, // Use the URL from job status FIRST (most likely to work)
@@ -525,23 +525,23 @@ export default function SubtitleToAudioPage() {
       ].filter(url => url !== null && url !== undefined && url !== '');
 
       console.log('Download URLs to try:', downloadUrls);
-      
+
       let success = false;
       let lastError = null;
-      
+
       for (const url of downloadUrls) {
         if (!url) continue;
         try {
           console.log('Trying download URL:', url);
-          
+
           // Ensure URL is absolute
           let absoluteUrl = url;
           if (url.startsWith('/')) {
             absoluteUrl = `${API_BASE_URL}${url}`;
           }
-          
+
           console.log('Using absolute URL:', absoluteUrl);
-          
+
           const response = await fetch(absoluteUrl, {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -550,21 +550,21 @@ export default function SubtitleToAudioPage() {
 
           console.log('Response status:', response.status);
           console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-          
+
           if (response.ok) {
             const blob = await response.blob();
-            
+
             // Extract filename from response headers or create one
             const contentDisposition = response.headers.get('content-disposition');
             let fileName = `subtitle_audio_${jobId}.${outputFormat}`;
-            
+
             if (contentDisposition) {
               const match = contentDisposition.match(/filename="?(.+?)"?$/);
               if (match) {
                 fileName = match[1];
               }
             }
-            
+
             // Create download link
             const downloadUrlObj = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -574,16 +574,16 @@ export default function SubtitleToAudioPage() {
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(downloadUrlObj);
-            
+
             console.log('Audio file downloaded:', fileName);
             success = true;
-            
+
             toast({
               title: "Download started",
               description: "Your audio file is being downloaded.",
               variant: "default",
             });
-            
+
             break;
           } else {
             console.log(`Download failed for ${absoluteUrl}: ${response.status} ${response.statusText}`);
@@ -594,15 +594,15 @@ export default function SubtitleToAudioPage() {
           lastError = err.message;
         }
       }
-      
+
       if (!success) {
         throw new Error(lastError || "Failed to download from all possible endpoints");
       }
-      
+
     } catch (err: any) {
       console.error('Download error:', err);
       setError(`Failed to download audio file: ${err.message}. Please try again or contact support.`);
-      
+
       toast({
         title: "Download failed",
         description: `Failed to download audio file: ${err.message}`,
@@ -723,7 +723,7 @@ export default function SubtitleToAudioPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-h-screen">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center">
@@ -733,10 +733,10 @@ export default function SubtitleToAudioPage() {
           </div>
           <div className="glass-card px-4 py-2">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary-purple-bright animate-pulse"></div>
-              <span className="text-white text-sm">Credits: <span className="font-bold">{user?.credits || 0}</span></span>
+              <div className="w-2 h-2 rounded-full bg-primary-purple-bright animate-pulse" />
+              <span className="text-white text-sm font-medium">Credits: <span className="font-bold text-lg">{user?.credits || 0}</span></span>
             </div>
-            <p className="text-slate-400 text-xs mt-1">5 credits per generation</p>
+            <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider">Available Balance</p>
           </div>
         </div>
       </div>
@@ -792,13 +792,13 @@ export default function SubtitleToAudioPage() {
           className="hidden"
           disabled={isGenerating}
         />
-        
+
         <motion.div
           whileHover={!selectedFile && !isGenerating ? { scale: 1.01 } : {}}
           className={`glass-panel glass-panel-high relative border-2 border-dashed transition-all mb-6 overflow-hidden
-            ${selectedFile ? 'border-green-500/50 cursor-default' : 
-              isGenerating ? 'border-primary-purple/30 cursor-wait' : 
-              'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
+            ${selectedFile ? 'border-green-500/50 cursor-default' :
+              isGenerating ? 'border-primary-purple/30 cursor-wait' :
+                'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
         >
           <div className="glass-shine" />
           <div className="glow-purple" style={{ width: "300px", height: "300px", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 1 }} />
@@ -861,11 +861,10 @@ export default function SubtitleToAudioPage() {
         >
           <div className="flex justify-between text-sm mb-2">
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${
-                jobStatus === "uploading" ? 'bg-blue-500 animate-pulse' :
-                jobStatus === "processing" ? 'bg-yellow-500 animate-pulse' :
-                'bg-green-500'
-              }`}></div>
+              <div className={`w-2 h-2 rounded-full ${jobStatus === "uploading" ? 'bg-blue-500 animate-pulse' :
+                  jobStatus === "processing" ? 'bg-yellow-500 animate-pulse' :
+                    'bg-green-500'
+                }`}></div>
               <span className="text-gray-400">
                 {jobStatus === "uploading" && "Uploading subtitle file..."}
                 {jobStatus === "processing" && "Generating audio..."}
@@ -895,7 +894,7 @@ export default function SubtitleToAudioPage() {
             <span>Original Language</span>
             <Info className="w-3 h-3 text-slate-500" />
           </label>
-          <select 
+          <select
             className="glass-select w-full"
             value={sourceLanguage}
             onChange={(e) => setSourceLanguage(e.target.value)}
@@ -907,13 +906,13 @@ export default function SubtitleToAudioPage() {
           </select>
           <p className="text-slate-500 text-xs mt-2">Language of the subtitle file</p>
         </div>
-        
+
         <div className="glass-card p-4">
           <label className="text-white text-sm font-semibold mb-2 block flex items-center gap-2">
             <span>Target Language</span>
             <Info className="w-3 h-3 text-slate-500" />
           </label>
-          <select 
+          <select
             className="glass-select w-full"
             value={targetLanguage}
             onChange={(e) => setTargetLanguage(e.target.value)}
@@ -925,7 +924,7 @@ export default function SubtitleToAudioPage() {
           </select>
           <p className="text-slate-500 text-xs mt-2">Language for generated audio</p>
         </div>
-        
+
         <div className="glass-card p-4">
           <label className="text-white text-sm font-semibold mb-2 block flex items-center gap-2">
             <span>Select Voice</span>
@@ -935,7 +934,7 @@ export default function SubtitleToAudioPage() {
             <Volume2 className="w-4 h-4 text-primary-purple-bright" />
             <span className="text-slate-300 text-sm">{voice}</span>
           </div>
-          <select 
+          <select
             className="glass-select w-full mb-3"
             value={voice}
             onChange={(e) => setVoice(e.target.value)}
@@ -976,10 +975,10 @@ export default function SubtitleToAudioPage() {
             )}
           </div>
         </div>
-        
+
         <div className="glass-card p-4">
           <label className="text-white text-sm font-semibold mb-2 block">Output Format</label>
-          <select 
+          <select
             className="glass-select w-full"
             value={outputFormat}
             onChange={(e) => setOutputFormat(e.target.value)}
@@ -1001,7 +1000,7 @@ export default function SubtitleToAudioPage() {
           <div>
             <h3 className="text-white text-sm font-bold mb-1">AI Orchestration Process</h3>
             <p className="text-slate-400 text-xs">
-              {targetLanguage !== sourceLanguage 
+              {targetLanguage !== sourceLanguage
                 ? `1. Parse subtitle file → 2. LLM translation (TranslateGemma/NLLB) → 3. Generate audio with ${voice} voice (edge-tts) → 4. Sync timing to match subtitle cues`
                 : `1. Parse subtitle file → 2. Generate audio with "${voice}" voice (edge-tts) → 3. Sync timing to match subtitle cues`}
             </p>
@@ -1132,74 +1131,47 @@ export default function SubtitleToAudioPage() {
         </motion.div>
       )}
 
-      {/* Instructions */}
-      <div className="glass-card p-4 mt-8">
-        <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
-          <AudioWaveform className="w-5 h-5 text-primary-purple-bright" />
-          How Subtitle to Audio Works:
-        </h3>
-        <ol className="text-slate-400 text-sm space-y-3 pl-2">
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              1
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">Upload Subtitle File</span>
-              <p className="text-slate-500">Select your subtitle file (SRT, VTT, ASS, SSA, TXT). Maximum size: 10MB.</p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              2
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">Configure Settings</span>
-              <p className="text-slate-500">Choose languages, select a voice, and pick output format.</p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              3
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">AI Processing</span>
-              <p className="text-slate-500">LLM translates text, edge-tts generates natural audio synced to subtitle timing.</p>
-            </div>
-          </li>
-          <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-purple/20 border border-primary-purple/30 flex items-center justify-center text-primary-purple-bright text-xs font-bold">
-              4
-            </div>
-            <div>
-              <span className="font-medium text-slate-300">Download Result</span>
-              <p className="text-slate-500">Download your generated audio file. Perfect for podcasts, audiobooks, or video dubbing.</p>
-            </div>
-          </li>
-        </ol>
-        
-        <div className="mt-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <div className="w-8 h-8 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-blue-400 font-semibold mb-1">Important Notes</h4>
-              <ul className="text-blue-300/80 text-sm space-y-1">
-                <li>• Each audio generation costs <span className="font-bold">5 credits</span></li>
-                <li>• Processing time depends on subtitle length (1-2 min per subtitle minute)</li>
-                <li>• Audio is synced to match subtitle timing exactly</li>
-                <li>• LLM-powered translation (TranslateGemma, NLLB) for accurate translations</li>
-                <li>• edge-tts provides natural voice synthesis with proper intonation</li>
-                <li>• Your files are processed securely and deleted after 24 hours</li>
-              </ul>
+      {/* Instructions & Technical Details */}
+      {!isGenerating && jobStatus !== "completed" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-8">
+          <div className="glass-card p-4 lg:col-span-2">
+            <h3 className="text-white font-bold text-lg mb-3 flex items-center gap-2">
+              <AudioWaveform className="w-5 h-5 text-primary-purple-bright" />
+              Neural Sync Workflow
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { title: "Temporal Parsing", desc: "Native parsing of timestamps for precise audio placement." },
+                { title: "Smart Translation", desc: "LLM-powered translation with context preservation." },
+                { title: "Voice Synthesis", desc: "High-fidelity generation via edge-tts with natural intonation." },
+                { title: "Audio Mastering", desc: "Final mixing and synchronized audio-visual alignment." }
+              ].map((item, i) => (
+                <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/5">
+                  <h4 className="text-white font-bold text-sm mb-1">{item.title}</h4>
+                  <p className="text-slate-500 text-xs leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
+          <div className="glass-card p-4 border-indigo-500/10 h-min">
+            <h3 className="text-white font-bold text-lg mb-3">Sync Specs</h3>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-2 text-xs text-slate-400">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p>Perfectly synced with subtitle timestamps.</p>
+              </li>
+              <li className="flex items-start gap-2 text-xs text-slate-400">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p>Costs 5 credits per generation.</p>
+              </li>
+              <li className="flex items-start gap-2 text-xs text-slate-400">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p>Secure 24-hour file deletion.</p>
+              </li>
+            </ul>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Hidden Audio Element */}
       <audio ref={audioRef} preload="metadata" />

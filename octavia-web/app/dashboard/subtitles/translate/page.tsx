@@ -215,11 +215,22 @@ export default function SubtitleTranslatePage() {
     ];
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 min-h-screen">
             {/* Header */}
             <div className="flex flex-col gap-2">
-                <h1 className="font-display text-3xl font-black text-white text-glow-purple">Subtitle Translation</h1>
-                <p className="text-slate-400 text-sm">Translate existing subtitle files to another language using AI</p>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="font-display text-3xl font-black text-white text-glow-purple">Subtitle Translation</h1>
+                        <p className="text-slate-400 text-sm">Translate existing subtitle files to another language using AI</p>
+                    </div>
+                    <div className="glass-card px-4 py-2">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-primary-purple-bright animate-pulse" />
+                            <span className="text-white text-sm font-medium">Credits: <span className="font-bold text-lg">{user?.credits || 0}</span></span>
+                        </div>
+                        <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider">Available Balance</p>
+                    </div>
+                </div>
             </div>
 
             {/* Status Messages */}

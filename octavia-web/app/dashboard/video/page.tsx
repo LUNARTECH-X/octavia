@@ -238,7 +238,7 @@ export default function VideoTranslationPage() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="font-display text-3xl font-black text-white text-glow-purple">Video Translation</h1>
-            <p className="text-slate-400 text-sm">Transform videos across languages with AI-powered lip-sync</p>
+            <p className="text-slate-400 text-sm">Transform videos across languages with AI-powered audio alignment</p>
           </div>
           <div className="glass-card px-4 py-2">
             <div className="flex items-center gap-2">
@@ -379,7 +379,7 @@ export default function VideoTranslationPage() {
               { label: "Transcribe", range: [30, 55] },
               { label: "Translate", range: [55, 75] },
               { label: "Synthesize", range: [75, 95] },
-              { label: "Lip-Sync", range: [95, 101] }
+              { label: "Aligning", range: [95, 101] }
             ].map((stage, i) => (
               <div key={i} className={`text-center p-2 rounded transition-all duration-500 
                 ${uploadProgress >= stage.range[0] && uploadProgress < stage.range[1] ? 'bg-primary-purple/20 border border-primary-purple/30' : uploadProgress >= stage.range[1] ? 'bg-green-500/10 border border-green-500/30' : 'bg-gray-500/10 opacity-40'}`}>
@@ -400,10 +400,10 @@ export default function VideoTranslationPage() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
-                { title: "Speech Recognition", desc: "Whisper V3 Large decodes audio." },
+                { title: "Speech Recognition", desc: "Faster Whisper decodes audio." },
                 { title: "Smart Translation", desc: "Context-aware LLM flow." },
-                { title: "Synthesized Audio", desc: "Edge-TTS high-fidelity generation." },
-                { title: "Lip Syncing", desc: "Wav2Lip precision synchronization." }
+                { title: "Synthesized Audio", desc: "gTTS high-fidelity generation." },
+                { title: "Temporal Alignment", desc: "Precision audio-visual synchronization." }
               ].map((item, i) => (
                 <div key={i} className="bg-white/5 p-3 rounded-lg border border-white/5">
                   <h4 className="text-white font-bold text-sm mb-1">{item.title}</h4>
