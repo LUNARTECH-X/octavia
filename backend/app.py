@@ -1138,7 +1138,7 @@ async def get_job_progress(
         async def fetch_job():
             return await job_storage.get_job(job_id)
         
-        job = await with_retry(fetch_job)
+        job = await fetch_job()
         
         # Fallback to jobs_db if not in job_storage
         if not job and job_id in jobs_db:

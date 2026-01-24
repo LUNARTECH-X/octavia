@@ -1594,10 +1594,9 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
 async def process_video_job(job_id, file_path, target_language, user_id, separate=False):
     """Background task for FULL video translation with AI pipeline"""
     try:
-        print(f"Starting FULL AI video translation job {job_id}")
-
-        # Update job status - check both jobs_db and translation_jobs
+        import asyncio
         import sys
+        print(f"Starting FULL AI video translation job {job_id}")
         jobs_db = None
         for module_name, module in sys.modules.items():
             if (module_name in ('app', '__main__') and hasattr(module, 'jobs_db')):
@@ -1637,12 +1636,15 @@ async def process_video_job(job_id, file_path, target_language, user_id, separat
                 )
 
                 pipeline = VideoTranslationPipeline(config)
+                pipeline.job_storage = job_storage # Enable Supabase sync
 
                 jobs_db[job_id]["progress"] = 20
                 jobs_db[job_id]["message"] = "AI models loaded. Starting video processing..."
 
-                # Process the video with full AI pipeline
-                result = pipeline.process_video_fast(file_path, target_language, job_id=job_id, jobs_db=jobs_db)
+                # Process the video with full AI pipeline in a thread to keep loop responsive
+                import functools
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(None, functools.partial(pipeline.process_video_fast, file_path, target_language, job_id=job_id, jobs_db=jobs_db))
                 
                 if result:
                     jobs_db[job_id]["progress"] = 100
@@ -1692,7 +1694,6 @@ async def process_video_job(job_id, file_path, target_language, user_id, separat
         # If pipeline not available OR if it crashed above
         print(f"DEBUG: Using fallback/simulation for job {job_id}")
         import time
-        import asyncio
         
         # Simulate steps
         steps = [

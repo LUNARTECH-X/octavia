@@ -13,7 +13,28 @@ class JobStorage:
 
     def __init__(self):
         self.table_name = "translation_jobs"
-        self._demo_jobs = {}  # Local storage for demo users
+        self.demo_file = "demo_jobs.json"
+        self._demo_jobs = self._load_demo_jobs()
+
+    def _load_demo_jobs(self) -> Dict:
+        """Load demo jobs from file"""
+        import json
+        if os.path.exists(self.demo_file):
+            try:
+                with open(self.demo_file, "r") as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading demo jobs: {e}")
+        return {}
+
+    def _save_demo_jobs(self):
+        """Save demo jobs to file"""
+        import json
+        try:
+            with open(self.demo_file, "w") as f:
+                json.dump(self._demo_jobs, f)
+        except Exception as e:
+            print(f"Error saving demo jobs: {e}")
 
     def _is_demo_user(self, user_id: str = None, job_data: dict = None) -> bool:
         """Check if this is a demo user"""
@@ -21,8 +42,13 @@ class JobStorage:
         DEMO_USER_IDS = [
             "550e8400-e29b-41d4-a716-446655440000",  # Legacy demo ID
             "00affbea-0235-4cac-a1c5-e74b89342dd3",  # Current demo ID
+            "demo-user-id",                          # Generic frontend demo ID
         ]
         
+        # Check environment variable
+        if os.getenv("DEMO_MODE") == "true":
+            return True
+            
         # Check user_id if provided
         if user_id and user_id in DEMO_USER_IDS:
             return True
@@ -59,9 +85,10 @@ class JobStorage:
 
             # Check if this is a demo user
             if self._is_demo_user(job_data=job_data):
-                # Store in local memory for demo users
+                # Store in local memory and file for demo users
                 self._demo_jobs[job_id] = job_data.copy()
-                print(f"Created demo job {job_id} in local storage")
+                self._save_demo_jobs()
+                print(f"Created demo job {job_id} in persistent local storage")
                 return job_id
             else:
                 # Store in Supabase for regular users
@@ -141,7 +168,8 @@ class JobStorage:
                 # Update in local storage
                 self._demo_jobs[job_id].update(updates)
                 self._demo_jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-                print(f"Updated demo job {job_id} in local storage")
+                self._save_demo_jobs()
+                print(f"Updated demo job {job_id} in persistent local storage")
                 return True
             else:
                 # Update in Supabase for regular jobs

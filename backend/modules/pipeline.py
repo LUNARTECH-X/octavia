@@ -26,6 +26,8 @@ import torch
 import numpy as np
 import asyncio
 from pydub import AudioSegment
+import asyncio
+import threading
 
 # Import AI orchestrator
 try:
@@ -377,6 +379,7 @@ class VideoTranslationPipeline:
         self.metrics_collector = None
         self.vocal_separator = None
         self.model_cache = {}  # In-memory cache (FREE)
+        self.job_storage = None # Will be set by caller if available
 
         # Memory monitor for performance optimization
         self.memory_monitor = None
@@ -1327,12 +1330,16 @@ class VideoTranslationPipeline:
             processed_chunks += 1
 
             # Update progress for silent chunks
-            if job_id and jobs_db and job_id in jobs_db:
+            if job_id:
                 progress_percent = 40 + int((processed_chunks / total_chunks) * 40)  # 40-80% range
-                jobs_db[job_id]["progress"] = min(progress_percent, 80)
-                jobs_db[job_id]["processed_chunks"] = processed_chunks
-                jobs_db[job_id]["total_chunks"] = total_chunks
-                jobs_db[job_id]["message"] = f"Processing audio chunks... ({processed_chunks}/{total_chunks})"
+                self._update_job_progress(
+                    job_id, 
+                    min(progress_percent, 80), 
+                    f"Processing audio chunks... ({processed_chunks}/{total_chunks})",
+                    chunks_processed=processed_chunks,
+                    total_chunks=total_chunks,
+                    jobs_db=jobs_db
+                )
 
         if not speech_chunks:
             return [path for _, path in translated_chunk_paths], all_subtitle_segments
@@ -1439,6 +1446,14 @@ class VideoTranslationPipeline:
                                     "quality_rating": result.get("quality_rating", "unknown")
                                 }
                                 available_chunks.append(chunk_info)
+                                # Sync updated available_chunks to persistent storage
+                                self._update_job_progress(
+                                    job_id, 
+                                    jobs_db[job_id].get("progress", 30), 
+                                    jobs_db[job_id].get("message", "Processing chunks..."),
+                                    available_chunks=available_chunks,
+                                    jobs_db=jobs_db
+                                )
 
                         except Exception as preview_error:
                             logger.warning(f"Failed to save preview for chunk {chunk.id}: {preview_error}")
@@ -1488,12 +1503,16 @@ class VideoTranslationPipeline:
 
                     # Update progress
                     processed_chunks += 1
-                    if job_id and jobs_db and job_id in jobs_db:
+                    if job_id:
                         progress_percent = 40 + int((processed_chunks / total_chunks) * 40)
-                        jobs_db[job_id]["progress"] = min(progress_percent, 85)
-                        jobs_db[job_id]["processed_chunks"] = processed_chunks
-                        jobs_db[job_id]["total_chunks"] = total_chunks
-                        jobs_db[job_id]["message"] = f"Completed chunk {processed_chunks}/{total_chunks}"
+                        self._update_job_progress(
+                            job_id,
+                            min(progress_percent, 85),
+                            f"Completed chunk {processed_chunks}/{total_chunks}",
+                            chunks_processed=processed_chunks,
+                            total_chunks=total_chunks,
+                            jobs_db=jobs_db
+                        )
 
                     # Memory cleanup every N chunks
                     batch_counter += 1
@@ -1506,9 +1525,8 @@ class VideoTranslationPipeline:
                     processed_chunks += 1
 
         # Final progress update before merging
-        if job_id and jobs_db and job_id in jobs_db:
-            jobs_db[job_id]["progress"] = 85
-            jobs_db[job_id]["message"] = "Merging audio chunks..."
+        if job_id:
+            self._update_job_progress(job_id, 85, "Merging audio chunks...", jobs_db=jobs_db)
 
         # Sort by chunk ID
         translated_chunk_paths.sort(key=lambda x: x[0])
@@ -1753,7 +1771,8 @@ class VideoTranslationPipeline:
             }
     
     def _update_job_progress(self, job_id: str, progress: int, message: str, chunks_processed: int = None, total_chunks: int = None, available_chunks: list = None, jobs_db: Dict = None):
-        """Update job progress in jobs_db"""
+        """Update job progress in jobs_db and job_storage (Supabase)"""
+        # 1. Update in-memory jobs_db if provided
         if job_id and jobs_db and job_id in jobs_db:
             try:
                 jobs_db[job_id]["progress"] = progress
@@ -1765,8 +1784,50 @@ class VideoTranslationPipeline:
                 if available_chunks is not None:
                     jobs_db[job_id]["available_chunks"] = available_chunks
             except Exception as e:
-                logger.warning(f"Failed to update job progress: {e}")
-                pass  # Silently fail if jobs_db update fails
+                logger.warning(f"Failed to update in-memory jobs_db: {e}")
+
+        # 2. Update persistent job_storage (Supabase) if available
+        if job_id and self.job_storage:
+            try:
+                # Helper to run async in sync context
+                def run_async(coro):
+                    try:
+                        # Check if we are in a thread with a running loop
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # We are likely in the FastAPI loop thread.
+                            # We cannot block this loop with .result() from the loop itself.
+                            # However, the pipeline SHOULD be running in a background thread.
+                            
+                            # Use run_coroutine_threadsafe to schedule on the running loop
+                            future = asyncio.run_coroutine_threadsafe(coro, loop)
+                            # Wait for result with timeout (don't block indefinitely)
+                            return future.result(timeout=10)
+                        else:
+                            return loop.run_until_complete(coro)
+                    except (RuntimeError, asyncio.TimeoutError) as e:
+                        # Fallback for no loop or timeout
+                        new_loop = asyncio.new_event_loop()
+                        try:
+                            return new_loop.run_until_complete(coro)
+                        finally:
+                            new_loop.close()
+
+                updates = {
+                    "progress": progress,
+                    "message": message
+                }
+                if chunks_processed is not None:
+                    updates["processed_chunks"] = chunks_processed
+                if total_chunks is not None:
+                    updates["total_chunks"] = total_chunks
+                if available_chunks is not None:
+                    updates["available_chunks"] = available_chunks
+
+                run_async(self.job_storage.update_job(job_id, updates))
+                logger.debug(f"Synced progress to Supabase for job {job_id}: {progress}%")
+            except Exception as e:
+                logger.warning(f"Failed to sync progress to Supabase: {e}")
 
     def process_video_fast(self, video_path: str, target_lang: str = "de", source_lang: str = None, job_id: str = None, jobs_db: Dict = None) -> Dict[str, Any]:
         """Fast video translation pipeline - optimized for FREE deployment"""

@@ -2,3 +2,13 @@ venv/
 .env
 artifacts/
 __pycache__/
+*.json
+*.log
+temp_*
+translated_*
+backend.log
+octavia_pipeline.log
+startup_log.txt
+startup_error_info.txt
+outputs/
+temp/

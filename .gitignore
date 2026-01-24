@@ -414,7 +414,4 @@ backend/test_samples/
 backend/outputs/
 
 # Documentation specific
-documentation/assets/
-documentation/connections/
-documentation/progress/
-documentation/screenshots/
+# (Allowing documentation subdirectories to be tracked)
