@@ -24,7 +24,8 @@ class SubtitleTranslator:
         self,
         file_path: str,
         source_lang: str = 'auto',
-        target_lang: str = 'en'
+        target_lang: str = 'en',
+        progress_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
         Translate subtitle file to target language
@@ -49,6 +50,8 @@ class SubtitleTranslator:
 
         # Load subtitles with better error handling
         print(f"DEBUG: Loading subtitle file: {file_path}, format: {file_ext}")
+        if progress_callback:
+            progress_callback(5, f"Loading subtitle file...")
         
         if file_ext == '.srt':
             # Try different encodings
@@ -76,6 +79,8 @@ class SubtitleTranslator:
             subs = self._load_ass(file_path)
 
         print(f"DEBUG: Loaded {len(subs) if subs else 0} subtitle segments")
+        if progress_callback:
+            progress_callback(10, f"Loaded {len(subs) if subs else 0} segments. Starting translation...")
         
         if not subs or len(subs) == 0:
             # Read file content for debugging
@@ -91,14 +96,21 @@ class SubtitleTranslator:
         translator = GoogleTranslator(source=source_code, target=target_code)
 
         translated_subs = []
+        total_segments = len(subs)
         for i, sub in enumerate(subs):
             try:
                 if sub.text and sub.text.strip():
                     translated_text = translator.translate(sub.text)
                     sub.text = translated_text
                 translated_subs.append(sub)
-                if i % 10 == 0:
-                    print(f"DEBUG: Translated {i+1}/{len(subs)} segments")
+                
+                # Update progress every 5 segments or at the end
+                if i % 5 == 0 or i == total_segments - 1:
+                    print(f"DEBUG: Translated {i+1}/{total_segments} segments")
+                    if progress_callback:
+                        # Map 10% to 90% range for translation
+                        pct = 10 + int((i + 1) / total_segments * 80)
+                        progress_callback(pct, f"Translated {i+1}/{total_segments} segments...")
             except Exception as e:
                 print(f"Error translating line {i}: {e}")
                 translated_subs.append(sub)  # Keep original if translation fails

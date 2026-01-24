@@ -992,6 +992,10 @@ class ApiService {
     segment_count?: number;
     language?: string;
     error?: string;
+    status_message?: string;
+    message?: string;
+    created_at?: string;
+    completed_at?: string;
   }>> {
     return this.getJobStatus(jobId);
   }

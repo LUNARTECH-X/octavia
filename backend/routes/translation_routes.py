@@ -105,6 +105,7 @@ class SubtitleTranslationQuery(BaseModel):
 @router.post("/subtitle-file")
 async def translate_subtitle_file(
     current_user: User = Depends(get_current_user),  # Authentication required
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     file: UploadFile = File(...),
     sourceLanguage: str = Query("en"),  # Remove Pydantic model, use direct Query
     targetLanguage: str = Query("es"),
@@ -131,48 +132,47 @@ async def translate_subtitle_file(
         # Validate file size
         validate_file_size(file_path, "subtitle")
 
-        # Disable all credit checks and Supabase updates for demo user
-        if is_demo_user:
-            pass
-        else:
-            if current_user.credits < 5:
-                raise HTTPException(400, "Insufficient credits. You need at least 5 credits to translate subtitles.")
+        # Deduct credits
+        if not is_demo_user:
             supabase.table("users").update({"credits": current_user.credits - 5}).eq("id", current_user.id).execute()
 
-        # Perform actual subtitle translation
-        print("DEBUG: Starting subtitle translation")
-        translator = SubtitleTranslator()
-        result = translator.translate_subtitles(
+        # Create job entry
+        job_id = str(uuid.uuid4())
+        job_data = {
+            "id": job_id,
+            "type": "subtitle_translation",
+            "status": "processing",
+            "progress": 0,
+            "file_path": file_path,
+            "source_language": sourceLanguage,
+            "target_language": targetLanguage,
+            "user_id": current_user.id,
+            "user_email": current_user.email,
+            "created_at": datetime.utcnow().isoformat(),
+            "message": "Initializing translation..."
+        }
+        # Store in local dict for background task updates
+        translation_jobs[job_id] = job_data.copy()
+        # Also store in Supabase for persistence
+        await job_storage.create_job(job_data)
+
+        # Process in background
+        background_tasks.add_task(
+            process_subtitle_translation_job,
+            job_id,
             file_path,
             sourceLanguage,
-            targetLanguage
+            targetLanguage,
+            current_user.id
         )
-        print(f"DEBUG: Translation completed: {result}")
-
-        # Cleanup
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-
-        # Save the translated subtitles to a dedicated directory for download
-        output_dir = "backend/outputs/subtitles"
-        os.makedirs(output_dir, exist_ok=True)
-        output_filename = os.path.join(output_dir, f"subtitles_{file_id}.srt")
-        if os.path.exists(result["output_path"]):
-            import shutil
-            shutil.copy2(result["output_path"], output_filename)
-
-        # For subtitle translation (synchronous), return completed result directly
 
         return {
             "success": True,
-            "status": "completed",
-            "download_url": f"/api/translate/download/subtitles/{file_id}",
-            "source_language": sourceLanguage,
-            "target_language": targetLanguage,
-            "segment_count": result["segment_count"],
-            "output_path": output_filename,
-            "remaining_credits": current_user.credits if not is_demo_user else 5000
+            "status": "processing",
+            "job_id": job_id,
+            "message": "Subtitle translation started in background",
+            "status_url": f"/api/translate/jobs/{job_id}/status",
+            "remaining_credits": (current_user.credits - 5) if not is_demo_user else 5000
         }
 
     except HTTPException:
@@ -670,16 +670,23 @@ async def _process_subtitle_job_internal(job_id, file_path, language, format, us
     """Internal subtitle generation logic"""
     try:
         # Update job status - model loading
-        translation_jobs[job_id]["progress"] = 10
+        translation_jobs[job_id]["progress"] = 15
+        translation_jobs[job_id]["message"] = "Loading Whisper AI models..."
 
         # Initialize subtitle generator with optimized settings
         generator = SubtitleGenerator(model_size="tiny")  # Use faster model for better performance
 
         # Update progress - audio extraction (if needed)
-        translation_jobs[job_id]["progress"] = 25
+        translation_jobs[job_id]["progress"] = 30
+        translation_jobs[job_id]["message"] = "Extracting audio for transcription..."
 
-        # Process file with optimized settings
+        # Process file with optimized settings - this is the main work
+        # We can't easily get granular progress from the generator yet, 
+        # so we'll jump to a higher progress mid-way if it's taking time
         result = generator.process_file(file_path, format, language)
+
+        translation_jobs[job_id]["progress"] = 85
+        translation_jobs[job_id]["message"] = "Finalizing subtitles and exporting..."
 
         if not result["success"]:
             raise ValueError(f"Subtitle generation failed: {result.get('error', 'Unknown error')}")
@@ -740,6 +747,89 @@ async def _process_subtitle_job_internal(job_id, file_path, language, format, us
                 supabase.table("users").update({"credits": current_credits + 1}).eq("id", user_id).execute()
         except Exception as refund_error:
             pass  # Silent failure for refund
+
+async def process_subtitle_translation_job(job_id, file_path, source_language, target_language, user_id):
+    """Background task for subtitle translation"""
+    try:
+        # Update job status
+        translation_jobs[job_id]["progress"] = 5
+        translation_jobs[job_id]["message"] = "Initializing translation engine..."
+
+        # Define progress callback
+        def update_progress(pct, msg):
+            translation_jobs[job_id]["progress"] = pct
+            translation_jobs[job_id]["message"] = msg
+            # We don't update Supabase on every segment to avoid rate limits, 
+            # but we could update it every 20 segments if needed.
+            # Local translation_jobs is what the status endpoint uses first.
+
+        # Perform actual subtitle translation
+        translator = SubtitleTranslator()
+        
+        result = translator.translate_subtitles(
+            file_path,
+            source_language,
+            target_language,
+            progress_callback=update_progress
+        )
+        
+        translation_jobs[job_id]["progress"] = 95
+        translation_jobs[job_id]["message"] = "Translation complete. Saving file..."
+
+        # Save the translated subtitles to a dedicated directory for download
+        output_dir = "backend/outputs/subtitles"
+        os.makedirs(output_dir, exist_ok=True)
+        # Use job_id for the output filename to match generation pattern
+        output_filename = os.path.join(output_dir, f"subtitles_{job_id}.srt")
+        
+        if os.path.exists(result["output_path"]):
+            import shutil
+            shutil.copy2(result["output_path"], output_filename)
+        
+        # Update job with results
+        update_data = {
+            "status": "completed",
+            "progress": 100,
+            "result": {
+                "download_url": f"/api/translate/download/subtitles/{job_id}",
+                "source_language": source_language,
+                "target_language": target_language,
+                "segment_count": result["segment_count"]
+            },
+            "completed_at": datetime.utcnow().isoformat(),
+            "output_path": output_filename,
+            "filename": f"subtitles_{job_id}.srt"
+        }
+        
+        translation_jobs[job_id].update(update_data)
+        await job_storage.complete_job(job_id, update_data)
+        save_translation_jobs()
+
+        # Cleanup
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    except Exception as e:
+        logger.error(f"Subtitle translation job {job_id} failed: {str(e)}")
+        translation_jobs[job_id].update({
+            "status": "failed",
+            "error": str(e),
+            "failed_at": datetime.utcnow().isoformat()
+        })
+        await job_storage.fail_job(job_id, str(e))
+        
+        # Refund credits
+        try:
+            response = supabase.table("users").select("credits").eq("id", user_id).execute()
+            if response.data:
+                current_credits = response.data[0]["credits"]
+                supabase.table("users").update({"credits": current_credits + 5}).eq("id", user_id).execute()
+        except:
+            pass
+
+        # Cleanup temp file on error
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
 @router.get("/jobs/{job_id}/status")
 async def get_job_status(job_id: str, current_user: User = Depends(get_current_user)):

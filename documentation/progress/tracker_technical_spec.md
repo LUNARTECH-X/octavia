@@ -2,14 +2,14 @@
 
 > **Project:** Octavia Video Translator
 > **Component:** End-to-End Synchronization Engine (Frontend to Backend Pipeline)
-> **Status:** Production-Ready (Demo-Optimized)
-> **Version:** 1.2.0
+> **Status:** Production-Ready (Enhanced UI/UX)
+> **Version:** 1.3.0
 
 ---
 
 ## Executive Summary
 
-The Octavia progress tracking system is a critical infrastructure component designed to bridge the data-gap between long-running AI pipelines (~5-15 minute executions) and the user's dashboard. This specification details the transition from a stateless, volatile polling model to a Persistent State Synchronization Architecture that ensures high availability and zero progress loss during network interruptions, page refreshes, or server migrations.
+The Octavia progress tracking system is a critical infrastructure component designed to bridge the data-gap between backend AI pipelines and the user's dashboard. This specification details the transition to a **Standardized Premium UX** using high-fidelity glass loading states, real-time segment tracking for translations, and an intelligent transition between granular progress bars (for long video jobs) and interactive spinners (for fast subtitle jobs).
 
 ---
 
@@ -70,7 +70,17 @@ Below is the definitive list of technical challenges encountered during the impl
 ### Issue 5: The "Black Hole" Completion (UI Loop)
 *   **The Problem:** Upon reaching 100% completion, the system would clear its state but stay on the "Processing" page, essentially showing an empty upload screen instead of the result.
 *   **The Solution:** Implemented Automatic Success Redirection.
-    *   **Action:** Integrated next/navigation router logic. Once the status payload returns completed, a router.push('/dashboard/video/review') is triggered with a short 1.5s delay to allow the user to see the success toast.
+    *   **Action:** Integrated `next/navigation` router logic. Once the status payload returns `completed`, a `router.push('/dashboard/subtitles/review')` is triggered with a short 2s delay.
+
+### Issue 6: Background Task Scope Collisions
+*   **The Problem:** In `translation_routes.py`, the `background_tasks` variable was undefined in certain scopes due to missing FastAPI dependency injection parameters.
+*   **The Solution:** Parameter-Level Dependency Injection.
+    *   **Action:** Explicitly added `background_tasks: BackgroundTasks` to the FastAPI endpoint signatures to ensure the lifecycle manager is correctly injected by the framework.
+
+### Issue 7: Progress "Stall" Perception
+*   **The Problem:** For fast-running tasks like subtitle generation (<30s), a granular progress bar that jumps in 20% increments felt broken or "stuck" at the 10% initialization phase.
+*   **The Solution:** Standardized Liquid Glass Loading.
+    *   **Action:** Transitioned from progress bars to premium animated spinners for low-latency tasks. Added granular status sub-text (e.g., "Translated 11/49 segments...") to provide high-fidelity feedback without the psychological friction of an "incremental" bar.
 
 ---
 

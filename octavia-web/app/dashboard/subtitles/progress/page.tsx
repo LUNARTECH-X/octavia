@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Loader2, Clock, AlertCircle, XCircle, Download } from "lucide-react";
+import { CheckCircle2, Loader2, Clock, AlertCircle, XCircle, Download, Terminal, ChevronDown } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
@@ -11,6 +11,7 @@ interface JobStatus {
   status: "pending" | "processing" | "completed" | "failed";
   progress: number;
   status_message?: string;
+  message?: string;
   language?: string;
   segment_count?: number;
   download_url?: string;
@@ -18,8 +19,10 @@ interface JobStatus {
   estimated_time?: string;
   format?: string;
   original_filename?: string;
-  target_language?: string;
+  created_at?: string;
 }
+
+type PipelineStep = "initializing" | "extraction" | "transcription" | "formatting";
 
 export default function SubtitleGenerationProgressPage() {
   const router = useRouter();
@@ -28,11 +31,12 @@ export default function SubtitleGenerationProgressPage() {
 
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLogsOpen, setIsLogsOpen] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Poll for job status
   useEffect(() => {
     if (!jobId) {
       setError("No job ID found. Please start a subtitle generation first.");
@@ -42,10 +46,7 @@ export default function SubtitleGenerationProgressPage() {
 
     const pollJobStatus = async () => {
       try {
-
         const response = await api.getSubtitleJobStatus(jobId);
-
-        // Handle both direct and nested data structure
         const jobData = response.data || (response as any);
 
         if (response.success || jobData.job_id) {
@@ -55,27 +56,39 @@ export default function SubtitleGenerationProgressPage() {
             job_id: jobData.job_id,
             status: status,
             progress: jobData.progress,
-            status_message: jobData.status_message || jobData.message || jobData.error,
+            status_message: jobData.status_message || jobData.message,
+            message: jobData.message,
             language: jobData.language,
             segment_count: jobData.segment_count,
             download_url: jobData.download_url,
             error: jobData.error,
-            format: jobData.format
+            format: jobData.format,
+            created_at: jobData.created_at
           });
 
-          // If job is completed or failed, stop polling
+          // Add message to logs if it's new
+          const currentMessage = jobData.status_message || jobData.message;
+          if (currentMessage) {
+            setLogs(prev => {
+              const formattedLog = `[${new Date().toLocaleTimeString()}] ${currentMessage}`;
+              if (prev.length === 0 || !prev[prev.length - 1].includes(currentMessage)) {
+                return [...prev, formattedLog].slice(-20);
+              }
+              return prev;
+            });
+          }
+
           if (status === "completed" || status === "failed") {
             if (intervalRef.current) {
               clearInterval(intervalRef.current);
               intervalRef.current = null;
             }
 
-            // If completed, automatically redirect to review page after 2 seconds
             if (status === "completed" && !isRedirecting) {
               setIsRedirecting(true);
               setTimeout(() => {
                 router.push(`/dashboard/subtitles/review?jobId=${jobId}`);
-              }, 2000);
+              }, 3000);
             }
           }
         } else {
@@ -89,108 +102,84 @@ export default function SubtitleGenerationProgressPage() {
       }
     };
 
-    // Initial fetch
     pollJobStatus();
-
-    // Set up polling every 3 seconds
-    const interval = setInterval(pollJobStatus, 3000);
+    const interval = setInterval(pollJobStatus, 2000);
     intervalRef.current = interval;
 
-    // Cleanup on unmount
     return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [jobId]);
 
-  const getProcessingStep = () => {
-    if (!jobStatus) return 0;
-
-    if (jobStatus.status === "pending") return 1;
-    if (jobStatus.status === "processing") {
-      if (jobStatus.progress < 30) return 2; // Audio extraction
-      if (jobStatus.progress < 70) return 3; // Speech recognition
-      return 4; // Format export
-    }
-    return 5; // Completed
+  const getActiveStep = (): PipelineStep => {
+    if (!jobStatus) return "initializing";
+    const prog = jobStatus.progress;
+    if (prog < 20) return "initializing";
+    if (prog < 40) return "extraction";
+    if (prog < 85) return "transcription";
+    return "formatting";
   };
 
-  const getEstimatedTime = () => {
-    if (!jobStatus) return "Calculating...";
+  const getStepStatus = (step: PipelineStep): "completed" | "active" | "queued" => {
+    const activeStep = getActiveStep();
+    const steps: PipelineStep[] = ["initializing", "extraction", "transcription", "formatting"];
+    const currentIndex = steps.indexOf(activeStep);
+    const stepIndex = steps.indexOf(step);
 
-    if (jobStatus.estimated_time) return jobStatus.estimated_time;
-
-    // Calculate based on progress
-    const remainingPercent = 100 - (jobStatus.progress || 0);
-    const secondsRemaining = Math.max(10, Math.round(remainingPercent * 0.3)); // Rough estimate
-    const minutes = Math.floor(secondsRemaining / 60);
-    const seconds = secondsRemaining % 60;
-
-    if (minutes > 0) {
-      return `~${minutes}m ${seconds}s`;
-    }
-    return `~${seconds}s`;
+    if (jobStatus?.status === "completed") return "completed";
+    if (stepIndex < currentIndex) return "completed";
+    if (stepIndex === currentIndex) return "active";
+    return "queued";
   };
 
   const getStatusMessage = () => {
-    if (!jobStatus) return "Initializing job...";
+    if (jobStatus?.status === "completed") return "Subtitles generated successfully! Redirecting to review...";
+    if (jobStatus?.status === "failed") return jobStatus.error || "Generation failed.";
+    return jobStatus?.status_message || jobStatus?.message || "Processing your file...";
+  };
 
-    if (jobStatus.status_message) return jobStatus.status_message;
+  const renderPipelineStep = (step: PipelineStep, label: string) => {
+    const status = getStepStatus(step);
+    const isCompleted = status === "completed";
+    const isActive = status === "active";
 
-    switch (jobStatus.status) {
-      case "pending":
-        return "Job queued, waiting to start...";
-      case "processing":
-        if (jobStatus.progress < 30) return "Extracting audio from video...";
-        if (jobStatus.progress < 70) {
-          const estimatedSegments = jobStatus.segment_count || 18;
-          const currentSegment = Math.floor((jobStatus.progress - 30) / 40 * estimatedSegments) + 1;
-          return `Transcribing audio (segment ${currentSegment} of ${estimatedSegments})...`;
-        }
-        return "Formatting subtitles and generating output...";
-      case "completed":
-        return "Subtitles generated successfully! Redirecting to review...";
-      case "failed":
-        return jobStatus.error || "Subtitle generation failed. Please try again.";
-      default:
-        return "Processing...";
-    }
+    return (
+      <div className={`glass-card flex flex-col items-center gap-3 p-4 text-center ${isCompleted ? "border-green-500/30 bg-green-500/5" :
+          isActive ? "glass-panel-glow ring-1 ring-primary-purple/50 relative overflow-hidden" :
+            "opacity-50"
+        }`}>
+        {isActive && <div className="glass-shine" />}
+        <div className={`flex size-10 items-center justify-center rounded-full ${isCompleted ? "bg-green-500/20 text-green-400" :
+            isActive ? "bg-primary-purple/20 text-primary-purple-bright" :
+              "bg-white/5 text-slate-500"
+          } shadow-glow`}>
+          {isCompleted ? <CheckCircle2 className="w-5 h-5" /> :
+            isActive ? <Loader2 className="w-5 h-5 animate-spin" /> :
+              <Clock className="w-5 h-5" />}
+        </div>
+        <div>
+          <p className={`text-sm font-medium ${isActive ? "text-white text-glow-purple" : "text-white"}`}>{label}</p>
+          <p className={`text-xs ${isCompleted ? "text-green-400" : isActive ? "text-primary-purple-bright" : "text-slate-400"}`}>
+            {isCompleted ? "Completed" : isActive ? "In Progress" : "Queued"}
+          </p>
+        </div>
+      </div>
+    );
   };
 
   if (error) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 max-w-4xl mx-auto">
         <div className="flex flex-col gap-1 border-b border-white/10 pb-6">
           <h1 className="font-display text-3xl font-black text-white text-glow-purple">Error</h1>
-          <p className="text-slate-400 text-sm">Unable to process subtitle generation</p>
         </div>
-
-        <div className="glass-panel p-8">
-          <div className="flex items-center gap-4 mb-4">
-            <XCircle className="w-8 h-8 text-red-400" />
-            <div>
-              <h3 className="text-xl font-bold text-white mb-1">Job Processing Error</h3>
-              <p className="text-slate-400">{error}</p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={() => router.push("/dashboard/subtitles")}
-              className="btn-border-beam"
-            >
-              <div className="btn-border-beam-inner px-6 py-2">
-                Back to Generate
-              </div>
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 rounded-lg border border-white/10 hover:bg-white/5 text-sm text-slate-300 hover:text-white transition-colors"
-            >
-              Retry
-            </button>
-          </div>
+        <div className="glass-panel p-8 text-center">
+          <XCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-white mb-2">Processing Error</h3>
+          <p className="text-slate-400 mb-6">{error}</p>
+          <button onClick={() => router.push("/dashboard/subtitles")} className="bg-primary-purple text-white px-6 py-2 rounded-lg">
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -198,43 +187,31 @@ export default function SubtitleGenerationProgressPage() {
 
   if (loading && !jobStatus) {
     return (
-      <div className="space-y-8">
-        <div className="flex flex-col gap-1 border-b border-white/10 pb-6">
-          <h1 className="font-display text-3xl font-black text-white text-glow-purple">Loading...</h1>
-          <p className="text-slate-400 text-sm">Fetching job status</p>
-        </div>
-
-        <div className="glass-panel p-8 flex items-center justify-center">
-          <Loader2 className="w-12 h-12 text-primary-purple-bright animate-spin" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-purple mx-auto mb-4" />
+          <p className="text-white">Loading job status...</p>
         </div>
       </div>
     );
   }
 
-  const currentStep = getProcessingStep();
-
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-1 border-b border-white/10 pb-6">
-        <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
+        <div className="flex flex-col gap-1">
           <h1 className="font-display text-3xl font-black text-white text-glow-purple">
-            {jobStatus?.status === "completed" ? "Generation Complete!" :
-              jobStatus?.status === "failed" ? "Generation Failed" :
-                "Generating Subtitles..."}
+            {jobStatus?.status === "completed" ? "✅ Generation Complete!" :
+              jobStatus?.status === "failed" ? "❌ Generation Failed" :
+                "Generating Subtitles: " + (jobStatus?.original_filename || "Processing...")}
           </h1>
-          {jobId && (
-            <div className="text-xs text-slate-500 font-mono bg-white/5 px-3 py-1 rounded">
-              Job: {jobId.substring(0, 8)}...
-            </div>
-          )}
+          <p className="text-slate-400 text-sm">{getStatusMessage()}</p>
         </div>
-        <p className="text-slate-400 text-sm">{getStatusMessage()}</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="flex flex-col gap-6">
-          {/* Overall Progress */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          {/* Progress Card */}
           <div className="glass-panel p-6">
             <div className="flex items-center justify-between gap-6 mb-3">
               <p className="text-base font-medium text-white">Overall Progress</p>
@@ -246,194 +223,77 @@ export default function SubtitleGenerationProgressPage() {
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${jobStatus?.progress || 0}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
-                className={`h-2.5 rounded-full shadow-glow ${jobStatus?.status === "failed" ? "bg-red-500" :
-                  jobStatus?.status === "completed" ? "bg-green-500" :
-                    "bg-primary-purple"
+                transition={{ duration: 1 }}
+                className={`h-2.5 rounded-full shadow-glow ${jobStatus?.status === "completed" ? "bg-green-500" :
+                    jobStatus?.status === "failed" ? "bg-red-500" : "bg-primary-purple"
                   }`}
               />
             </div>
             <p className="text-sm text-slate-400">{getStatusMessage()}</p>
-
-            {jobStatus?.segment_count && (
-              <div className="mt-4 text-xs text-slate-500">
-                {jobStatus.segment_count} subtitle segments detected
-              </div>
-            )}
           </div>
 
-          {/* Pipeline Steps */}
-          <div className="glass-panel p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Processing Steps</h2>
-            <div className="space-y-4">
-              {/* Step 1: Job Queued */}
-              <div className={`flex items-center gap-4 ${currentStep >= 1 ? "" : "opacity-50"}`}>
-                <div className={`flex size-10 items-center justify-center rounded-full ${currentStep >= 1 ? "bg-green-500/20 text-green-400 shadow-glow" : "bg-white/5 text-slate-500"
-                  }`}>
-                  {currentStep > 1 ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : currentStep === 1 ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Clock className="w-5 h-5" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${currentStep >= 1 ? "text-white" : "text-slate-400"}`}>
-                    Job Initialization
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {currentStep > 1 ? "Completed" : currentStep === 1 ? "In Progress" : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 2: Audio Extraction */}
-              <div className={`flex items-center gap-4 ${currentStep >= 2 ? "" : "opacity-50"}`}>
-                <div className={`flex size-10 items-center justify-center rounded-full ${currentStep >= 2 ? "bg-green-500/20 text-green-400 shadow-glow" :
-                  currentStep === 2 ? "bg-primary-purple/20 text-primary-purple-bright shadow-glow" :
-                    "bg-white/5 text-slate-500"
-                  }`}>
-                  {currentStep > 2 ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : currentStep === 2 ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Clock className="w-5 h-5" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${currentStep >= 2 ? "text-white" : "text-slate-400"}`}>
-                    Audio Extraction
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {currentStep > 2 ? "Completed" : currentStep === 2 ? "In Progress" : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 3: Speech Recognition */}
-              <div className={`flex items-center gap-4 ${currentStep >= 3 ? "" : "opacity-50"}`}>
-                <div className={`flex size-10 items-center justify-center rounded-full ${currentStep >= 3 ? "bg-green-500/20 text-green-400 shadow-glow" :
-                  currentStep === 3 ? "bg-primary-purple/20 text-primary-purple-bright shadow-glow" :
-                    "bg-white/5 text-slate-500"
-                  }`}>
-                  {currentStep > 3 ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : currentStep === 3 ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Clock className="w-5 h-5" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${currentStep >= 3 ? "text-white" : "text-slate-400"}`}>
-                    Speech Recognition
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {currentStep > 3 ? "Completed" : currentStep === 3 ? "In Progress" : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 4: Format Export */}
-              <div className={`flex items-center gap-4 ${currentStep >= 4 ? "" : "opacity-50"}`}>
-                <div className={`flex size-10 items-center justify-center rounded-full ${currentStep >= 4 ? "bg-green-500/20 text-green-400 shadow-glow" :
-                  currentStep === 4 ? "bg-primary-purple/20 text-primary-purple-bright shadow-glow" :
-                    "bg-white/5 text-slate-500"
-                  }`}>
-                  {currentStep > 4 ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : currentStep === 4 ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Clock className="w-5 h-5" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className={`text-sm font-medium ${currentStep >= 4 ? "text-white" : "text-slate-400"}`}>
-                    Format Export
-                  </p>
-                  <p className="text-xs text-slate-400">
-                    {currentStep > 4 ? "Completed" : currentStep === 4 ? "In Progress" : "Pending"}
-                  </p>
-                </div>
-              </div>
+          {/* Pipeline */}
+          <div>
+            <h2 className="text-xl font-bold text-white mb-4">Processing Pipeline</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {renderPipelineStep("initializing", "Initializing")}
+              {renderPipelineStep("extraction", "Audio Extraction")}
+              {renderPipelineStep("transcription", "Transcription")}
+              {renderPipelineStep("formatting", "Finalizing")}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
-          {/* Status Overview */}
+        <div className="lg:col-span-1 space-y-6">
           <div className="glass-panel p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Status Overview</h3>
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                <p className="text-sm text-slate-400">Estimated Time</p>
-                <p className="text-sm font-bold text-white">{getEstimatedTime()}</p>
+            <h3 className="text-lg font-bold text-white mb-4">Job Info</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                <span className="text-slate-400 text-sm">Language</span>
+                <span className="text-white text-sm font-bold">{jobStatus?.language || "Detecting..."}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                <p className="text-sm text-slate-400">Detected Language</p>
-                <p className="text-sm font-bold text-white">{jobStatus?.language || "Auto-detecting..."}</p>
+              <div className="flex justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                <span className="text-slate-400 text-sm">Format</span>
+                <span className="text-white text-sm font-bold">{jobStatus?.format?.toUpperCase() || "SRT"}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                <p className="text-sm text-slate-400">Job Status</p>
-                <p className={`text-sm font-bold ${jobStatus?.status === "completed" ? "text-green-400" :
-                  jobStatus?.status === "failed" ? "text-red-400" :
-                    jobStatus?.status === "processing" ? "text-blue-400" :
-                      "text-yellow-400"
-                  }`}>
-                  {jobStatus?.status?.toUpperCase() || "UNKNOWN"}
-                </p>
-              </div>
-              {jobStatus?.format && (
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                  <p className="text-sm text-slate-400">Format</p>
-                  <p className="text-sm font-bold text-white">{jobStatus.format.toUpperCase()}</p>
+              {jobStatus?.segment_count && (
+                <div className="flex justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                  <span className="text-slate-400 text-sm">Segments</span>
+                  <span className="text-white text-sm font-bold">{jobStatus.segment_count}</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="glass-panel p-6">
-            <h3 className="text-lg font-bold text-white mb-4">Actions</h3>
-            <div className="space-y-3">
-              {jobStatus?.status === "completed" && jobStatus.download_url ? (
-                <button
-                  onClick={async () => {
-                    try {
-                      const blob = await api.downloadFileByUrl(jobStatus.download_url!);
-                      api.saveFile(blob, `subtitles_${jobId}.${jobStatus.format || 'srt'}`);
-                    } catch (err) {
-                      console.error("Download failed:", err);
-                      alert("Download failed. Please try again.");
-                    }
-                  }}
-                  className="w-full py-3 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-400 font-medium transition-colors border border-green-500/20 flex items-center justify-center gap-2"
-                >
-                  <Download className="w-5 h-5" />
-                  Download Subtitles
-                </button>
-              ) : null}
-
-              <button
-                onClick={() => router.push("/dashboard/subtitles")}
-                className="w-full py-2 rounded-lg border border-white/10 hover:bg-white/5 text-sm text-slate-300 hover:text-white transition-colors"
-              >
-                Start New Generation
-              </button>
-
-              <button
-                onClick={() => router.push("/dashboard/history")}
-                className="w-full py-2 rounded-lg border border-white/10 hover:bg-white/5 text-sm text-slate-300 hover:text-white transition-colors"
-              >
-                View All Jobs
-              </button>
-            </div>
+          {/* Logs */}
+          <div className="glass-panel overflow-hidden">
+            <button
+              onClick={() => setIsLogsOpen(!isLogsOpen)}
+              className="w-full flex items-center justify-between p-4 font-medium text-white bg-white/5 hover:bg-white/10"
+            >
+              <span className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-slate-400" />
+                Technical Logs
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isLogsOpen ? "rotate-180" : ""}`} />
+            </button>
+            {isLogsOpen && (
+              <div className="h-64 overflow-y-auto p-4 font-mono text-[10px] space-y-1 bg-black/20 border-t border-white/5">
+                {logs.length > 0 ? logs.map((log, i) => (
+                  <p key={i} className="text-slate-400">{log}</p>
+                )) : <p className="text-slate-600 italic">No logs yet...</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {!isRedirecting && jobStatus?.status === "processing" && (
+        <div className="fixed bottom-4 right-4 flex items-center gap-2 px-3 py-2 bg-primary-purple/10 border border-primary-purple/30 rounded-lg">
+          <div className="w-2 h-2 bg-primary-purple-bright rounded-full animate-pulse"></div>
+          <span className="text-xs text-primary-purple-bright">Live Updates</span>
+        </div>
+      )}
     </div>
   );
 }

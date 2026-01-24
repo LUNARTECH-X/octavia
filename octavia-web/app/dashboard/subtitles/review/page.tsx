@@ -329,7 +329,7 @@ ${subtitles.map(sub =>
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Left: Subtitle Editor */}
         <div className="flex-1 flex flex-col gap-6">
-          <div>
+          <div className="h-fit">
             <div className="flex items-center justify-between">
               <h1 className="font-display text-3xl font-black text-white text-glow-purple mb-2">Review Subtitles</h1>
               {jobId && (
@@ -342,76 +342,78 @@ ${subtitles.map(sub =>
           </div>
 
           {/* Subtitle List */}
-          <div className="glass-panel p-6 space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar">
-            {subtitles.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                <h3 className="text-white text-lg font-bold mb-2">No Subtitles Found</h3>
-                <p className="text-slate-400">Try generating subtitles first</p>
-              </div>
-            ) : (
-              subtitles.map((sub) => (
-                <motion.div
-                  key={sub.id}
-                  whileHover={{ scale: 1.01 }}
-                  className="glass-card p-4 hover:border-primary-purple/30 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <span className="text-xs text-slate-500 font-mono">{sub.timestamp}</span>
-                    <div className="flex gap-1">
-                      {sub.isEditing ? (
-                        <>
+          <div className="glass-panel h-[calc(100vh-280px)] min-h-[500px] flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-3">
+              {subtitles.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-white text-lg font-bold mb-2">No Subtitles Found</h3>
+                  <p className="text-slate-400">Try generating subtitles first</p>
+                </div>
+              ) : (
+                subtitles.map((sub) => (
+                  <motion.div
+                    key={sub.id}
+                    whileHover={{ scale: 1.01 }}
+                    className="glass-card p-4 hover:border-primary-purple/30 transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <span className="text-xs text-slate-500 font-mono">{sub.timestamp}</span>
+                      <div className="flex gap-1">
+                        {sub.isEditing ? (
+                          <>
+                            <button
+                              onClick={() => handleSave(sub.id)}
+                              disabled={saving}
+                              className="p-1 rounded hover:bg-green-500/10 text-green-400 hover:text-green-300 transition-colors disabled:opacity-50"
+                              title="Save"
+                            >
+                              {saving ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Save className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleCancel(sub.id)}
+                              className="p-1 rounded hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={() => handleSave(sub.id)}
-                            disabled={saving}
-                            className="p-1 rounded hover:bg-green-500/10 text-green-400 hover:text-green-300 transition-colors disabled:opacity-50"
-                            title="Save"
+                            onClick={() => handleEdit(sub.id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/10"
+                            title="Edit"
                           >
-                            {saving ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Save className="w-3.5 h-3.5" />
-                            )}
+                            <Edit3 className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
                           </button>
-                          <button
-                            onClick={() => handleCancel(sub.id)}
-                            className="p-1 rounded hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
-                            title="Cancel"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={() => handleEdit(sub.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/10"
-                          title="Edit"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {sub.isEditing ? (
-                    <textarea
-                      value={sub.editedText || sub.text}
-                      onChange={(e) => handleTextChange(sub.id, e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm text-white focus:outline-none focus:border-primary-purple/50 resize-none"
-                      rows={2}
-                      autoFocus
-                    />
-                  ) : (
-                    <p className="text-sm text-white leading-relaxed">{sub.text}</p>
-                  )}
-                </motion.div>
-              ))
-            )}
+                    {sub.isEditing ? (
+                      <textarea
+                        value={sub.editedText || sub.text}
+                        onChange={(e) => handleTextChange(sub.id, e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded p-2 text-sm text-white focus:outline-none focus:border-primary-purple/50 resize-none"
+                        rows={2}
+                        autoFocus
+                      />
+                    ) : (
+                      <p className="text-sm text-white leading-relaxed">{sub.text}</p>
+                    )}
+                  </motion.div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 
         {/* Right: Actions & Stats */}
-        <div className="w-full lg:w-96 flex flex-col gap-6">
+        <div className="w-full lg:w-96 flex flex-col gap-6 sticky top-8 h-fit">
           <div className="glass-panel p-6">
             <h3 className="text-lg font-bold text-white mb-4">Subtitle Stats</h3>
             <div className="space-y-3">

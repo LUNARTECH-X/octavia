@@ -324,10 +324,12 @@ export default function VideoReviewPage() {
                                 <button
                                     onClick={handleDownload}
                                     disabled={!videoUrl}
-                                    className="w-full py-3 rounded-lg bg-gradient-to-r from-primary-purple to-primary-purple-bright text-white font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <Download className="w-5 h-5" />
-                                    Download MP4
+                                    <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-3 text-base w-full">
+                                        <Download className="w-5 h-5 text-primary-purple-bright group-hover:scale-110 transition-transform" />
+                                        <span className="font-bold">Download MP4</span>
+                                    </div>
                                 </button>
                                 {!videoUrl && (
                                     <p className="text-xs text-red-400 text-center mt-2">
