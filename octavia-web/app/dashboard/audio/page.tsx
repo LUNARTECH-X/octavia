@@ -798,7 +798,7 @@ export default function AudioTranslationPage() {
         <motion.div
           whileHover={!selectedFile && !isProcessing ? { scale: 1.01 } : {}}
           className={`glass-panel glass-panel-high relative border-2 border-dashed transition-all mb-6 overflow-hidden
-            ${selectedFile ? 'border-green-500/50 cursor-default' :
+            ${selectedFile ? 'border-accent-cyan/50 cursor-default' :
               isProcessing ? 'border-primary-purple/30 cursor-wait' :
                 'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
         >
@@ -808,11 +808,11 @@ export default function AudioTranslationPage() {
           <div className="relative z-20 py-12 px-6">
             {selectedFile ? (
               <div className="flex flex-col items-center justify-center gap-3 text-center">
-                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/30 shadow-glow">
-                  <FileAudio className="w-8 h-8 text-green-500" />
+                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/30 shadow-glow">
+                  <FileAudio className="w-8 h-8 text-accent-cyan" />
                 </div>
                 <div>
-                  <h3 className="text-white text-lg font-bold mb-1 text-glow-green">{selectedFile.name}</h3>
+                  <h3 className="text-white text-lg font-bold mb-1 text-glow-accent-cyan">{selectedFile.name}</h3>
                   <p className="text-slate-400 text-sm">
                     {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to translate
                   </p>
@@ -898,11 +898,11 @@ export default function AudioTranslationPage() {
           <div className="flex justify-between text-sm mb-2">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${processingStage === "uploading" ? 'bg-blue-500 animate-pulse' :
-                  processingStage === "transcribing" ? 'bg-yellow-500 animate-pulse' :
-                    processingStage === "translating" ? 'bg-purple-500 animate-pulse' :
-                      processingStage === "synthesizing" ? 'bg-pink-500 animate-pulse' :
-                        processingStage === "delivery" ? 'bg-green-500 animate-pulse' :
-                          'bg-gray-500'
+                processingStage === "transcribing" ? 'bg-yellow-500 animate-pulse' :
+                  processingStage === "translating" ? 'bg-purple-500 animate-pulse' :
+                    processingStage === "synthesizing" ? 'bg-pink-500 animate-pulse' :
+                      processingStage === "delivery" ? 'bg-accent-cyan animate-pulse' :
+                        'bg-gray-500'
                 }`}></div>
               <span className="text-gray-400">
                 {getStageDescription()}
@@ -958,11 +958,8 @@ export default function AudioTranslationPage() {
                 <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
                   {isPlaying ? (
                     <>
-                      <div className="w-5 h-5 flex items-center justify-center">
-                        <div className="w-1 h-4 bg-blue-400 mr-1"></div>
-                        <div className="w-1 h-4 bg-blue-400"></div>
-                      </div>
-                      <span>Pause Audio</span>
+                      <div className="w-1 h-4 bg-blue-400 mr-1"></div>
+                      <div className="w-1 h-4 bg-blue-400"></div>
                     </>
                   ) : (
                     <>
@@ -984,7 +981,7 @@ export default function AudioTranslationPage() {
             )}
             <button
               onClick={handleDownload}
-              className="btn-border-beam w-full sm:w-auto group bg-green-500/10 border-green-500/30 hover:bg-green-500/20 transition-all duration-300"
+              className="btn-border-beam w-full sm:w-auto group bg-accent-cyan/10 border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all duration-300"
               disabled={!downloadUrl}
             >
               <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
@@ -1033,19 +1030,19 @@ export default function AudioTranslationPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-panel border-green-500/30 bg-green-500/10 p-4"
+          className="glass-panel border-accent-cyan/30 bg-accent-cyan/10 p-4"
         >
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
             </div>
             <div>
               <h3 className="text-white font-semibold">Translation Complete!</h3>
-              <p className="text-green-400 text-sm">Your audio has been successfully translated. Play it here or download the file.</p>
+              <p className="text-accent-cyan text-sm">Your audio has been successfully translated. Play it here or download the file.</p>
             </div>
           </div>
         </motion.div>
@@ -1077,15 +1074,15 @@ export default function AudioTranslationPage() {
             <h3 className="text-white font-bold text-lg mb-3">Audio Specs</h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-xs text-slate-400">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-accent-cyan shrink-0" />
                 <p>High-fidelity output (MP3/WAV).</p>
               </li>
               <li className="flex items-start gap-2 text-xs text-slate-400">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-accent-cyan shrink-0" />
                 <p>Costs 10 credits per generation.</p>
               </li>
               <li className="flex items-start gap-2 text-xs text-slate-400">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-accent-cyan shrink-0" />
                 <p>Secure 24-hour file deletion.</p>
               </li>
             </ul>

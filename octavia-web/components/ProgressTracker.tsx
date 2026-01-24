@@ -129,7 +129,7 @@ export function ProgressTracker({
             <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                     {progress.status === "completed" ? (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        <CheckCircle2 className="h-4 w-4 text-accent-cyan" />
                     ) : (
                         <Loader2 className="h-4 w-4 animate-spin text-primary-purple-bright" />
                     )}

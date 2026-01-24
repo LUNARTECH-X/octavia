@@ -1,71 +1,69 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { Folder, Plus, Clock, CheckCircle, AlertCircle, Edit, Trash2, X, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
+import { Plus, Search, Folder, MoreVertical, Edit2, Trash2, Clock, CheckCircle, AlertCircle, Calendar } from "lucide-react";
 
 interface Project {
     id: string;
     name: string;
-    type: "Video Translation" | "Audio Translation" | "Subtitle Generation";
-    status: "completed" | "in-progress" | "pending";
-    date: string;
+    type: string;
+    status: string;
+    description: string;
     files: number;
-    description?: string;
     createdAt: string;
     updatedAt: string;
 }
 
-const projectTypes = [
-    "Video Translation",
-    "Audio Translation",
-    "Subtitle Generation"
-];
-
-const initialProjects: Project[] = [
+const mockProjects: Project[] = [
     {
         id: "1",
-        name: "Marketing Video ES-FR",
+        name: "octavia test",
         type: "Video Translation",
-        status: "completed",
-        date: "2024-11-20",
-        files: 1,
-        description: "Marketing video translation from English to French",
-        createdAt: "2024-11-20T10:00:00Z",
-        updatedAt: "2024-11-20T15:30:00Z"
+        status: "pending",
+        description: "",
+        files: 3,
+        createdAt: "2026-01-23T10:00:00Z",
+        updatedAt: "2026-01-23T10:00:00Z"
     },
     {
         id: "2",
-        name: "Podcast Series",
-        type: "Audio Translation",
+        name: "videos",
+        type: "Video Translation",
         status: "in-progress",
-        date: "2024-11-22",
-        files: 8,
-        description: "Complete podcast series translation",
-        createdAt: "2024-11-22T09:00:00Z",
-        updatedAt: "2024-11-22T14:20:00Z"
+        description: "",
+        files: 1,
+        createdAt: "2025-12-05T14:30:00Z",
+        updatedAt: "2025-12-05T14:30:00Z"
     },
     {
         id: "3",
-        name: "Tutorial Subtitles",
-        type: "Subtitle Generation",
-        status: "completed",
-        date: "2024-11-18",
-        files: 3,
-        description: "Generate subtitles for tutorial videos",
-        createdAt: "2024-11-18T11:00:00Z",
-        updatedAt: "2024-11-18T16:45:00Z"
+        name: "Podcast Series",
+        type: "Audio Translation",
+        status: "in-progress",
+        description: "Complete podcast series translation",
+        files: 8,
+        createdAt: "2024-11-22T09:00:00Z",
+        updatedAt: "2024-11-22T09:00:00Z"
     },
     {
         id: "4",
+        name: "Tutorial Subtitles",
+        type: "Subtitle Generation",
+        status: "completed",
+        description: "Generate subtitles for tutorial videos",
+        files: 3,
+        createdAt: "2024-11-18T11:20:00Z",
+        updatedAt: "2024-11-18T11:20:00Z"
+    },
+    {
+        id: "5",
         name: "Webinar Recording",
         type: "Video Translation",
         status: "pending",
-        date: "2024-11-23",
-        files: 1,
         description: "Translate recorded webinar session",
+        files: 1,
         createdAt: "2024-11-23T08:00:00Z",
         updatedAt: "2024-11-23T08:00:00Z"
     },
@@ -73,7 +71,7 @@ const initialProjects: Project[] = [
 
 const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { bg: string, text: string, icon: any }> = {
-        "completed": { bg: "bg-green-500/10", text: "text-green-400", icon: CheckCircle },
+        "completed": { bg: "bg-accent-cyan/10", text: "text-accent-cyan", icon: CheckCircle },
         "in-progress": { bg: "bg-primary-purple/10", text: "text-primary-purple-bright", icon: Clock },
         "pending": { bg: "bg-orange-500/10", text: "text-orange-400", icon: AlertCircle }
     };
@@ -82,52 +80,48 @@ const getStatusBadge = (status: string) => {
 
 export default function ProjectsPage() {
     const router = useRouter();
-    const { toast } = useToast();
     const [projects, setProjects] = useState<Project[]>([]);
+    const [searchQuery, setSearchQuery] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
     const [formData, setFormData] = useState({
-        name: '',
-        type: 'Video Translation' as Project['type'],
-        status: 'pending' as Project['status'],
-        description: '',
-        files: 0
+        name: "",
+        description: "",
+        type: "Video Translation"
     });
 
-    // Load projects from localStorage on component mount
+    // Load projects from localStorage on mount
     useEffect(() => {
         const storedProjects = localStorage.getItem('octavia_projects');
         if (storedProjects) {
             try {
-                const parsedProjects = JSON.parse(storedProjects);
-                setProjects(parsedProjects);
-            } catch (error) {
-                console.error('Failed to parse stored projects:', error);
-                setProjects(initialProjects);
-                localStorage.setItem('octavia_projects', JSON.stringify(initialProjects));
+                setProjects(JSON.parse(storedProjects));
+            } catch (e) {
+                console.error("Failed to parse projects", e);
+                setProjects(mockProjects);
+                localStorage.setItem('octavia_projects', JSON.stringify(mockProjects));
             }
         } else {
-            setProjects(initialProjects);
-            localStorage.setItem('octavia_projects', JSON.stringify(initialProjects));
+            // First time load, set mocks
+            setProjects(mockProjects);
+            localStorage.setItem('octavia_projects', JSON.stringify(mockProjects));
         }
     }, []);
 
-    // Save projects to localStorage whenever projects change
-    useEffect(() => {
-        if (projects.length > 0) {
-            localStorage.setItem('octavia_projects', JSON.stringify(projects));
-        }
-    }, [projects]);
+    // Save projects to localStorage whenever they change
+    const saveProjects = (newProjects: Project[]) => {
+        setProjects(newProjects);
+        localStorage.setItem('octavia_projects', JSON.stringify(newProjects));
+    };
+
+    const filteredProjects = projects.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const handleCreateProject = () => {
         setEditingProject(null);
-        setFormData({
-            name: '',
-            type: 'Video Translation',
-            status: 'pending',
-            description: '',
-            files: 0
-        });
+        setFormData({ name: "", description: "", type: "Video Translation" });
         setIsModalOpen(true);
     };
 
@@ -135,166 +129,137 @@ export default function ProjectsPage() {
         setEditingProject(project);
         setFormData({
             name: project.name,
-            type: project.type,
-            status: project.status,
-            description: project.description || '',
-            files: project.files
+            description: project.description,
+            type: project.type
         });
         setIsModalOpen(true);
     };
 
-    const handleDeleteProject = (projectId: string) => {
-        setProjects(prev => prev.filter(p => p.id !== projectId));
-        toast({
-            title: "Project deleted",
-            description: "The project has been successfully deleted.",
-        });
+    const handleDeleteProject = (id: string) => {
+        if (confirm("Are you sure you want to delete this project?")) {
+            const updated = projects.filter(p => p.id !== id);
+            saveProjects(updated);
+        }
     };
 
-    const handleSaveProject = () => {
-        if (!formData.name.trim()) {
-            toast({
-                title: "Error",
-                description: "Project name is required.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        const now = new Date().toISOString();
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
 
         if (editingProject) {
-            // Update existing project
-            setProjects(prev => prev.map(p =>
+            const updated = projects.map(p =>
                 p.id === editingProject.id
-                    ? {
-                        ...p,
-                        name: formData.name,
-                        type: formData.type,
-                        status: formData.status,
-                        description: formData.description,
-                        files: formData.files,
-                        updatedAt: now
-                    }
+                    ? { ...p, ...formData, updatedAt: new Date().toISOString() }
                     : p
-            ));
-            toast({
-                title: "Project updated",
-                description: "The project has been successfully updated.",
-            });
+            );
+            saveProjects(updated);
         } else {
-            // Create new project
             const newProject: Project = {
-                id: Date.now().toString(),
-                name: formData.name,
-                type: formData.type,
-                status: formData.status,
-                description: formData.description,
-                files: formData.files,
-                date: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD format
-                createdAt: now,
-                updatedAt: now
+                id: Math.random().toString(36).substr(2, 9),
+                ...formData,
+                status: "pending",
+                files: 0,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             };
-            setProjects(prev => [newProject, ...prev]);
-            toast({
-                title: "Project created",
-                description: "The new project has been successfully created.",
-            });
+            saveProjects([newProject, ...projects]);
         }
 
         setIsModalOpen(false);
-        setEditingProject(null);
-    };
-
-    const handleProjectClick = (project: Project) => {
-        // Navigate to project details page
-        router.push(`/dashboard/projects/${project.id}`);
     };
 
     return (
         <div className="space-y-8">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="font-display text-3xl font-black text-white text-glow-purple mb-2">Projects</h1>
-                    <p className="text-slate-400 text-sm">Organize and manage your translation projects</p>
+                    <h1 className="font-display text-4xl font-black text-white text-glow-purple">Projects</h1>
+                    <p className="text-slate-400 text-sm mt-1">Organize and manage your translation projects</p>
                 </div>
                 <button
                     onClick={handleCreateProject}
-                    className="btn-border-beam group"
+                    className="flex items-center gap-2 px-6 py-3 bg-primary-purple hover:bg-primary-purple-bright text-white rounded-xl font-bold transition-all shadow-glow hover:scale-105 active:scale-95"
                 >
-                    <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-2.5 px-5">
-                        <Plus className="w-4 h-4" />
-                        <span className="text-sm font-semibold">New Project</span>
-                    </div>
+                    <Plus className="w-5 h-5" />
+                    New Project
                 </button>
             </div>
 
-            {/* Project Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                    type="text"
+                    placeholder="Search projects..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-primary-purple/50 focus:bg-white/10 transition-all"
+                />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <AnimatePresence>
-                    {projects.map((project, index) => {
-                        const statusConfig = getStatusBadge(project.status);
-                        const StatusIcon = statusConfig.icon;
+                    {filteredProjects.map((project, index) => {
+                        const badge = getStatusBadge(project.status);
+                        const BadgeIcon = badge.icon;
 
                         return (
                             <motion.div
                                 key={project.id}
+                                layout
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ delay: index * 0.1 }}
-                                whileHover={{ y: -2 }}
-                                onClick={() => handleProjectClick(project)}
-                                className="glass-panel-glow p-5 cursor-pointer group relative"
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ delay: index * 0.05 }}
+                                className="glass-panel p-6 group relative cursor-pointer hover:shadow-glow-purple transition-all border border-white/5 hover:border-primary-purple/30"
+                                onClick={() => router.push(`/dashboard/projects/${project.id}`)}
                             >
-                                <div className="glass-shine" />
-                                <div className="relative z-10">
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary-purple/10 border border-primary-purple/20">
-                                                <Folder className="w-5 h-5 text-primary-purple-bright" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="text-white font-bold text-base leading-tight">{project.name}</h3>
-                                                <p className="text-slate-400 text-xs">{project.type}</p>
-                                                {project.description && (
-                                                    <p className="text-slate-500 text-xs mt-1 line-clamp-2">{project.description}</p>
-                                                )}
-                                            </div>
+                                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditProject(project);
+                                        }}
+                                        className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteProject(project.id);
+                                        }}
+                                        className="p-2 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="w-12 h-12 rounded-xl bg-primary-purple/10 flex items-center justify-center text-primary-purple-bright group-hover:scale-110 transition-transform">
+                                        <Folder className="w-6 h-6" />
+                                    </div>
+                                    <div className="flex-1 pr-14">
+                                        <h3 className="text-white font-bold text-lg leading-tight mb-1">{project.name}</h3>
+                                        <p className="text-slate-500 text-xs">{project.type}</p>
+                                    </div>
+                                </div>
+
+                                {project.description && (
+                                    <p className="text-slate-400 text-sm mb-6 line-clamp-2">{project.description}</p>
+                                )}
+
+                                <div className="flex items-center justify-between mt-auto">
+                                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                                        <div className="flex items-center gap-1">
+                                            {project.files} files
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${statusConfig.bg} border border-white/10`}>
-                                                <StatusIcon className={`w-3 h-3 ${statusConfig.text}`} />
-                                                <span className={`text-xs font-semibold capitalize ${statusConfig.text}`}>{project.status.replace('-', ' ')}</span>
-                                            </div>
-                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleEditProject(project);
-                                                    }}
-                                                    className="p-1.5 rounded-md bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-colors"
-                                                >
-                                                    <Edit className="w-3.5 h-3.5" />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteProject(project.id);
-                                                    }}
-                                                    className="p-1.5 rounded-md bg-red-700/50 hover:bg-red-600/50 text-red-300 hover:text-white transition-colors"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            {new Date(project.createdAt).toLocaleDateString()}
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-4 text-xs text-slate-500">
-                                        <span>{project.files} file{project.files > 1 ? 's' : ''}</span>
-                                        <span>•</span>
-                                        <span>{project.date}</span>
+                                    <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${badge.bg} ${badge.text}`}>
+                                        <BadgeIcon className="w-3 h-3" />
+                                        {project.status.replace('-', ' ')}
                                     </div>
                                 </div>
                             </motion.div>
@@ -303,147 +268,71 @@ export default function ProjectsPage() {
                 </AnimatePresence>
             </div>
 
-            {/* Empty State for New Users */}
-            {projects.length === 0 && (
-                <div className="glass-panel p-12 text-center">
-                    <Folder className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                    <h3 className="text-white text-lg font-bold mb-2">No projects yet</h3>
-                    <p className="text-slate-400 text-sm mb-6">Create your first project to organize your translations</p>
-                    <button
-                        onClick={handleCreateProject}
-                        className="btn-border-beam group"
+            {/* Modal for Create/Edit */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="glass-panel w-full max-w-lg p-8 relative"
                     >
-                        <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-2.5 px-5">
-                            <Plus className="w-4 h-4" />
-                            <span className="text-sm font-semibold">Create Project</span>
-                        </div>
-                    </button>
+                        <button
+                            onClick={() => setIsModalOpen(false)}
+                            className="absolute top-6 right-6 text-slate-500 hover:text-white transition-colors"
+                        >
+                            <Trash2 className="w-6 h-6" />
+                        </button>
+
+                        <h2 className="text-2xl font-bold text-white mb-6">
+                            {editingProject ? "Edit Project" : "Create New Project"}
+                        </h2>
+
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-2">Project Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary-purple/50 transition-all"
+                                    placeholder="e.g. My Awesome Video"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-2">Project Type</label>
+                                <select
+                                    value={formData.type}
+                                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary-purple/50 transition-all"
+                                >
+                                    <option value="Video Translation">Video Translation</option>
+                                    <option value="Audio Translation">Audio Translation</option>
+                                    <option value="Subtitle Generation">Subtitle Generation</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-slate-400 text-sm mb-2">Description (Optional)</label>
+                                <textarea
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-primary-purple/50 transition-all min-h-[100px]"
+                                    placeholder="Tell us what this project is about..."
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="w-full py-4 bg-primary-purple hover:bg-primary-purple-bright text-white rounded-xl font-bold transition-all shadow-glow"
+                            >
+                                {editingProject ? "Update Project" : "Create Project"}
+                            </button>
+                        </form>
+                    </motion.div>
                 </div>
             )}
-
-            {/* Project Modal */}
-            <AnimatePresence>
-                {isModalOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                        onClick={() => setIsModalOpen(false)}
-                    >
-                        <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.9, opacity: 0 }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="glass-panel max-w-sm w-full p-4"
-                        >
-                            <div className="flex items-center justify-between mb-3">
-                                <h2 className="text-xl font-bold text-white">
-                                    {editingProject ? 'Edit Project' : 'Create New Project'}
-                                </h2>
-                                <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="p-1 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        Project Name *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
-                                        placeholder="Enter project name"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        Project Type
-                                    </label>
-                                    <select
-                                        value={formData.type}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as Project['type'] }))}
-                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
-                                    >
-                                        {projectTypes.map(type => (
-                                            <option key={type} value={type}>{type}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        Status
-                                    </label>
-                                    <select
-                                        value={formData.status}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as Project['status'] }))}
-                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
-                                    >
-                                        <option value="pending">Pending</option>
-                                        <option value="in-progress">In Progress</option>
-                                        <option value="completed">Completed</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        Number of Files
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={formData.files}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, files: parseInt(e.target.value) || 0 }))}
-                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                                        Description
-                                    </label>
-                                    <textarea
-                                        value={formData.description}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple resize-none"
-                                        placeholder="Optional project description"
-                                        rows={3}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3 mt-3">
-                                <button
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleSaveProject}
-                                    className="flex-1 btn-border-beam group"
-                                >
-                                    <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-2">
-                                        <Save className="w-4 h-4" />
-                                        <span className="text-sm font-semibold">
-                                            {editingProject ? 'Update' : 'Create'}
-                                        </span>
-                                    </div>
-                                </button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }

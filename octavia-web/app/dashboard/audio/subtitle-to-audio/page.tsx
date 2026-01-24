@@ -796,7 +796,7 @@ export default function SubtitleToAudioPage() {
         <motion.div
           whileHover={!selectedFile && !isGenerating ? { scale: 1.01 } : {}}
           className={`glass-panel glass-panel-high relative border-2 border-dashed transition-all mb-6 overflow-hidden
-            ${selectedFile ? 'border-green-500/50 cursor-default' :
+            ${selectedFile ? 'border-accent-cyan/50 cursor-default' :
               isGenerating ? 'border-primary-purple/30 cursor-wait' :
                 'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
         >
@@ -806,8 +806,8 @@ export default function SubtitleToAudioPage() {
           <div className="relative z-20 py-12 px-6">
             {selectedFile ? (
               <div className="flex flex-col items-center justify-center gap-3 text-center">
-                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/30 shadow-glow">
-                  <FileText className="w-8 h-8 text-green-500" />
+                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/30 shadow-glow">
+                  <FileText className="w-8 h-8 text-accent-cyan" />
                 </div>
                 <div>
                   <h3 className="text-white text-lg font-bold mb-1 text-glow-green">{selectedFile.name}</h3>
@@ -862,8 +862,8 @@ export default function SubtitleToAudioPage() {
           <div className="flex justify-between text-sm mb-2">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${jobStatus === "uploading" ? 'bg-blue-500 animate-pulse' :
-                  jobStatus === "processing" ? 'bg-yellow-500 animate-pulse' :
-                    'bg-green-500'
+                jobStatus === "processing" ? 'bg-yellow-500 animate-pulse' :
+                  'bg-accent-cyan'
                 }`}></div>
               <span className="text-gray-400">
                 {jobStatus === "uploading" && "Uploading subtitle file..."}
@@ -1014,7 +1014,7 @@ export default function SubtitleToAudioPage() {
           <>
             <button
               onClick={handleDownload}
-              className="btn-border-beam w-full sm:w-auto group bg-green-500/10 border-green-500/30 hover:bg-green-500/20 transition-all duration-300"
+              className="btn-border-beam w-full sm:w-auto group bg-accent-cyan/10 border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all duration-300"
               disabled={!downloadUrl}
             >
               <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
@@ -1113,19 +1113,19 @@ export default function SubtitleToAudioPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="glass-panel border-green-500/30 bg-green-500/10 p-4"
+          className="glass-panel border-accent-cyan/30 bg-accent-cyan/10 p-4"
         >
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center">
+                <svg className="w-5 h-5 text-accent-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
             </div>
             <div>
               <h3 className="text-white font-semibold">Audio Generation Complete!</h3>
-              <p className="text-green-400 text-sm">Your audio has been successfully generated. Click the download button to get your file.</p>
+              <p className="text-accent-cyan text-sm">Your audio has been successfully generated. Click the download button to get your file.</p>
             </div>
           </div>
         </motion.div>
@@ -1157,11 +1157,11 @@ export default function SubtitleToAudioPage() {
             <h3 className="text-white font-bold text-lg mb-3">Sync Specs</h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-xs text-slate-400">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-accent-cyan shrink-0" />
                 <p>Perfectly synced with subtitle timestamps.</p>
               </li>
               <li className="flex items-start gap-2 text-xs text-slate-400">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-accent-cyan shrink-0" />
                 <p>Costs 5 credits per generation.</p>
               </li>
               <li className="flex items-start gap-2 text-xs text-slate-400">

@@ -44,7 +44,7 @@ const features = [
         title: "Global Reach",
         description:
             "Support for 30+ languages including Japanese, Mandarin, Spanish, French, German, and more.",
-        color: "text-green-400",
+        color: "text-accent-cyan",
     },
 ];
 
@@ -77,8 +77,8 @@ export function FeaturesGrid() {
 
                             {/* Localized Glow on Hover */}
                             <div className={`absolute -top-1/2 left-1/2 -translate-x-1/2 w-64 h-64 opacity-0 group-hover:opacity-40 transition-opacity duration-500 blur-[80px] rounded-full ${feature.color.includes("cyan") ? "bg-accent-cyan" :
-                                    feature.color.includes("pink") ? "bg-accent-pink" :
-                                        "bg-primary-purple"
+                                feature.color.includes("pink") ? "bg-accent-pink" :
+                                    "bg-primary-purple"
                                 }`} />
 
                             <div className="relative z-10">

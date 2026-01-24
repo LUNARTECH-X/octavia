@@ -38,7 +38,7 @@ export default function TeamPage() {
                     </div>
                 </div>
                 <div className="glass-panel p-5 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-green-400">
+                    <div className="w-12 h-12 rounded-xl bg-accent-cyan/10 flex items-center justify-center text-accent-cyan">
                         <Shield className="w-6 h-6" />
                     </div>
                     <div>
@@ -76,9 +76,9 @@ export default function TeamPage() {
                             </div>
 
                             <div className="flex items-center gap-6">
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${member.status === "Active"
-                                        ? "bg-green-500/10 text-green-400 border-green-500/20"
-                                        : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${member.status === "active"
+                                    ? "bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20"
+                                    : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
                                     }`}>
                                     {member.status}
                                 </span>

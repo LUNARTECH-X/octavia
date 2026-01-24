@@ -281,7 +281,7 @@ export default function VideoReviewPage() {
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Status:</span>
-                                    <span className="text-green-400">Completed</span>
+                                    <span className="text-accent-cyan">Completed</span>
                                 </div>
                                 {jobStatus.target_language && (
                                     <div className="flex justify-between">
@@ -311,7 +311,7 @@ export default function VideoReviewPage() {
                     <div className="glass-card p-6">
                         <div className="flex flex-col gap-4">
                             <div className="flex items-center gap-3">
-                                <div className="flex size-10 items-center justify-center rounded-full bg-green-500/20 text-green-400 shadow-glow">
+                                <div className="flex size-10 items-center justify-center rounded-full bg-accent-cyan/20 text-accent-cyan shadow-glow">
                                     <RefreshCw className="w-5 h-5" />
                                 </div>
                                 <div>
@@ -341,15 +341,15 @@ export default function VideoReviewPage() {
                     </div>
 
                     {/* Success Message */}
-                    <div className="glass-card p-4 border-green-500/30 bg-green-500/10">
+                    <div className="glass-card p-4 border-accent-cyan/30 bg-accent-cyan/10">
                         <div className="flex items-start gap-3">
                             <div className="mt-0.5">
-                                <div className="w-5 h-5 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
-                                    <span className="text-green-400 text-xs">✓</span>
+                                <div className="w-5 h-5 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center">
+                                    <span className="text-accent-cyan text-xs">✓</span>
                                 </div>
                             </div>
                             <div className="flex-1">
-                                <p className="text-green-400 text-sm font-medium">Translation Complete!</p>
+                                <p className="text-accent-cyan text-sm font-medium">Translation Complete!</p>
                                 <p className="text-slate-400 text-xs mt-1">
                                     Your video has been successfully translated.
                                 </p>

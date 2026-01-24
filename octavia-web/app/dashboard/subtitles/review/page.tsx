@@ -365,7 +365,7 @@ ${subtitles.map(sub =>
                             <button
                               onClick={() => handleSave(sub.id)}
                               disabled={saving}
-                              className="p-1 rounded hover:bg-green-500/10 text-green-400 hover:text-green-300 transition-colors disabled:opacity-50"
+                              className="p-1 rounded hover:bg-accent-cyan/10 text-accent-cyan hover:text-accent-cyan/80 transition-colors disabled:opacity-50"
                               title="Save"
                             >
                               {saving ? (
@@ -418,7 +418,7 @@ ${subtitles.map(sub =>
             <h3 className="text-lg font-bold text-white mb-4">Subtitle Stats</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-4">
-                <div className="flex size-10 items-center justify-center rounded-full bg-green-500/20 text-green-400 shadow-glow">
+                <div className="flex size-10 items-center justify-center rounded-full bg-accent-cyan/20 text-accent-cyan shadow-glow">
                   <CheckCircle className="w-5 h-5" />
                 </div>
                 <div>

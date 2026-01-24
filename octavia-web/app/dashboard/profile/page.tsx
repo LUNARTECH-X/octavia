@@ -121,7 +121,7 @@ export default function ProfilePage() {
 
   const getUserRole = () => {
     if (!user) return "User";
-    
+
     // Determine role based on credits or other criteria
     if (user.credits >= 5000) return "Premium";
     if (user.credits >= 1000) return "Pro";
@@ -204,7 +204,7 @@ export default function ProfilePage() {
                     Credits: <span className="font-bold text-primary-purple-bright">{user.credits}</span>
                   </div>
                   <div className="text-xs text-slate-500">
-                    Status: <span className={`font-bold ${user.verified ? 'text-green-400' : 'text-yellow-400'}`}>
+                    Status: <span className={`font-bold ${user.verified ? 'text-accent-cyan' : 'text-yellow-400'}`}>
                       {user.verified ? 'Verified' : 'Unverified'}
                     </span>
                   </div>
@@ -265,14 +265,14 @@ export default function ProfilePage() {
             <div className="mt-8 flex justify-end gap-3">
               {isEditing ? (
                 <>
-                  <button 
+                  <button
                     onClick={() => setIsEditing(false)}
                     disabled={isSaving}
                     className="px-6 py-2 rounded-lg border border-white/10 hover:bg-white/5 text-sm text-slate-300 hover:text-white transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={handleSaveChanges}
                     disabled={isSaving}
                     className="btn-border-beam disabled:opacity-50 disabled:cursor-not-allowed"
@@ -293,7 +293,7 @@ export default function ProfilePage() {
                   </button>
                 </>
               ) : (
-                <button 
+                <button
                   onClick={() => setIsEditing(true)}
                   className="btn-border-beam"
                 >
@@ -320,7 +320,7 @@ export default function ProfilePage() {
               <div>
                 <h4 className="text-sm font-medium text-white mb-2">Password</h4>
                 <p className="text-xs text-slate-400 mb-3">Last changed {getLastPasswordChange()}</p>
-                <button 
+                <button
                   onClick={handleChangePassword}
                   className="w-full py-2 rounded-lg border border-white/10 hover:bg-white/5 text-sm text-slate-300 hover:text-white transition-colors"
                 >
@@ -331,7 +331,7 @@ export default function ProfilePage() {
               <div className="pt-6 border-t border-white/5">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-medium text-white">Two-Factor Auth</h4>
-                  <span className="text-xs text-green-400 font-medium">Enabled</span>
+                  <span className="text-xs text-accent-cyan font-medium">Enabled</span>
                 </div>
                 <p className="text-xs text-slate-400 mb-3">Secure your account with 2FA.</p>
                 <button className="w-full py-2 rounded-lg border border-white/10 hover:bg-white/5 text-sm text-slate-300 hover:text-white transition-colors">
@@ -346,7 +346,7 @@ export default function ProfilePage() {
             <p className="text-slate-400 text-xs mb-4">
               Permanently delete your account and all of your content.
             </p>
-            <button 
+            <button
               onClick={handleDeleteAccount}
               className="w-full py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-medium transition-colors border border-red-500/20"
             >

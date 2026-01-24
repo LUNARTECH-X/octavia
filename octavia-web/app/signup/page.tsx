@@ -25,38 +25,38 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    
+
     // Validation
     if (!form.name.trim()) {
       setError('Please enter your name');
       return;
     }
-    
+
     if (!form.email.trim()) {
       setError('Please enter your email');
       return;
     }
-    
+
     if (!form.email.includes('@')) {
       setError('Please enter a valid email address');
       return;
     }
-    
+
     if (form.password.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-    
+
     if (form.password !== form.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
     setLoading(true);
-    
+
     try {
       const result = await signup(form.email, form.password, form.name);
-      
+
       if (result.success) {
         if (result.requiresVerification) {
           setSuccess(result.message || 'Verification email sent! Please check your inbox.');
@@ -67,7 +67,7 @@ export default function SignupPage() {
             password: '',
             confirmPassword: '',
           });
-          
+
           // Option 1: Show success message and link to verification page
           setTimeout(() => {
             router.push('/verify-email');
@@ -126,10 +126,10 @@ export default function SignupPage() {
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-              <p className="text-green-400 text-sm">{success}</p>
-              <p className="text-green-400/70 text-xs mt-1">
-                You will be redirected to the verification page shortly...
+            <div className="mb-4 p-3 bg-accent-cyan/10 border border-accent-cyan/30 rounded-lg">
+              <p className="text-accent-cyan text-sm">{success}</p>
+              <p className="text-accent-cyan/70 text-xs mt-1">
+                A verification link has been sent to your email.
               </p>
             </div>
           )}
@@ -152,7 +152,7 @@ export default function SignupPage() {
               </div>
               <p className="text-xs text-slate-500">This will be displayed on your profile</p>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Email Address</label>
               <div className="relative">
@@ -169,7 +169,7 @@ export default function SignupPage() {
               </div>
               <p className="text-xs text-slate-500">We'll send a verification link to this email</p>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Password</label>
               <div className="relative">
@@ -187,7 +187,7 @@ export default function SignupPage() {
               </div>
               <p className="text-xs text-slate-500">Minimum 6 characters</p>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Confirm Password</label>
               <div className="relative">
@@ -239,8 +239,8 @@ export default function SignupPage() {
             </div>
 
             <div className="mt-6 grid grid-cols-2 gap-3">
-              <button 
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed" 
+              <button
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading}
                 onClick={() => {
                   setError('Social login coming soon! Please use email signup for now.');
@@ -251,8 +251,8 @@ export default function SignupPage() {
                 </svg>
                 Apple
               </button>
-              <button 
-                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed" 
+              <button
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading}
                 onClick={() => {
                   setError('Social login coming soon! Please use email signup for now.');
@@ -271,10 +271,10 @@ export default function SignupPage() {
                 Sign in
               </Link>
             </p>
-            
+
             <div className="text-center">
-              <Link 
-                href="/verify-email" 
+              <Link
+                href="/verify-email"
                 className="inline-block text-sm text-slate-500 hover:text-slate-300 transition-colors"
               >
                 Need to verify your email? Click here

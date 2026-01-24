@@ -144,14 +144,14 @@ export default function SubtitleGenerationProgressPage() {
     const isActive = status === "active";
 
     return (
-      <div className={`glass-card flex flex-col items-center gap-3 p-4 text-center ${isCompleted ? "border-green-500/30 bg-green-500/5" :
-          isActive ? "glass-panel-glow ring-1 ring-primary-purple/50 relative overflow-hidden" :
-            "opacity-50"
+      <div className={`glass-card flex flex-col items-center gap-3 p-4 text-center ${isCompleted ? "border-accent-cyan/30 bg-accent-cyan/5" :
+        isActive ? "glass-panel-glow ring-1 ring-primary-purple/50 relative overflow-hidden" :
+          "opacity-50"
         }`}>
         {isActive && <div className="glass-shine" />}
-        <div className={`flex size-10 items-center justify-center rounded-full ${isCompleted ? "bg-green-500/20 text-green-400" :
-            isActive ? "bg-primary-purple/20 text-primary-purple-bright" :
-              "bg-white/5 text-slate-500"
+        <div className={`flex size-10 items-center justify-center rounded-full ${isCompleted ? "bg-accent-cyan/20 text-accent-cyan" :
+          isActive ? "bg-primary-purple/20 text-primary-purple-bright" :
+            "bg-white/5 text-slate-500"
           } shadow-glow`}>
           {isCompleted ? <CheckCircle2 className="w-5 h-5" /> :
             isActive ? <Loader2 className="w-5 h-5 animate-spin" /> :
@@ -159,7 +159,7 @@ export default function SubtitleGenerationProgressPage() {
         </div>
         <div>
           <p className={`text-sm font-medium ${isActive ? "text-white text-glow-purple" : "text-white"}`}>{label}</p>
-          <p className={`text-xs ${isCompleted ? "text-green-400" : isActive ? "text-primary-purple-bright" : "text-slate-400"}`}>
+          <p className={`text-xs ${isCompleted ? "text-accent-cyan" : isActive ? "text-primary-purple-bright" : "text-slate-400"}`}>
             {isCompleted ? "Completed" : isActive ? "In Progress" : "Queued"}
           </p>
         </div>
@@ -224,8 +224,8 @@ export default function SubtitleGenerationProgressPage() {
                 initial={{ width: 0 }}
                 animate={{ width: `${jobStatus?.progress || 0}%` }}
                 transition={{ duration: 1 }}
-                className={`h-2.5 rounded-full shadow-glow ${jobStatus?.status === "completed" ? "bg-green-500" :
-                    jobStatus?.status === "failed" ? "bg-red-500" : "bg-primary-purple"
+                className={`h-2.5 rounded-full shadow-glow ${jobStatus?.status === "completed" ? "bg-accent-cyan" :
+                  jobStatus?.status === "failed" ? "bg-red-500" : "bg-primary-purple"
                   }`}
               />
             </div>

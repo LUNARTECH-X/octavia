@@ -21,7 +21,7 @@ function VerifyEmailContent() {
     const storedEmail = localStorage.getItem('pending_verification_email');
     const urlEmail = searchParams.get('email');
     setEmail(urlEmail || storedEmail || '');
-    
+
     // Automatically verify if token is present in URL
     if (token) {
       handleVerification(token);
@@ -33,11 +33,11 @@ function VerifyEmailContent() {
     setStatus('loading');
     try {
       const response = await api.verifyEmail(verificationToken);
-      
+
       if (response.success) {
         setStatus('success');
         setMessage('Your email has been verified successfully! Redirecting to dashboard...');
-        
+
         // Store user session data in localStorage
         localStorage.setItem('octavia_user', JSON.stringify({
           email: response.user.email,
@@ -46,10 +46,10 @@ function VerifyEmailContent() {
           credits: response.user.credits,
           verified: response.user.verified
         }));
-        
+
         // Clear pending email from storage
         localStorage.removeItem('pending_verification_email');
-        
+
         // Redirect to dashboard after brief delay
         setTimeout(() => {
           router.push('/dashboard');
@@ -67,7 +67,7 @@ function VerifyEmailContent() {
   // Resend verification email to the user
   const handleResend = async () => {
     if (!email) return;
-    
+
     setStatus('loading');
     try {
       const response = await api.resendVerification(email);
@@ -128,7 +128,7 @@ function VerifyEmailContent() {
                   <Loader2 className="w-16 h-16 text-primary-purple animate-spin" />
                 )}
                 {status === 'success' && (
-                  <CheckCircle className="w-16 h-16 text-green-500" />
+                  <CheckCircle className="w-16 h-16 text-accent-cyan" />
                 )}
                 {status === 'error' && (
                   <XCircle className="w-16 h-16 text-red-500" />
@@ -168,7 +168,7 @@ function VerifyEmailContent() {
                   >
                     Resend Verification Email
                   </button>
-                  
+
                   {token && (
                     <button
                       onClick={() => handleVerification(token)}

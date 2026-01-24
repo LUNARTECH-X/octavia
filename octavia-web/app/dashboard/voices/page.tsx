@@ -256,7 +256,7 @@ export default function MyVoicesPage() {
                             <span className="text-white text-sm">Credits: <span className="font-bold">{user?.credits || 0}</span></span>
                         </div>
                         {isDemoUser ? (
-                            <p className="text-green-400 text-xs mt-1">Demo: Free previews</p>
+                            <p className="text-accent-cyan text-xs mt-1">Demo: Free previews</p>
                         ) : (
                             <p className="text-slate-400 text-xs mt-1">1 credit per preview</p>
                         )}
@@ -377,11 +377,10 @@ export default function MyVoicesPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.05 }}
-                            className={`glass-panel p-5 cursor-pointer transition-all hover:ring-2 ${
-                                selectedVoice?.id === entry.voice.id 
-                                    ? 'ring-2 ring-primary-purple bg-primary-purple/5' 
+                            className={`glass-panel p-5 cursor-pointer transition-all hover:ring-2 ${selectedVoice?.id === entry.voice.id
+                                    ? 'ring-2 ring-primary-purple bg-primary-purple/5'
                                     : 'hover:bg-white/5'
-                            }`}
+                                }`}
                             onClick={() => setSelectedVoice(entry.voice)}
                         >
                             <div className="flex items-start justify-between mb-3">

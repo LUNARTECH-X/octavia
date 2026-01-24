@@ -25,17 +25,17 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
 
   const handlePurchase = async () => {
     if (!user) return;
-    
+
     setIsProcessing(true);
     setStatusMessage("Creating payment session...");
-    
+
     try {
       // Create payment session
       const response = await api.createPaymentSession(pkg.id);
-      
+
       if (response.success && response.data?.checkout_url) {
         setStatusMessage("Redirecting to payment...");
-        
+
         // Store session info for polling
         if (response.data?.session_id) {
           localStorage.setItem('last_payment_session', JSON.stringify({
@@ -45,11 +45,11 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
             timestamp: Date.now()
           }));
         }
-        
+
         // For test mode, handle directly
         if (response.data?.test_mode) {
           setStatusMessage("Adding test credits...");
-          
+
           // Poll for completion
           await pollPaymentStatus(response.data.session_id, response.data.transaction_id);
         } else {
@@ -70,11 +70,11 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
   const pollPaymentStatus = async (sessionId: string, transactionId: string) => {
     const maxAttempts = 10;
     let attempts = 0;
-    
+
     const userStr = localStorage.getItem('octavia_user');
     const userData = userStr ? JSON.parse(userStr) : null;
     const token = userData?.token;
-    
+
     while (attempts < maxAttempts) {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/payments/status/${sessionId}`, {
@@ -82,10 +82,10 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
             'Authorization': `Bearer ${token}`
           } : {},
         });
-        
+
         if (response.ok) {
           const data = await response.json();
-          
+
           if (data.status === 'completed') {
             setStatusMessage("Payment completed! Updating credits...");
             await fetchUserProfile(); // Refresh user data
@@ -101,11 +101,11 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
       } catch (error) {
         console.error("Polling error:", error);
       }
-      
+
       attempts++;
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
     }
-    
+
     setStatusMessage("Payment status check timed out. Please refresh page to check manually.");
   };
 
@@ -115,7 +115,7 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
     if (pendingPayment) {
       const paymentData = JSON.parse(pendingPayment);
       const timeElapsed = Date.now() - paymentData.timestamp;
-      
+
       // Only check if it was less than 5 minutes ago
       if (timeElapsed < 5 * 60 * 1000) {
         setIsProcessing(true);
@@ -140,20 +140,20 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
           Most Popular
         </div>
       )}
-      
+
       <div className="text-center mb-6">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-purple/20 text-primary-purple mb-4">
           {pkg.icon || <CreditCard className="w-6 h-6" />}
         </div>
         <h3 className="text-xl font-bold text-white mb-2">{pkg.name}</h3>
         <p className="text-slate-400 text-sm mb-4">{pkg.description}</p>
-        
+
         <div className="mb-4">
           <div className="text-4xl font-black text-white">${pkg.price}</div>
           <div className="text-slate-400 text-sm mt-1">{pkg.credits.toLocaleString()} Credits</div>
         </div>
       </div>
-      
+
       <ul className="space-y-3 mb-6">
         {pkg.features.map((feature, idx) => (
           <li key={idx} className="flex items-center gap-3 text-sm">
@@ -162,15 +162,14 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
           </li>
         ))}
       </ul>
-      
+
       <button
         onClick={handlePurchase}
         disabled={isProcessing}
-        className={`w-full py-3 rounded-lg font-bold transition-all duration-200 ${
-          pkg.popular 
-            ? 'bg-gradient-to-r from-primary-purple to-accent-cyan hover:opacity-90 text-white' 
+        className={`w-full py-3 rounded-lg font-bold transition-all duration-200 ${pkg.popular
+            ? 'bg-gradient-to-r from-primary-purple to-accent-cyan hover:opacity-90 text-white'
             : 'bg-white/10 hover:bg-white/20 text-white'
-        } ${isProcessing ? 'opacity-70 cursor-not-allowed' : ''}`}
+          } ${isProcessing ? 'opacity-70 cursor-not-allowed' : ''}`}
       >
         {isProcessing ? (
           <span className="flex items-center justify-center gap-2">
@@ -181,15 +180,14 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
           `Buy ${pkg.name}`
         )}
       </button>
-      
+
       {statusMessage && (
-        <div className={`mt-4 text-sm text-center p-3 rounded-lg ${
-          statusMessage.includes("completed") || statusMessage.includes("success")
-            ? "bg-green-500/10 text-green-400 border border-green-500/20"
+        <div className={`mt-4 text-sm text-center p-3 rounded-lg ${statusMessage.includes("completed") || statusMessage.includes("success")
+            ? "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20"
             : statusMessage.includes("failed") || statusMessage.includes("error")
-            ? "bg-red-500/10 text-red-400 border border-red-500/20"
-            : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-        }`}>
+              ? "bg-red-500/10 text-red-400 border border-red-500/20"
+              : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+          }`}>
           {statusMessage}
         </div>
       )}

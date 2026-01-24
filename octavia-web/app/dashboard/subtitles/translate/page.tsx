@@ -298,11 +298,11 @@ export default function SubtitleTranslatePage() {
                 <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass-panel border-green-500/30 bg-green-500/10 p-4"
+                    className="glass-panel border-accent-cyan/30 bg-accent-cyan/10 p-4"
                 >
                     <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
-                        <p className="text-green-400 text-sm">{success}</p>
+                        <CheckCircle2 className="w-5 h-5 text-accent-cyan flex-shrink-0" />
+                        <p className="text-accent-cyan text-sm">{success}</p>
                     </div>
                     {downloadUrl && (
                         <button
@@ -340,8 +340,8 @@ export default function SubtitleTranslatePage() {
                     <div className="relative z-20 py-12 px-6">
                         {selectedFile ? (
                             <div className="flex flex-col items-center justify-center gap-3 text-center">
-                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/30">
-                                    <FileText className="w-8 h-8 text-green-400" />
+                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/30">
+                                    <FileText className="w-8 h-8 text-accent-cyan" />
                                 </div>
                                 <div>
                                     <h3 className="text-white text-lg font-bold mb-1 text-glow-green">{selectedFile.name}</h3>

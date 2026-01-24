@@ -267,17 +267,17 @@ export default function VideoTranslationPage() {
         <motion.div
           whileHover={!file && !loading ? { scale: 1.01 } : {}}
           className={`glass-panel glass-panel-high relative border-2 border-dashed transition-all min-h-[300px] flex items-center justify-center
-            ${file ? 'border-green-500/50 cursor-default' : loading ? 'border-primary-purple/30 cursor-wait' : 'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
+            ${file ? 'border-accent-cyan/50 cursor-default' : loading ? 'border-primary-purple/30 cursor-wait' : 'border-primary-purple/30 hover:border-primary-purple/50 cursor-pointer'}`}
         >
           <div className="glass-shine" />
           <div className="relative z-20 py-12 px-6 text-center">
             {file ? (
               <div className="flex flex-col items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl bg-green-500/10 border border-green-500/30 flex items-center justify-center shadow-glow-green">
-                  <FileVideo className="w-10 h-10 text-green-500" />
+                <div className="w-20 h-20 rounded-2xl bg-accent-cyan/10 border border-accent-cyan/30 flex items-center justify-center shadow-glow-accent-cyan">
+                  <FileVideo className="w-10 h-10 text-accent-cyan" />
                 </div>
                 <div>
-                  <h3 className="text-white text-xl font-bold mb-1 text-glow-green">{file.name}</h3>
+                  <h3 className="text-white text-xl font-bold mb-1 text-glow-accent-cyan">{file.name}</h3>
                   <p className="text-slate-400 text-sm">{(file.size / (1024 * 1024)).toFixed(2)} MB • Ready to translate</p>
                 </div>
                 {!loading && (
@@ -382,7 +382,7 @@ export default function VideoTranslationPage() {
               { label: "Aligning", range: [95, 101] }
             ].map((stage, i) => (
               <div key={i} className={`text-center p-2 rounded transition-all duration-500 
-                ${uploadProgress >= stage.range[0] && uploadProgress < stage.range[1] ? 'bg-primary-purple/20 border border-primary-purple/30' : uploadProgress >= stage.range[1] ? 'bg-green-500/10 border border-green-500/30' : 'bg-gray-500/10 opacity-40'}`}>
+                ${uploadProgress >= stage.range[0] && uploadProgress < stage.range[1] ? 'bg-primary-purple/20 border border-primary-purple/30' : uploadProgress >= stage.range[1] ? 'bg-accent-cyan/10 border border-accent-cyan/30' : 'bg-gray-500/10 opacity-40'}`}>
                 <div className="text-[10px] text-slate-400 uppercase">{stage.label}</div>
               </div>
             ))}
@@ -416,11 +416,11 @@ export default function VideoTranslationPage() {
             <h3 className="text-white font-bold text-lg mb-3">Magic Mode</h3>
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-xs text-slate-400">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-accent-cyan shrink-0" />
                 <p>Isolates vocal tracks from background scores.</p>
               </li>
               <li className="flex items-start gap-2 text-xs text-slate-400">
-                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <CheckCircle className="w-4 h-4 text-accent-cyan shrink-0" />
                 <p>Removes echoes for studio quality.</p>
               </li>
             </ul>

@@ -97,7 +97,7 @@ export default function SupportPage() {
                             <p className="text-slate-400 text-sm mb-2">We typically respond within:</p>
                             <ul className="space-y-1 text-sm">
                                 <li className="flex items-center gap-2">
-                                    <span className="w-1 h-1 rounded-full bg-green-400" />
+                                    <span className="w-1 h-1 rounded-full bg-accent-cyan" />
                                     <span className="text-slate-300">Urgent: <span className="text-white font-semibold">1-2 hours</span></span>
                                 </li>
                                 <li className="flex items-center gap-2">
@@ -144,15 +144,19 @@ export default function SupportPage() {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="glass-panel p-5"
+                        className="glass-panel p-5 relative overflow-hidden"
                     >
-                        <h3 className="text-white font-bold text-sm mb-3">System Status</h3>
-                        <div className="flex items-center gap-2">
-                            <div className="relative flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
+                        <div className="relative z-10">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="w-1 h-1 rounded-full bg-accent-cyan" />
+                                Live Support Available
                             </div>
-                            <span className="text-green-400 text-sm font-semibold">All Systems Operational</span>
+                            <div className="text-3xl font-bold text-white mb-2">~5 Min</div>
+                            <p className="text-slate-400 text-sm">Average response time</p>
+                        </div>
+                        <div className="absolute top-6 right-6 flex items-center justify-center">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-cyan opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-cyan"></span>
                         </div>
                     </motion.div>
                 </div>

@@ -30,17 +30,17 @@ function PaymentSuccessContent() {
     // For now, we'll simulate a successful payment
     const verifyPayment = async () => {
       setLoading(true);
-      
+
       try {
         // Simulate API call to verify payment
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
+
         // Fetch updated user profile to get new credits
         await fetchUserProfile();
-        
+
         setSuccess(true);
         setMessage("Payment successful! Credits have been added to your account.");
-        
+
       } catch (error) {
         setSuccess(false);
         setMessage("Payment verification failed. Please contact support.");
@@ -74,7 +74,7 @@ function PaymentSuccessContent() {
                 <Loader2 className="w-16 h-16 text-primary-purple animate-spin" />
               ) : success ? (
                 <div className="relative">
-                  <CheckCircle className="w-16 h-16 text-green-500" />
+                  <CheckCircle className="w-16 h-16 text-accent-cyan" />
                   <PartyPopper className="w-8 h-8 text-yellow-500 absolute -top-2 -right-2" />
                 </div>
               ) : (
@@ -83,10 +83,10 @@ function PaymentSuccessContent() {
                 </div>
               )}
             </div>
-            
+
             <h1 className="text-2xl font-bold text-white mb-2">
-              {loading ? "Verifying Payment..." : 
-               success ? "Payment Successful!" : "Payment Failed"}
+              {loading ? "Verifying Payment..." :
+                success ? "Payment Successful!" : "Payment Failed"}
             </h1>
             <p className="text-slate-400 text-sm">
               {loading ? "Please wait while we confirm your payment..." : message}
@@ -112,7 +112,7 @@ function PaymentSuccessContent() {
                 </div>
                 <div className="text-left">
                   <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Status</div>
-                  <div className="text-green-400 font-medium text-sm">Completed</div>
+                  <div className="text-accent-cyan font-medium text-sm">Completed</div>
                 </div>
                 <div className="text-right">
                   <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">New Balance</div>
@@ -156,7 +156,7 @@ function PaymentSuccessContent() {
                 </Link>
               </>
             ) : null}
-            
+
             <Link
               href="/"
               className="block w-full py-3 text-center text-slate-400 hover:text-white transition-colors text-sm"

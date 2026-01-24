@@ -45,7 +45,7 @@ interface Job {
 
 const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { bg: string, text: string, icon: any }> = {
-        "completed": { bg: "bg-green-500/10", text: "text-green-400", icon: CheckCircle },
+        "completed": { bg: "bg-accent-cyan/10", text: "text-accent-cyan", icon: CheckCircle },
         "in-progress": { bg: "bg-primary-purple/10", text: "text-primary-purple-bright", icon: Clock },
         "pending": { bg: "bg-orange-500/10", text: "text-orange-400", icon: AlertCircle },
         "uploaded": { bg: "bg-blue-500/10", text: "text-blue-400", icon: CheckCircle },
@@ -264,7 +264,7 @@ export default function ProjectDetailPage() {
         const currentFiles = JSON.parse(localStorage.getItem(`octavia_project_files_${project.id}`) || '[]');
         const updatedFiles = [...currentFiles, newFile];
         localStorage.setItem(`octavia_project_files_${project.id}`, JSON.stringify(updatedFiles));
-        
+
         setFiles(prev => [...prev, newFile]);
         updateProjectFileCount(project.id, updatedFiles.length);
 
@@ -344,16 +344,16 @@ export default function ProjectDetailPage() {
 
         // Update file in localStorage
         const currentFiles = JSON.parse(localStorage.getItem(`octavia_project_files_${project.id}`) || '[]');
-        const updatedFiles = currentFiles.map((f: ProjectFile) => 
+        const updatedFiles = currentFiles.map((f: ProjectFile) =>
             f.id === editingFile.id ? editingFile : f
         );
         localStorage.setItem(`octavia_project_files_${project.id}`, JSON.stringify(updatedFiles));
-        
+
         // Update state
         setFiles(updatedFiles);
         setShowEditModal(false);
         setEditingFile(null);
-        
+
         toast({
             title: "File updated",
             description: "The file has been updated successfully.",
@@ -496,7 +496,7 @@ export default function ProjectDetailPage() {
             {/* Files Section */}
             <div className="space-y-4">
                 <h2 className="text-xl font-bold text-white">Project Files</h2>
-                
+
                 {files.length === 0 ? (
                     <div className="glass-panel p-12 text-center">
                         <Folder className="w-16 h-16 text-slate-600 mx-auto mb-4" />
@@ -577,11 +577,11 @@ export default function ProjectDetailPage() {
                                                 </button>
                                             )}
                                             {file.downloadUrl && (
-                                                <button className="p-2 rounded-md bg-green-700/50 hover:bg-green-600/50 text-green-300 hover:text-white transition-colors">
+                                                <button className="p-2 rounded-md bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan hover:text-white transition-colors">
                                                     <Download className="w-4 h-4" />
                                                 </button>
                                             )}
-                                            <button 
+                                            <button
                                                 onClick={() => openEditModal(file)}
                                                 className="p-2 rounded-md bg-blue-700/50 hover:bg-blue-600/50 text-blue-300 hover:text-white transition-colors"
                                             >
@@ -623,7 +623,7 @@ export default function ProjectDetailPage() {
                                         <div>
                                             <h3 className="text-white font-semibold">{job.type} Job</h3>
                                             <p className="text-slate-400 text-sm">
-                                                Started {new Date(job.created_at).toLocaleDateString()} • 
+                                                Started {new Date(job.created_at).toLocaleDateString()} •
                                                 {job.progress}% complete
                                             </p>
                                         </div>
@@ -633,7 +633,7 @@ export default function ProjectDetailPage() {
                                                 <span className={`text-xs font-semibold capitalize ${jobStatusConfig.text}`}>{job.status}</span>
                                             </div>
                                             {job.download_url && (
-                                                <button className="p-2 rounded-md bg-green-700/50 hover:bg-green-600/50 text-green-300 hover:text-white transition-colors">
+                                                <button className="p-2 rounded-md bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan hover:text-white transition-colors">
                                                     <Download className="w-4 h-4" />
                                                 </button>
                                             )}
@@ -642,8 +642,8 @@ export default function ProjectDetailPage() {
                                     {job.status === "processing" && (
                                         <div className="mt-4">
                                             <div className="w-full bg-slate-700 rounded-full h-2">
-                                                <div 
-                                                    className="bg-primary-purple-bright h-2 rounded-full transition-all duration-300" 
+                                                <div
+                                                    className="bg-primary-purple-bright h-2 rounded-full transition-all duration-300"
                                                     style={{ width: `${job.progress}%` }}
                                                 />
                                             </div>
@@ -673,8 +673,8 @@ export default function ProjectDetailPage() {
                             onClick={(e) => e.stopPropagation()}
                             className="glass-panel max-w-md w-full p-6"
                         >
-                             <div className="flex items-center justify-between mb-6">
-                                 <h2 className="text-xl font-bold text-white">Start New Job</h2>
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-white">Start New Job</h2>
                                 <button
                                     onClick={() => setShowUploadModal(false)}
                                     className="p-1 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
@@ -683,176 +683,176 @@ export default function ProjectDetailPage() {
                                 </button>
                             </div>
 
-                             <div className="space-y-4">
-                                 <div>
-                                     <label className="block text-sm font-medium text-slate-300 mb-2">
-                                         Job Type
-                                     </label>
-                                     <select
-                                         value={selectedJobType}
-                                         onChange={(e) => setSelectedJobType(e.target.value as JobType)}
-                                         className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
-                                     >
-                                         <option value="Video Translation">Video Translation</option>
-                                         <option value="Audio Translation">Audio Translation</option>
-                                         <option value="Subtitle Generation">Subtitle Generation</option>
-                                         <option value="Subtitle Translation">Subtitle Translation</option>
-                                         <option value="Subtitle to Audio">Subtitle to Audio</option>
-                                     </select>
-                                 </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                        Job Type
+                                    </label>
+                                    <select
+                                        value={selectedJobType}
+                                        onChange={(e) => setSelectedJobType(e.target.value as JobType)}
+                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
+                                    >
+                                        <option value="Video Translation">Video Translation</option>
+                                        <option value="Audio Translation">Audio Translation</option>
+                                        <option value="Subtitle Generation">Subtitle Generation</option>
+                                        <option value="Subtitle Translation">Subtitle Translation</option>
+                                        <option value="Subtitle to Audio">Subtitle to Audio</option>
+                                    </select>
+                                </div>
 
 
 
-                                 <div>
-                                     <label className="block text-sm font-medium text-slate-300 mb-2">
-                                         Select File
-                                     </label>
-                                     <input
-                                         ref={fileInputRef}
-                                         type="file"
-                                         onChange={handleFileUpload}
-                                         className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-purple file:text-white hover:file:bg-primary-purple-bright"
-                                     />
-                                 </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                        Select File
+                                    </label>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        onChange={handleFileUpload}
+                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-purple file:text-white hover:file:bg-primary-purple-bright"
+                                    />
+                                </div>
 
 
-                             </div>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}
-             </AnimatePresence>
+            </AnimatePresence>
 
-             {/* Edit File Modal */}
-             <AnimatePresence>
-                 {showEditModal && editingFile && (
-                     <motion.div
-                         initial={{ opacity: 0 }}
-                         animate={{ opacity: 1 }}
-                         exit={{ opacity: 0 }}
-                         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                         onClick={() => setShowEditModal(false)}
-                     >
-                         <motion.div
-                             initial={{ scale: 0.9, opacity: 0 }}
-                             animate={{ scale: 1, opacity: 1 }}
-                             exit={{ scale: 0.9, opacity: 0 }}
-                             onClick={(e) => e.stopPropagation()}
-                             className="glass-panel max-w-md w-full p-6"
-                         >
-                             <div className="flex items-center justify-between mb-6">
-                                 <h2 className="text-xl font-bold text-white">Edit File</h2>
-                                 <button
-                                     onClick={() => setShowEditModal(false)}
-                                     className="p-1 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
-                                 >
-                                     <X className="w-5 h-5" />
-                                 </button>
-                             </div>
+            {/* Edit File Modal */}
+            <AnimatePresence>
+                {showEditModal && editingFile && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        onClick={() => setShowEditModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="glass-panel max-w-md w-full p-6"
+                        >
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-bold text-white">Edit File</h2>
+                                <button
+                                    onClick={() => setShowEditModal(false)}
+                                    className="p-1 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
 
-                              <div className="space-y-4">
-                                  <div className="p-4 bg-slate-800/50 rounded-md">
-                                      <p className="text-slate-300 text-sm">
-                                          <strong>File:</strong> {editingFile.name}
-                                      </p>
-                                      <p className="text-slate-400 text-xs mt-1">
-                                          Filename cannot be changed - using the original uploaded filename.
-                                      </p>
-                                  </div>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-slate-800/50 rounded-md">
+                                    <p className="text-slate-300 text-sm">
+                                        <strong>File:</strong> {editingFile.name}
+                                    </p>
+                                    <p className="text-slate-400 text-xs mt-1">
+                                        Filename cannot be changed - using the original uploaded filename.
+                                    </p>
+                                </div>
 
-                                  <div>
-                                      <label className="block text-sm font-medium text-slate-300 mb-2">
-                                          Job Type
-                                      </label>
-                                      <select
-                                          value={editingFile.jobType || 'Video Translation'}
-                                          onChange={(e) => setEditingFile({ ...editingFile, jobType: e.target.value as JobType })}
-                                          className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
-                                      >
-                                          <option value="Video Translation">Video Translation</option>
-                                          <option value="Audio Translation">Audio Translation</option>
-                                          <option value="Subtitle Generation">Subtitle Generation</option>
-                                          <option value="Subtitle Translation">Subtitle Translation</option>
-                                          <option value="Subtitle to Audio">Subtitle to Audio</option>
-                                      </select>
-                                  </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                                        Job Type
+                                    </label>
+                                    <select
+                                        value={editingFile.jobType || 'Video Translation'}
+                                        onChange={(e) => setEditingFile({ ...editingFile, jobType: e.target.value as JobType })}
+                                        className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600 rounded-md text-white focus:border-primary-purple focus:outline-none focus:ring-1 focus:ring-primary-purple"
+                                    >
+                                        <option value="Video Translation">Video Translation</option>
+                                        <option value="Audio Translation">Audio Translation</option>
+                                        <option value="Subtitle Generation">Subtitle Generation</option>
+                                        <option value="Subtitle Translation">Subtitle Translation</option>
+                                        <option value="Subtitle to Audio">Subtitle to Audio</option>
+                                    </select>
+                                </div>
 
-                                 <div className="flex gap-3 pt-4">
-                                     <button
-                                         onClick={() => setShowEditModal(false)}
-                                         className="flex-1 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white rounded-md transition-colors"
-                                     >
-                                         Cancel
-                                     </button>
-                                     <button
-                                         onClick={updateFile}
-                                         className="flex-1 px-4 py-2 bg-primary-purple hover:bg-primary-purple-bright text-white rounded-md transition-colors"
-                                     >
-                                         Update File
-                                     </button>
-                                 </div>
-                             </div>
-                         </motion.div>
-                     </motion.div>
-                 )}
-             </AnimatePresence>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setShowEditModal(false)}
+                                        className="flex-1 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white rounded-md transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={updateFile}
+                                        className="flex-1 px-4 py-2 bg-primary-purple hover:bg-primary-purple-bright text-white rounded-md transition-colors"
+                                    >
+                                        Update File
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-             {/* Delete Confirmation Modal */}
-             <AnimatePresence>
-                 {showDeleteModal && fileToDelete && (
-                     <motion.div
-                         initial={{ opacity: 0 }}
-                         animate={{ opacity: 1 }}
-                         exit={{ opacity: 0 }}
-                         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                         onClick={() => setShowDeleteModal(false)}
-                     >
-                         <motion.div
-                             initial={{ scale: 0.9, opacity: 0 }}
-                             animate={{ scale: 1, opacity: 1 }}
-                             exit={{ scale: 0.9, opacity: 0 }}
-                             onClick={(e) => e.stopPropagation()}
-                             className="glass-panel max-w-sm w-full p-6"
-                         >
-                             <div className="flex items-center justify-between mb-4">
-                                 <h2 className="text-xl font-bold text-white">Delete File</h2>
-                                 <button
-                                     onClick={() => setShowDeleteModal(false)}
-                                     className="p-1 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
-                                 >
-                                     <X className="w-5 h-5" />
-                                 </button>
-                             </div>
+            {/* Delete Confirmation Modal */}
+            <AnimatePresence>
+                {showDeleteModal && fileToDelete && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        onClick={() => setShowDeleteModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="glass-panel max-w-sm w-full p-6"
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-white">Delete File</h2>
+                                <button
+                                    onClick={() => setShowDeleteModal(false)}
+                                    className="p-1 rounded-md hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
 
-                             <div className="mb-6">
-                                 <p className="text-slate-300 text-sm">
-                                     Are you sure you want to delete this file?
-                                 </p>
-                                 <p className="text-white font-semibold mt-2">
-                                     "{fileToDelete.name}"
-                                 </p>
-                                 <p className="text-slate-400 text-xs mt-1">
-                                     This action cannot be undone.
-                                 </p>
-                             </div>
+                            <div className="mb-6">
+                                <p className="text-slate-300 text-sm">
+                                    Are you sure you want to delete this file?
+                                </p>
+                                <p className="text-white font-semibold mt-2">
+                                    "{fileToDelete.name}"
+                                </p>
+                                <p className="text-slate-400 text-xs mt-1">
+                                    This action cannot be undone.
+                                </p>
+                            </div>
 
-                             <div className="flex gap-3">
-                                 <button
-                                     onClick={() => setShowDeleteModal(false)}
-                                     className="flex-1 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white rounded-md transition-colors"
-                                 >
-                                     Cancel
-                                 </button>
-                                 <button
-                                     onClick={confirmDeleteFile}
-                                     className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
-                                 >
-                                     Delete File
-                                 </button>
-                             </div>
-                         </motion.div>
-                     </motion.div>
-                 )}
-             </AnimatePresence>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowDeleteModal(false)}
+                                    className="flex-1 px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white rounded-md transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDeleteFile}
+                                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+                                >
+                                    Delete File
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

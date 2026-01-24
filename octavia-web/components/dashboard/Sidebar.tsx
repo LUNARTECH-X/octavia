@@ -48,18 +48,18 @@ export function Sidebar() {
         try {
             // Option 1: Use the context's logout function
             await logout();
-            
+
             // Option 2: Or call the API directly
             // await api.logout();
-            
+
             // Option 3: Or manually clear state
             // setUser(null);
             // localStorage.removeItem('user');
             // localStorage.removeItem('auth_token');
-            
+
             // Redirect to login
             router.push("/login");
-            
+
         } catch (error) {
             console.error("Logout failed:", error);
             // Fallback: Clear local state anyway
@@ -106,7 +106,7 @@ export function Sidebar() {
                         <div className="text-sm text-white font-medium">{user.name}</div>
                         <div className="text-xs text-slate-400">{user.email}</div>
                         <div className="flex items-center gap-2 mt-2">
-                            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                            <div className="w-2 h-2 rounded-full bg-accent-cyan animate-pulse" />
                             <div className="text-xs text-slate-300">
                                 Credits: <span className="font-bold text-primary-purple-bright">{user.credits}</span>
                             </div>
@@ -178,7 +178,7 @@ export function Sidebar() {
                 })}
 
                 {/* Logout Button */}
-                <button 
+                <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     className="flex w-full items-center gap-3 px-3 py-2 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg transition-all duration-200 group mt-1 disabled:opacity-50 disabled:cursor-not-allowed"

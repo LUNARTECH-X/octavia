@@ -497,13 +497,12 @@ export default function JobHistoryPage() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          {job.status === "Completed" && <CheckCircle2 className="w-4 h-4 text-green-400" />}
                           {job.status === "Processing" && <Clock className="w-4 h-4 text-blue-400 animate-pulse" />}
                           {job.status === "Failed" && <AlertCircle className="w-4 h-4 text-red-400" />}
-                          <span className={`text-sm font-medium ${
-                            job.status === "Completed" ? "text-green-400" :
-                            job.status === "Processing" ? "text-blue-400" : "text-red-400"
-                          }`}>
+                          {job.status === "Completed" && <CheckCircle2 className="w-4 h-4 text-accent-cyan" />}
+                          <span className={`text-xs font-bold uppercase ${job.status === "Completed" ? "text-accent-cyan" :
+                              job.status === "Processing" ? "text-blue-400" : "text-red-400"
+                            }`}>
                             {job.status}
                           </span>
                         </div>
@@ -539,7 +538,7 @@ export default function JobHistoryPage() {
             <div className="p-4 border-t border-white/5 flex flex-wrap items-center justify-between text-sm text-slate-500">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                  <div className="w-2 h-2 rounded-full bg-accent-cyan"></div>
                   <span>Completed: {jobs.filter(j => j.status === "Completed").length}</span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -575,7 +574,7 @@ export default function JobHistoryPage() {
         </div>
         <div className="glass-card p-4">
           <div className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Success Rate</div>
-          <div className="text-2xl font-bold text-green-400">
+          <div className="text-2xl font-bold text-accent-cyan">
             {jobs.length > 0
               ? `${Math.round((jobs.filter(j => j.status === "Completed").length / jobs.length) * 100)}%`
               : "0%"
