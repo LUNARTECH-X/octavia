@@ -76,8 +76,8 @@ export function Sidebar() {
         <div className="flex h-full w-64 flex-col justify-between border-r border-white/10 bg-[#0D0221]/50 backdrop-blur-xl p-4">
             <div className="flex flex-col gap-6">
                 {/* Logo Area */}
-                <div className="flex items-center gap-3 px-2 py-2">
-                    <div className="relative w-8 h-8 flex items-center justify-center shrink-0 group">
+                <div className="flex items-center gap-3 px-2 py-2 group cursor-default">
+                    <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
                         <img
                             src="/lunartech_logo_small.png"
                             alt="LunarTech Logo"
@@ -87,15 +87,13 @@ export function Sidebar() {
                         <div className="absolute inset-0 bg-primary-purple-bright/60 blur-xl rounded-full animate-pulse" />
                         <div className="absolute inset-0 bg-primary-purple/40 blur-lg rounded-full opacity-75 group-hover:opacity-100 transition-opacity duration-300" />
                         <div className="absolute inset-0 bg-accent-cyan/30 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                        {/* Outer expanding glow on hover */}
-                        <div className="absolute inset-0 bg-primary-purple-bright/40 blur-2xl rounded-full scale-150 opacity-0 group-hover:opacity-100 group-hover:scale-200 transition-all duration-700" />
                     </div>
                     <div className="flex flex-col">
-                        <h1 className="text-white text-lg font-black leading-tight bg-gradient-to-r from-white via-primary-purple-bright to-white bg-clip-text text-transparent">
-                            Octavia
+                        <h1 className="text-white text-lg font-black tracking-[0.15em] bg-gradient-to-r from-white via-primary-purple-bright to-white bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(168,85,247,0.3)]">
+                            LUNARTECH
                         </h1>
-                        <p className="text-xs font-bold leading-tight tracking-wider bg-gradient-to-r from-primary-purple-bright via-accent-cyan to-primary-purple-bright bg-clip-text text-transparent text-glow-purple">
-                            Rise Beyond Language
+                        <p className="text-[10px] font-bold leading-tight tracking-widest text-slate-500">
+                            MASTER BRAND
                         </p>
                     </div>
                 </div>
