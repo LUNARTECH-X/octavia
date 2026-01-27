@@ -57,9 +57,13 @@ export default function SubtitleToAudioPage() {
     { value: "ru", label: "Russian", code: "ru" },
     { value: "ja", label: "Japanese", code: "ja" },
     { value: "ko", label: "Korean", code: "ko" },
-    { value: "zh", label: "Chinese", code: "zh" },
+    { value: "zh-cn", label: "Chinese (Mandarin)", code: "zh-cn" },
     { value: "ar", label: "Arabic", code: "ar" },
     { value: "hi", label: "Hindi", code: "hi" },
+    { value: "nl", label: "Dutch", code: "nl" },
+    { value: "pl", label: "Polish", code: "pl" },
+    { value: "tr", label: "Turkish", code: "tr" },
+    { value: "sv", label: "Swedish", code: "sv" },
   ];
 
   // Get authentication token
@@ -931,176 +935,153 @@ export default function SubtitleToAudioPage() {
         </motion.div>
       )}
 
-      {/* Configuration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block flex items-center gap-2">
-            <span>Original Language</span>
-            <Info className="w-3 h-3 text-slate-500" />
-          </label>
-          <select
-            className="glass-select w-full"
-            value={sourceLanguage}
-            onChange={(e) => setSourceLanguage(e.target.value)}
-            disabled={isGenerating}
-          >
-            {languageOptions.map((lang) => (
-              <option key={lang.value} value={lang.value}>{lang.label}</option>
-            ))}
-          </select>
-          <p className="text-slate-500 text-xs mt-2">Language of the subtitle file</p>
-        </div>
-
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block flex items-center gap-2">
-            <span>Target Language</span>
-            <Info className="w-3 h-3 text-slate-500" />
-          </label>
-          <select
-            className="glass-select w-full"
-            value={targetLanguage}
-            onChange={(e) => setTargetLanguage(e.target.value)}
-            disabled={isGenerating}
-          >
-            {languageOptions.map((lang) => (
-              <option key={lang.value} value={lang.value}>{lang.label}</option>
-            ))}
-          </select>
-          <p className="text-slate-500 text-xs mt-2">Language for generated audio</p>
-        </div>
-
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block flex items-center gap-2">
-            <span>Select Voice</span>
-            <Info className="w-3 h-3 text-slate-500" />
-          </label>
-          <div className="flex items-center gap-2 mb-3">
-            <Volume2 className="w-4 h-4 text-primary-purple-bright" />
-            <span className="text-slate-300 text-sm">{voice}</span>
-          </div>
-          <select
-            className="glass-select w-full mb-3"
-            value={voice}
-            onChange={(e) => setVoice(e.target.value)}
-            disabled={isGenerating || availableVoices.length === 0}
-          >
-            {availableVoices.map((voiceOption) => (
-              <option key={voiceOption.value} value={voiceOption.value}>{voiceOption.label}</option>
-            ))}
-            {availableVoices.length === 0 && (
-              <option>Loading voices...</option>
-            )}
-          </select>
-          <textarea
-            value={previewText}
-            onChange={(e) => setPreviewText(e.target.value)}
-            className="glass-input w-full h-16 p-2 text-sm mb-3"
-            placeholder="Enter preview text..."
-            disabled={isGenerating}
-          />
-          <div className="flex items-center gap-3">
-            {isPlayingPreview ? (
-              <button
-                onClick={stopPreview}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors"
+      {/* Configuration - Only show after file is selected */}
+      {selectedFile && !isGenerating && jobStatus !== "completed" && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card p-4">
+              <label className="text-white text-sm font-bold mb-3 block">Original Language</label>
+              <select
+                className="glass-select w-full"
+                value={sourceLanguage}
+                onChange={(e) => setSourceLanguage(e.target.value)}
               >
-                <Pause className="w-4 h-4" />
-                Stop
-              </button>
-            ) : (
-              <button
-                onClick={handlePreviewVoice}
-                disabled={isGenerating}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-purple/20 hover:bg-primary-purple/30 text-primary-purple-bright rounded-lg text-sm transition-colors"
+                {languageOptions.map((lang) => (
+                  <option key={lang.value} value={lang.value}>{lang.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="glass-card p-4">
+              <label className="text-white text-sm font-bold mb-3 block">Target Language</label>
+              <select
+                className="glass-select w-full"
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
               >
-                <Play className="w-4 h-4" />
-                Preview Voice
-              </button>
-            )}
-          </div>
-        </div>
+                {languageOptions.map((lang) => (
+                  <option key={lang.value} value={lang.value}>{lang.label}</option>
+                ))}
+              </select>
+            </div>
 
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block">Output Format</label>
-          <select
-            className="glass-select w-full"
-            value={outputFormat}
-            onChange={(e) => setOutputFormat(e.target.value)}
-            disabled={isGenerating}
-          >
-            <option value="mp3">MP3 (Recommended)</option>
-            <option value="wav">WAV (High Quality)</option>
-            <option value="ogg">OGG (Compressed)</option>
-          </select>
-          <p className="text-slate-500 text-xs mt-2">Audio file format</p>
-        </div>
-      </div>
-
-      {/* AI Orchestration Info */}
-      <div className="glass-panel glass-panel-glow mb-6 p-5 relative overflow-hidden">
-        <div className="glass-shine" />
-        <div className="relative z-10 flex items-start gap-3">
-          <Sparkles className="w-5 h-5 text-primary-purple-bright" />
-          <div>
-            <h3 className="text-white text-sm font-bold mb-1">AI Orchestration Process</h3>
-            <p className="text-slate-400 text-xs">
-              {targetLanguage !== sourceLanguage
-                ? `1. Parse subtitle file → 2. LLM translation (TranslateGemma/NLLB) → 3. Generate audio with ${voice} voice (edge-tts) → 4. Sync timing to match subtitle cues`
-                : `1. Parse subtitle file → 2. Generate audio with "${voice}" voice (edge-tts) → 3. Sync timing to match subtitle cues`}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {jobStatus === "completed" ? (
-          <>
-            <button
-              onClick={handleDownload}
-              className="btn-border-beam w-full sm:w-auto group bg-accent-cyan/10 border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all duration-300"
-              disabled={!downloadUrl}
-            >
-              <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-                <Download className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>Download Audio</span>
+            <div className="glass-card p-4">
+              <label className="text-white text-sm font-bold mb-3 block">Select Voice</label>
+              <div className="flex items-center gap-2 mb-3">
+                <Volume2 className="w-4 h-4 text-primary-purple-bright" />
+                <span className="text-slate-300 text-sm">{voice}</span>
               </div>
-            </button>
-            <button
-              onClick={resetForm}
-              className="btn-border-beam w-full sm:w-auto group bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
-            >
-              <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-                <FileText className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>Process Another File</span>
+              <select
+                className="glass-select w-full mb-3"
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
+                disabled={availableVoices.length === 0}
+              >
+                {availableVoices.map((voiceOption) => (
+                  <option key={voiceOption.value} value={voiceOption.value}>{voiceOption.label}</option>
+                ))}
+                {availableVoices.length === 0 && (
+                  <option>Loading voices...</option>
+                )}
+              </select>
+              <textarea
+                value={previewText}
+                onChange={(e) => setPreviewText(e.target.value)}
+                className="glass-input w-full h-16 p-2 text-sm mb-3"
+                placeholder="Enter preview text..."
+              />
+              <div className="flex items-center gap-3">
+                {isPlayingPreview ? (
+                  <button
+                    onClick={stopPreview}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm transition-colors"
+                  >
+                    <Pause className="w-4 h-4" />
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    onClick={handlePreviewVoice}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-purple/20 hover:bg-primary-purple/30 text-primary-purple-bright rounded-lg text-sm transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    Preview Voice
+                  </button>
+                )}
               </div>
-            </button>
-          </>
-        ) : (
+            </div>
+
+            <div className="glass-card p-4">
+              <label className="text-white text-sm font-bold mb-3 block">Output Format</label>
+              <select
+                className="glass-select w-full"
+                value={outputFormat}
+                onChange={(e) => setOutputFormat(e.target.value)}
+              >
+                <option value="mp3">MP3 (Recommended)</option>
+                <option value="wav">WAV (High Quality)</option>
+                <option value="ogg">OGG (Compressed)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* AI Orchestration Info */}
+          <div className="glass-panel glass-panel-glow p-5 relative overflow-hidden">
+            <div className="glass-shine" />
+            <div className="relative z-10 flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-primary-purple-bright" />
+              <div>
+                <h3 className="text-white text-sm font-bold mb-1">AI Orchestration Process</h3>
+                <p className="text-slate-400 text-xs">
+                  {targetLanguage !== sourceLanguage
+                    ? `1. Parse subtitle file → 2. LLM translation (TranslateGemma/NLLB) → 3. Generate audio with ${voice} voice (edge-tts) → 4. Sync timing to match subtitle cues`
+                    : `1. Parse subtitle file → 2. Generate audio with "${voice}" voice (edge-tts) → 3. Sync timing to match subtitle cues`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Start Button */}
           <button
             onClick={handleGenerateAudio}
-            disabled={!selectedFile || isGenerating || (user?.credits || 0) < 5}
+            disabled={(user?.credits || 0) < 5}
             className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
           >
             <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <AudioWaveform className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                  <span>
-                    {(user?.credits || 0) < 5 ? 'Insufficient Credits' : 'Generate Audio'}
-                    {(user?.credits || 0) >= 5 && ` (5 credits)`}
-                  </span>
-                </>
-              )}
+              <AudioWaveform className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              <span>
+                {(user?.credits || 0) < 5 ? 'Insufficient Credits' : 'Generate Audio'}
+                {(user?.credits || 0) >= 5 && ` (5 credits)`}
+              </span>
             </div>
           </button>
-        )}
-      </div>
+        </motion.div>
+      )}
+
+      {/* Action Buttons - Only show when completed */}
+      {jobStatus === "completed" && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button
+            onClick={handleDownload}
+            className="btn-border-beam w-full sm:w-auto group bg-accent-cyan/10 border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all duration-300"
+            disabled={!downloadUrl}
+          >
+            <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+              <Download className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              <span>Download Audio</span>
+            </div>
+          </button>
+          <button
+            onClick={resetForm}
+            className="btn-border-beam w-full sm:w-auto group bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
+          >
+            <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+              <FileText className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              <span>Process Another File</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Audio Player */}
       {jobStatus === "completed" && audioUrl && (

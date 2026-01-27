@@ -759,9 +759,13 @@ export default function AudioTranslationPage() {
     { value: "ru", label: "Russian" },
     { value: "ja", label: "Japanese" },
     { value: "ko", label: "Korean" },
-    { value: "zh", label: "Chinese" },
+    { value: "zh-cn", label: "Chinese (Mandarin)" },
     { value: "ar", label: "Arabic" },
     { value: "hi", label: "Hindi" },
+    { value: "nl", label: "Dutch" },
+    { value: "pl", label: "Polish" },
+    { value: "tr", label: "Turkish" },
+    { value: "sv", label: "Swedish" },
   ];
 
   return (
@@ -897,39 +901,54 @@ export default function AudioTranslationPage() {
         </motion.div>
       </div>
 
-      {/* Configuration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block">Source Language</label>
-          <select
-            value={sourceLanguage}
-            onChange={(e) => setSourceLanguage(e.target.value)}
-            className="glass-select w-full"
-            disabled={isProcessing}
-          >
-            <option value="auto">Auto-detect</option>
-            {languageOptions.map((lang) => (
-              <option key={lang.value} value={lang.value}>{lang.label}</option>
-            ))}
-          </select>
-          <p className="text-slate-500 text-xs mt-2">Language of the original audio</p>
-        </div>
+      {/* Configuration - Only show after file is selected */}
+      {selectedFile && !isProcessing && jobStatus !== "completed" && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="glass-card p-4">
+              <label className="text-white text-sm font-bold mb-3 block">Source Language</label>
+              <select
+                value={sourceLanguage}
+                onChange={(e) => setSourceLanguage(e.target.value)}
+                className="glass-select w-full"
+              >
+                <option value="auto">Auto-detect</option>
+                {languageOptions.map((lang) => (
+                  <option key={lang.value} value={lang.value}>{lang.label}</option>
+                ))}
+              </select>
+            </div>
 
-        <div className="glass-card p-4">
-          <label className="text-white text-sm font-semibold mb-2 block">Target Language</label>
-          <select
-            value={targetLanguage}
-            onChange={(e) => setTargetLanguage(e.target.value)}
-            className="glass-select w-full"
-            disabled={isProcessing}
+            <div className="glass-card p-4">
+              <label className="text-white text-sm font-bold mb-3 block">Target Language</label>
+              <select
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                className="glass-select w-full"
+              >
+                {languageOptions.map((lang) => (
+                  <option key={lang.value} value={lang.value}>{lang.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Start Button */}
+          <button
+            onClick={handleUpload}
+            disabled={(user?.credits || 0) < 10}
+            className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
           >
-            {languageOptions.map((lang) => (
-              <option key={lang.value} value={lang.value}>{lang.label}</option>
-            ))}
-          </select>
-          <p className="text-slate-500 text-xs mt-2">Language to translate to</p>
-        </div>
-      </div>
+            <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+              <Play className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
+              <span>
+                {(user?.credits || 0) < 10 ? 'Insufficient Credits' : 'Start Audio Translation'}
+                {(user?.credits || 0) >= 10 && ` (10 credits)`}
+              </span>
+            </div>
+          </button>
+        </motion.div>
+      )}
 
       {/* Progress Tracking */}
       {isProcessing && (
@@ -988,85 +1007,60 @@ export default function AudioTranslationPage() {
         </motion.div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {jobStatus === "completed" ? (
-          <>
-            {audioPlaybackSupported ? (
-              <button
-                onClick={handlePlayPause}
-                className="btn-border-beam w-full sm:w-auto group bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20 transition-all duration-300"
-                disabled={!downloadUrl}
-              >
-                <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-                  {isPlaying ? (
-                    <>
-                      <div className="w-1 h-4 bg-blue-400 mr-1"></div>
-                      <div className="w-1 h-4 bg-blue-400"></div>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                      <span>Play Translated Audio</span>
-                    </>
-                  )}
-                </div>
-              </button>
-            ) : (
-              <div className="w-full sm:w-auto px-4 py-2 bg-gray-500/10 border border-gray-500/30 rounded-lg text-center">
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
-                  <div className="w-4 h-4 rounded-full bg-gray-500/20 flex items-center justify-center">
-                    <span className="text-xs">!</span>
-                  </div>
-                  <span>Audio playback not supported in browser</span>
-                </div>
-              </div>
-            )}
+      {/* Action Buttons - Only show when completed */}
+      {jobStatus === "completed" && (
+        <div className="flex flex-col sm:flex-row gap-4">
+          {audioPlaybackSupported ? (
             <button
-              onClick={handleDownload}
-              className="btn-border-beam w-full sm:w-auto group bg-accent-cyan/10 border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all duration-300"
+              onClick={handlePlayPause}
+              className="btn-border-beam w-full sm:w-auto group bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/20 transition-all duration-300"
               disabled={!downloadUrl}
             >
               <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-                <Download className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>Download Translated Audio</span>
+                {isPlaying ? (
+                  <>
+                    <div className="w-1 h-4 bg-blue-400 mr-1"></div>
+                    <div className="w-1 h-4 bg-blue-400"></div>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+                    <span>Play Translated Audio</span>
+                  </>
+                )}
               </div>
             </button>
-            <button
-              onClick={handleReset}
-              className="btn-border-beam w-full sm:w-auto group bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
-            >
-              <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-                <AudioLines className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
-                <span>Translate Another File</span>
+          ) : (
+            <div className="w-full sm:w-auto px-4 py-2 bg-gray-500/10 border border-gray-500/30 rounded-lg text-center">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+                <div className="w-4 h-4 rounded-full bg-gray-500/20 flex items-center justify-center">
+                  <span className="text-xs">!</span>
+                </div>
+                <span>Audio playback not supported in browser</span>
               </div>
-            </button>
-          </>
-        ) : (
+            </div>
+          )}
           <button
-            onClick={handleUpload}
-            disabled={!selectedFile || isProcessing || (user?.credits || 0) < 10}
-            className="btn-border-beam w-full group disabled:opacity-50 disabled:cursor-not-allowed bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
+            onClick={handleDownload}
+            className="btn-border-beam w-full sm:w-auto group bg-accent-cyan/10 border-accent-cyan/30 hover:bg-accent-cyan/20 transition-all duration-300"
+            disabled={!downloadUrl}
           >
             <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-                  <span>
-                    {(user?.credits || 0) < 10 ? 'Insufficient Credits' : 'Start Audio Translation'}
-                    {(user?.credits || 0) >= 10 && ` (10 credits)`}
-                  </span>
-                </>
-              )}
+              <Download className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              <span>Download Translated Audio</span>
             </div>
           </button>
-        )}
-      </div>
+          <button
+            onClick={handleReset}
+            className="btn-border-beam w-full sm:w-auto group bg-primary-purple/10 border-primary-purple/30 hover:bg-primary-purple/20 transition-all duration-300"
+          >
+            <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-4 text-base">
+              <AudioLines className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" />
+              <span>Translate Another File</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Status Message */}
       {jobStatus === "completed" && (

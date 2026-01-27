@@ -59,6 +59,8 @@ export default function VideoTranslationPage() {
     'ja': 'Japanese',
     'ko': 'Korean',
     'zh-cn': 'Chinese (Mandarin)',
+    'ar': 'Arabic',
+    'hi': 'Hindi',
     'nl': 'Dutch',
     'pl': 'Polish',
     'tr': 'Turkish',

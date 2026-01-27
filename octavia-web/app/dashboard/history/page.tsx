@@ -27,6 +27,8 @@ export default function JobHistoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch user's work history
   useEffect(() => {
@@ -59,7 +61,22 @@ export default function JobHistoryPage() {
     }
 
     setFilteredJobs(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [jobs, searchTerm, filterType]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredJobs.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedJobs = filteredJobs.slice(startIndex, endIndex);
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
 
   const fetchUserHistory = async () => {
     if (!user) return;
@@ -428,6 +445,29 @@ export default function JobHistoryPage() {
               <RefreshCw className="w-4 h-4" />
             )}
           </button>
+
+          {/* Pagination Controls - Always visible in header */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg p-1">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                ← Prev
+              </button>
+              <span className="px-2 text-xs text-slate-400">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -472,7 +512,7 @@ export default function JobHistoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredJobs.map((job) => (
+                  {paginatedJobs.map((job) => (
                     <motion.tr
                       key={job.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -549,6 +589,9 @@ export default function JobHistoryPage() {
             {/* Stats Summary */}
             <div className="p-4 border-t border-white/5 flex flex-wrap items-center justify-between text-sm text-slate-500">
               <div className="flex items-center gap-4">
+                <span className="text-slate-400">
+                  Showing {startIndex + 1}-{Math.min(endIndex, filteredJobs.length)} of {filteredJobs.length}
+                </span>
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 rounded-full bg-accent-cyan"></div>
                   <span>Completed: {jobs.filter(j => j.status === "Completed").length}</span>
@@ -563,15 +606,28 @@ export default function JobHistoryPage() {
                 </div>
               </div>
 
-              {/* Pagination */}
-              <div className="flex gap-2">
-                <button className="px-3 py-1 rounded hover:bg-white/5 hover:text-white disabled:opacity-50" disabled>
-                  Previous
-                </button>
-                <button className="px-3 py-1 rounded hover:bg-white/5 hover:text-white">
-                  Next
-                </button>
-              </div>
+              {/* Pagination - bottom */}
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded hover:bg-white/5 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="text-slate-400">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded hover:bg-white/5 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
