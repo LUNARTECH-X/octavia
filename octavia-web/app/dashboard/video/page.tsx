@@ -21,6 +21,7 @@ export default function VideoTranslationPage() {
   const [separate, setSeparate] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [jobProgress, setJobProgress] = useState<any>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
 
   const [previewText, setPreviewText] = useState("Hello! This is a preview of how the translated audio will sound.");
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
@@ -71,6 +72,42 @@ export default function VideoTranslationPage() {
       console.log("Recovering active job:", savedJobId);
       setActiveJobId(savedJobId);
       setLoading(true);
+    }
+
+    // Check for project context (passed from Projects page)
+    const projectContext = localStorage.getItem('octavia_project_context');
+    if (projectContext) {
+      try {
+        const context = JSON.parse(projectContext);
+        if (context.projectType === "Video Translation" && context.fileUrl && !file) {
+          console.log("Found project context, loading file:", context.fileName);
+
+          // Fetch the blob URL to get the file object back
+          fetch(context.fileUrl)
+            .then(res => res.blob())
+            .then(blob => {
+              const recoveredFile = new File([blob], context.fileName, { type: context.fileType });
+              setFile(recoveredFile);
+              if (context.projectId) {
+                setProjectId(context.projectId);
+              }
+              // Important: Remove the context so it doesn't keep reloading
+              localStorage.removeItem('octavia_project_context');
+
+              toast({
+                title: "File Loaded",
+                description: `Successfully loaded ${context.fileName} from project.`,
+              });
+            })
+            .catch(err => {
+              console.error("Failed to recover file from blob URL:", err);
+              localStorage.removeItem('octavia_project_context');
+            });
+        }
+      } catch (err) {
+        console.error("Failed to parse project context:", err);
+        localStorage.removeItem('octavia_project_context');
+      }
     }
 
     return () => {
@@ -200,6 +237,9 @@ export default function VideoTranslationPage() {
       formData.append('file', file);
       formData.append('target_language', targetLanguage);
       formData.append('separate', separate.toString());
+      if (projectId) {
+        formData.append('project_id', projectId);
+      }
 
       const response = await fetch(`${API_BASE_URL}/api/translate/video`, {
         method: 'POST',
@@ -214,6 +254,34 @@ export default function VideoTranslationPage() {
         setUploadProgress(100);
         setActiveJobId(data.job_id);
         localStorage.setItem('octavia_active_video_job', data.job_id);
+
+        // Add job to project in localStorage if projectId exists
+        if (projectId) {
+          const storedJobs = localStorage.getItem(`octavia_project_jobs_${projectId}`);
+          const projectJobs = storedJobs ? JSON.parse(storedJobs) : [];
+
+          const newJob = {
+            id: data.job_id,
+            type: 'video',
+            status: 'processing',
+            progress: 0,
+            created_at: new Date().toISOString(),
+            target_language: targetLanguage
+          };
+
+          // Check if job already exists to avoid duplicates
+          if (!projectJobs.find((j: any) => j.id === data.job_id)) {
+            const updatedJobs = [newJob, ...projectJobs];
+            localStorage.setItem(`octavia_project_jobs_${projectId}`, JSON.stringify(updatedJobs));
+
+            // Notify other tabs/windows
+            window.dispatchEvent(new StorageEvent('storage', {
+              key: `octavia_project_jobs_${projectId}`,
+              newValue: JSON.stringify(updatedJobs)
+            }));
+          }
+        }
+
         toast({ title: "Translation started!", description: "Watch progress below." });
       }
     } catch (err: any) {

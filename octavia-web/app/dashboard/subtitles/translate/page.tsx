@@ -5,9 +5,11 @@ import { FileText, Languages, Upload, Loader2, AlertCircle, CheckCircle2 } from 
 import { useState, useCallback, useEffect } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
 
 export default function SubtitleTranslatePage() {
+    const { toast } = useToast();
     const { user, refreshCredits } = useUser();
     const router = useRouter();
     const [sourceLanguage, setSourceLanguage] = useState("en");
@@ -22,6 +24,7 @@ export default function SubtitleTranslatePage() {
     const [activeJobId, setActiveJobId] = useState<string | null>(null);
     const [jobProgress, setJobProgress] = useState<any>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [projectId, setProjectId] = useState<string | null>(null);
 
     // Check for project context on mount
     useEffect(() => {
@@ -37,14 +40,25 @@ export default function SubtitleTranslatePage() {
             try {
                 const context = JSON.parse(projectContext);
                 if (context.fileUrl && context.projectType === 'Subtitle Translation') {
+                    console.log("Found project context, loading file:", context.fileName);
+
                     // Fetch the blob and create a File object
                     fetch(context.fileUrl)
                         .then(response => response.blob())
                         .then(blob => {
                             const projectFile = new File([blob], context.fileName, { type: context.fileType });
                             setSelectedFile(projectFile);
+                            if (context.projectId) {
+                                setProjectId(context.projectId);
+                            }
                             setError(null);
                             setSuccess(null);
+
+                            toast({
+                                title: "File Loaded",
+                                description: `Successfully loaded ${context.fileName} from project.`,
+                            });
+
                             // Clear the project context after using it
                             localStorage.removeItem('octavia_project_context');
                         })
@@ -200,7 +214,8 @@ export default function SubtitleTranslatePage() {
             const result = await api.translateSubtitleFile({
                 file: selectedFile,
                 sourceLanguage,
-                targetLanguage
+                targetLanguage,
+                projectId: projectId || undefined
             });
 
             if (result.success && result.job_id) {
@@ -210,6 +225,32 @@ export default function SubtitleTranslatePage() {
 
                 // Refresh credits to show updated balance
                 await refreshCredits();
+
+                // Add job to project in localStorage if projectId exists
+                if (projectId) {
+                    const storedJobs = localStorage.getItem(`octavia_project_jobs_${projectId}`);
+                    const projectJobs = storedJobs ? JSON.parse(storedJobs) : [];
+
+                    const newJob = {
+                        id: result.job_id,
+                        type: 'subtitle_translation',
+                        status: 'processing',
+                        progress: 0,
+                        created_at: new Date().toISOString(),
+                        source_language: sourceLanguage,
+                        target_language: targetLanguage
+                    };
+
+                    if (!projectJobs.find((j: any) => j.id === result.job_id)) {
+                        const updatedJobs = [newJob, ...projectJobs];
+                        localStorage.setItem(`octavia_project_jobs_${projectId}`, JSON.stringify(updatedJobs));
+
+                        window.dispatchEvent(new StorageEvent('storage', {
+                            key: `octavia_project_jobs_${projectId}`,
+                            newValue: JSON.stringify(updatedJobs)
+                        }));
+                    }
+                }
             } else if (result.success && result.download_url) {
                 // Fallback for immediate success
                 setSuccess('Translation completed! You can now download your file.');

@@ -128,6 +128,7 @@ export interface TranslationRequest {
   file: File;
   sourceLanguage: string;
   targetLanguage: string;
+  projectId?: string;
 }
 
 // Translation response interface
@@ -464,7 +465,10 @@ class ApiService {
     try {
       // Use query parameters instead of form data for language parameters
       // to avoid FastAPI parameter binding issues with File + Form combination
-      const endpoint = `/api/translate/subtitle-file?sourceLanguage=${encodeURIComponent(data.sourceLanguage)}&targetLanguage=${encodeURIComponent(data.targetLanguage)}&format=srt`;
+      let endpoint = `/api/translate/subtitle-file?sourceLanguage=${encodeURIComponent(data.sourceLanguage)}&targetLanguage=${encodeURIComponent(data.targetLanguage)}&format=srt`;
+      if (data.projectId) {
+        endpoint += `&project_id=${encodeURIComponent(data.projectId)}`;
+      }
 
       const formData = new FormData();
       formData.append('file', data.file);
@@ -793,11 +797,14 @@ class ApiService {
   }
 
   // Translate video file
-  async translateVideo(file: File, targetLanguage: string, separate: boolean = false): Promise<ApiResponse<{ job_id: string }>> {
+  async translateVideo(file: File, targetLanguage: string, separate: boolean = false, projectId?: string): Promise<ApiResponse<{ job_id: string }>> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('target_language', targetLanguage);
     formData.append('separate', separate.toString());
+    if (projectId) {
+      formData.append('project_id', projectId);
+    }
 
     return this.request<{ job_id: string }>('/api/translate/video', {
       method: 'POST',
@@ -859,6 +866,7 @@ class ApiService {
       file_path?: string;
       target_language?: string;
       original_filename?: string;
+      project_id?: string;
       created_at: string;
       completed_at?: string;
       result?: any;
@@ -869,50 +877,50 @@ class ApiService {
     total: number;
   }>> {
     // For demo account, return mock jobs
-    const userStr = localStorage.getItem('octavia_user');
-    const userData = userStr ? JSON.parse(userStr) : null;
-    if (userData?.email === 'demo@octavia.com') {
-      return {
-        success: true,
-        data: {
-          jobs: [
-            {
-              id: "demo-job-001",
-              type: "video",
-              status: "completed",
-              progress: 100,
-              target_language: "es",
-              original_filename: "Product Demo Video.mp4",
-              created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-              completed_at: new Date(Date.now() - 2 * 60 * 60 * 1000 + 4 * 30 * 1000).toISOString(),
-              output_path: "/downloads/demo-job-001.mp4",
-              message: "Translation completed successfully"
-            },
-            {
-              id: "demo-job-002",
-              type: "audio",
-              status: "processing",
-              progress: 75,
-              target_language: "fr",
-              original_filename: "Marketing Podcast Ep. 4.mp3",
-              created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-              message: "Processing audio segments"
-            },
-            {
-              id: "demo-job-003",
-              type: "video",
-              status: "failed",
-              progress: 0,
-              target_language: "de",
-              original_filename: "Keynote Speech.mp4",
-              created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-              error: "Unsupported video format"
-            }
-          ],
-          total: 3
-        }
-      };
-    }
+    // const userStr = localStorage.getItem('octavia_user');
+    // const userData = userStr ? JSON.parse(userStr) : null;
+    // if (userData?.email === 'demo@octavia.com') {
+    //   return {
+    //     success: true,
+    //     data: {
+    //       jobs: [
+    //         {
+    //           id: "demo-job-001",
+    //           type: "video",
+    //           status: "completed",
+    //           progress: 100,
+    //           target_language: "es",
+    //           original_filename: "Product Demo Video.mp4",
+    //           created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    //           completed_at: new Date(Date.now() - 2 * 60 * 60 * 1000 + 4 * 30 * 1000).toISOString(),
+    //           output_path: "/downloads/demo-job-001.mp4",
+    //           message: "Translation completed successfully"
+    //         },
+    //         {
+    //           id: "demo-job-002",
+    //           type: "audio",
+    //           status: "processing",
+    //           progress: 75,
+    //           target_language: "fr",
+    //           original_filename: "Marketing Podcast Ep. 4.mp3",
+    //           created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    //           message: "Processing audio segments"
+    //         },
+    //         {
+    //           id: "demo-job-003",
+    //           type: "video",
+    //           status: "failed",
+    //           progress: 0,
+    //           target_language: "de",
+    //           original_filename: "Keynote Speech.mp4",
+    //           created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    //           error: "Unsupported video format"
+    //         }
+    //       ],
+    //       total: 3
+    //     }
+    //   };
+    // }
 
     // For real users, fetch from API
     return this.request<{
@@ -924,6 +932,7 @@ class ApiService {
         file_path?: string;
         target_language?: string;
         original_filename?: string;
+        project_id?: string;
         created_at: string;
         completed_at?: string;
         result?: any;
@@ -943,11 +952,15 @@ class ApiService {
   async generateSubtitles(
     file: File,
     format: string = 'srt',
-    language: string = 'auto'
+    language: string = 'auto',
+    projectId?: string
   ): Promise<ApiResponse<SubtitleJobResponse>> {
     // Use query parameters instead of form data for language/format parameters
     // to avoid FastAPI parameter binding issues with File + Form combination
-    const endpoint = `/api/translate/subtitles?language=${encodeURIComponent(language)}&format=${encodeURIComponent(format)}`;
+    let endpoint = `/api/translate/subtitles?language=${encodeURIComponent(language)}&format=${encodeURIComponent(format)}`;
+    if (projectId) {
+      endpoint += `&project_id=${encodeURIComponent(projectId)}`;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -970,11 +983,15 @@ class ApiService {
     file: File;
     sourceLanguage: string;
     targetLanguage: string;
+    projectId?: string;
   }): Promise<ApiResponse<{ job_id: string }>> {
     const formData = new FormData();
     formData.append('file', params.file);
     formData.append('source_lang', params.sourceLanguage);
     formData.append('target_lang', params.targetLanguage);
+    if (params.projectId) {
+      formData.append('project_id', params.projectId);
+    }
 
     return this.request<{ job_id: string }>(`/api/translate/audio`, {
       method: 'POST',

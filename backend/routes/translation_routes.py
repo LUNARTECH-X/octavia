@@ -109,7 +109,8 @@ async def translate_subtitle_file(
     file: UploadFile = File(...),
     sourceLanguage: str = Query("en"),  # Remove Pydantic model, use direct Query
     targetLanguage: str = Query("es"),
-    format: str = Query("srt")
+    format: str = Query("srt"),
+    project_id: Optional[str] = Query(None)
 ):
     """Translate existing subtitle file to another language"""
     try:
@@ -148,6 +149,7 @@ async def translate_subtitle_file(
             "target_language": targetLanguage,
             "user_id": current_user.id,
             "user_email": current_user.email,
+            "project_id": project_id,
             "created_at": datetime.utcnow().isoformat(),
             "message": "Initializing translation..."
         }
@@ -186,6 +188,7 @@ async def generate_subtitles(
     file: UploadFile = File(...),
     language: str = Query("auto"),
     format: str = Query("srt"),
+    project_id: Optional[str] = Query(None),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Generate subtitles from video/audio file"""
@@ -229,6 +232,7 @@ async def generate_subtitles(
             "format": format,
             "user_id": current_user.id,
             "user_email": current_user.email,
+            "project_id": project_id,
             "created_at": datetime.utcnow().isoformat()
         }
         # Store in local dict for background task updates
@@ -270,6 +274,7 @@ async def generate_subtitle_audio(
     target_language: str = Form("es"),
     voice: str = Form("en-US-AriaNeural"),
     output_format: str = Form("mp3"),
+    project_id: Optional[str] = Form(None),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Generate audio from subtitle files with chunking like video translation"""
@@ -311,6 +316,7 @@ async def generate_subtitle_audio(
             "output_format": output_format,
             "user_id": current_user.id,
             "user_email": current_user.email,
+            "project_id": project_id,
             "created_at": datetime.utcnow().isoformat(),
             "message": "Parsing subtitle file..."
         }
@@ -452,6 +458,7 @@ async def translate_audio(
     file: UploadFile = File(...),
     source_lang: str = Form("auto"),
     target_lang: str = Form("es"),
+    project_id: Optional[str] = Form(None),
     background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Translate audio file to another language (audio-only translation)"""
@@ -493,6 +500,7 @@ async def translate_audio(
             "target_lang": target_lang,
             "user_id": current_user.id,
             "user_email": current_user.email,
+            "project_id": project_id,
             "created_at": datetime.utcnow().isoformat(),
             "message": "Starting audio translation..."
         }
@@ -972,7 +980,8 @@ async def translate_video(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     file: UploadFile = File(...),
     target_language: str = Form("es"),
-    separate: bool = Form(False)
+    separate: bool = Form(False),
+    project_id: Optional[str] = Form(None)
 ):
     """Basic video translation - direct processing"""
     try:
@@ -1026,6 +1035,7 @@ async def translate_video(
             "original_filename": file.filename,
             "user_id": current_user.id,
             "user_email": current_user.email,
+            "project_id": project_id,
             "created_at": datetime.utcnow().isoformat(),
             "message": "Starting video translation..."
         }

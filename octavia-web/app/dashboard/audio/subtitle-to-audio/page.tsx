@@ -31,6 +31,7 @@ export default function SubtitleToAudioPage() {
   const [jobStatus, setJobStatus] = useState<string>("idle");
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
 
   const [sourceLanguage, setSourceLanguage] = useState("en");
   const [targetLanguage, setTargetLanguage] = useState("es");
@@ -89,12 +90,23 @@ export default function SubtitleToAudioPage() {
       try {
         const context = JSON.parse(projectContext);
         if (context.fileUrl && context.projectType === 'Subtitle to Audio') {
+          console.log("Found project context, loading file:", context.fileName);
+
           // Fetch the blob and create a File object
           fetch(context.fileUrl)
             .then(response => response.blob())
             .then(blob => {
               const projectFile = new File([blob], context.fileName, { type: context.fileType });
               setSelectedFile(projectFile);
+              if (context.projectId) {
+                setProjectId(context.projectId);
+              }
+
+              toast({
+                title: "File Loaded",
+                description: `Successfully loaded ${context.fileName} from project.`,
+              });
+
               // Clear the project context after using it
               localStorage.removeItem('octavia_project_context');
             })
@@ -334,6 +346,9 @@ export default function SubtitleToAudioPage() {
       formData.append('target_language', targetLanguage);
       formData.append('voice', voice);
       formData.append('output_format', outputFormat);
+      if (projectId) {
+        formData.append('project_id', projectId);
+      }
 
       console.log('Generating audio from subtitle:', selectedFile.name);
       console.log('Source language:', sourceLanguage);
@@ -373,9 +388,35 @@ export default function SubtitleToAudioPage() {
         // Start polling for job status
         pollJobStatus(data.job_id);
 
+        // Add job to project in localStorage if projectId exists
+        if (projectId) {
+          const storedJobs = localStorage.getItem(`octavia_project_jobs_${projectId}`);
+          const projectJobs = storedJobs ? JSON.parse(storedJobs) : [];
+
+          const newJob = {
+            id: data.job_id,
+            type: 'subtitle_audio',
+            status: 'processing',
+            progress: 0,
+            created_at: new Date().toISOString(),
+            source_language: sourceLanguage,
+            target_language: targetLanguage,
+            voice: voice
+          };
+
+          if (!projectJobs.find((j: any) => j.id === data.job_id)) {
+            const updatedJobs = [newJob, ...projectJobs];
+            localStorage.setItem(`octavia_project_jobs_${projectId}`, JSON.stringify(updatedJobs));
+
+            window.dispatchEvent(new StorageEvent('storage', {
+              key: `octavia_project_jobs_${projectId}`,
+              newValue: JSON.stringify(updatedJobs)
+            }));
+          }
+        }
+
         // Refresh user credits to update the balance
         refreshCredits();
-        pollJobStatus(data.job_id);
       } else {
         throw new Error(data.error || data.message || "Failed to start audio generation");
       }

@@ -5,8 +5,10 @@ import { AudioLines, Play, Loader2, Upload, FileAudio, X, Download, CheckCircle 
 import { useState, useRef, useEffect } from "react";
 import { api, ApiResponse } from "@/lib/api"; // Import your API service
 import { useUser } from "@/contexts/UserContext";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AudioTranslationPage() {
+  const { toast } = useToast();
   const { user, refreshCredits } = useUser();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -21,6 +23,7 @@ export default function AudioTranslationPage() {
   const [processingStage, setProcessingStage] = useState<string>("idle");
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [audioPlaybackSupported, setAudioPlaybackSupported] = useState(true);
 
   // Polling interval reference
@@ -45,13 +48,24 @@ export default function AudioTranslationPage() {
       try {
         const context = JSON.parse(projectContext);
         if (context.fileUrl && context.projectType === 'Audio Translation') {
+          console.log("Found project context, loading file:", context.fileName);
+
           // Fetch the blob and create a File object
           fetch(context.fileUrl)
             .then(response => response.blob())
             .then(blob => {
               const projectFile = new File([blob], context.fileName, { type: context.fileType });
               setSelectedFile(projectFile);
+              if (context.projectId) {
+                setProjectId(context.projectId);
+              }
               setError(null);
+
+              toast({
+                title: "File Loaded",
+                description: `Successfully loaded ${context.fileName} from project.`,
+              });
+
               // Clear the project context after using it
               localStorage.removeItem('octavia_project_context');
             })
@@ -193,7 +207,8 @@ export default function AudioTranslationPage() {
       const response = await api.translateAudio({
         file: selectedFile,
         sourceLanguage,
-        targetLanguage
+        targetLanguage,
+        projectId: projectId || undefined
       });
 
       console.log('API Response:', response);
@@ -211,9 +226,34 @@ export default function AudioTranslationPage() {
         // Start polling for job status
         startPollingJobStatus(response.job_id);
 
+        // Add job to project in localStorage if projectId exists
+        if (projectId) {
+          const storedJobs = localStorage.getItem(`octavia_project_jobs_${projectId}`);
+          const projectJobs = storedJobs ? JSON.parse(storedJobs) : [];
+
+          const newJob = {
+            id: response.job_id,
+            type: 'audio',
+            status: 'processing',
+            progress: 0,
+            created_at: new Date().toISOString(),
+            target_language: targetLanguage,
+            source_language: sourceLanguage
+          };
+
+          if (!projectJobs.find((j: any) => j.id === response.job_id)) {
+            const updatedJobs = [newJob, ...projectJobs];
+            localStorage.setItem(`octavia_project_jobs_${projectId}`, JSON.stringify(updatedJobs));
+
+            window.dispatchEvent(new StorageEvent('storage', {
+              key: `octavia_project_jobs_${projectId}`,
+              newValue: JSON.stringify(updatedJobs)
+            }));
+          }
+        }
+
         // Refresh user credits to update the balance
         refreshCredits();
-        startPollingJobStatus(response.job_id);
       } else {
         throw new Error(response.error || response.message || "Failed to get job ID");
       }

@@ -259,44 +259,72 @@ if (context.fileUrl) {
 - **Confirmation dialogs**: Safe destructive operations
 - **Contextual help**: File type guidance and requirements
 
-## Future Enhancement Opportunities
+### Phase 5: Backend Integration and Project-Level Persistence
 
-### Potential Improvements
-- **Cloud storage integration**: Replace localStorage with persistent backend
-- **Batch operations**: Upload multiple files simultaneously
-- **Progress tracking**: Real-time upload and processing status
-- **File versioning**: Track file changes and processing history
-- **Collaboration features**: Multi-user project access
+#### Project ID Integration
+- **API Tagging**: All translation endpoints (`/video`, `/audio`, `/subtitles`, etc.) updated to accept an optional `project_id`.
+- **Job Persistence**: The `project_id` is stored in the job metadata within the unified job storage (Supabase/Local).
+- **Association Flow**: Jobs started from a project context are now permanently linked to that project on the server.
 
-### Scalability Considerations
-- **Database migration**: Move from localStorage to proper database
-- **File storage**: Implement cloud storage for large files
-- **API optimization**: Batch operations and caching
-- **Real-time updates**: WebSocket integration for live progress
+#### Real-time Project Dashboard
+- **Backend Job Fetching**: The project detail page now queries the backend (`/api/translate/jobs/history`) to find all jobs associated with the current project ID.
+- **Dynamic Job List**: A new "Translation Jobs" section displays active and completed jobs, separate from the original "Project Files".
+- **Live Progress Updates**: Uses the backend as the single source of truth for job status and progress.
 
-## Testing & Quality Assurance
+#### Enhanced User Controls
+- **Manual Refresh**: Added a refresh button to trigger an immediate sync between the frontend and the backend status.
+- **Direct Downloads**: Implemented a download system within the project view that fetches completed translation results directly from the job ID.
 
-### Test Coverage
-- **File operations**: Upload, edit, delete functionality
-- **Context management**: State persistence and recovery
-- **Cross-page navigation**: Seamless transitions between pages
-- **Error scenarios**: Network failures, invalid data, permission issues
+#### Technical Highlights
+- **Demo Mode Parity**: Demo users now have access to real job history and file storage within projects, moving away from hardcoded mock data.
+- **Event-Driven UI**: LocalStorage updates are synchronized with backend data to ensure the UI is always up-to-date across sessions.
 
-### Edge Cases Handled
-- **Browser refresh**: State recovery from localStorage
-- **Multiple tabs**: Cross-tab synchronization
-- **Large files**: Size limit enforcement and memory management
-- **Invalid contexts**: Graceful fallback and error recovery
+### Challenge 6: Orphaned Jobs
+
+#### Problem
+- Jobs started within a project were not visible if the browser session was cleared or if the user logged in from a different device.
+
+#### Solution
+- Implemented `project_id` persistence in the backend job storage.
+- Updated `loadProjectFiles` to perform a reconciliation between `localStorage` (for speed) and the backend API (for accuracy).
+
+#### Impact
+- Truly persistent project history.
+- Users can see their "Created Files" even after clearing cache or switching computers.
+
+### Challenge 7: Demo User Data Silos
+
+#### Problem
+- Demo users had pre-populated fake data that didn't reflect their actual actions, leading to confusion when they uploaded real files.
+
+#### Solution
+- Enabled real project file storage for demo accounts.
+- Replaced hardcoded demo history with the actual `/api/translate/jobs/history` endpoint.
+
+## Integration with Job Pages
+
+### Unified Job Tagging
+The `ApiService` in `lib/api.ts` now includes `projectId` as a core parameter for:
+- `translateVideo(file, targetLanguage, separate, projectId?)`
+- `generateSubtitles(file, format, language, projectId?)`
+- `translateAudio({ file, sourceLanguage, targetLanguage, projectId? })`
+- `translateSubtitleFile({ file, sourceLanguage, targetLanguage, projectId? })`
+
+## Data Flow Architecture (Updated)
+
+### Job Lifecycle
+1. **Creation**: Job started with `projectId`.
+2. **Backend Storage**: Job entry created in database with `project_id` field.
+3. **Frontend Recovery**: Project page filters global job history by `projectId`.
+4. **Completion**: Job status moves to `completed`, triggering `download_url` visibility on the project page.
 
 ## Conclusion
 
-The Octavia Projects Page evolved from a simple file listing to a comprehensive project management system with seamless integration across multiple specialized job processing pages. Key achievements include:
+The Octavia Projects Page has reached full maturity as a professional-grade project management system. By transitioning from a local-only demo to a backend-integrated persistent system, we have ensured that all translation work is traceable, organized, and available across devices.
 
-- **Unified file management** across all translation job types
-- **Robust state management** with cross-tab synchronization
-- **Flexible file handling** without restrictive frontend validation
-- **Seamless user experience** with automatic context preservation
-- **Scalable architecture** ready for backend integration
-
-The implementation successfully addresses the core challenges of file-based workflow management while maintaining excellent user experience and technical reliability.</content>
-<filePath>Octavia-Projects-Documentation.md
+Key achievements in the latest update:
+- **Full Backend-to-Frontend Project ID wiring**.
+- **Real job tracking for all users**, including Demo accounts.
+- **Centralized "Created Files" management** within the project view.
+- **Simplified download and refresh workflows** for end-users.
+```

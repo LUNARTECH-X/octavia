@@ -1,12 +1,13 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Folder, Clock, CheckCircle, AlertCircle, X, Upload, Download, FileVideo, FileAudio, FileText, ArrowLeft, Play, Edit, Trash2 } from "lucide-react";
+import { Folder, Clock, CheckCircle, AlertCircle, X, Upload, Download, FileVideo, FileAudio, FileText, ArrowLeft, Play, Edit, Trash2, RefreshCw } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
 import Link from "next/link";
+import { api } from "@/lib/api";
 
 interface Project {
     id: string;
@@ -157,7 +158,7 @@ export default function ProjectDetailPage() {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [projectId, project]);
 
-    const loadProjectFiles = (projectId: string) => {
+    const loadProjectFiles = async (projectId: string) => {
         const storedFiles = localStorage.getItem(`octavia_project_files_${projectId}`);
         if (storedFiles) {
             try {
@@ -171,6 +172,7 @@ export default function ProjectDetailPage() {
             setFiles([]);
         }
 
+        // First load from localStorage for immediate display
         const storedJobs = localStorage.getItem(`octavia_project_jobs_${projectId}`);
         if (storedJobs) {
             try {
@@ -182,6 +184,23 @@ export default function ProjectDetailPage() {
             }
         } else {
             setJobs([]);
+        }
+
+        // Then fetch latest status from backend
+        try {
+            const response = await api.getUserJobHistory();
+            if (response.success && response.data) {
+                // Filter jobs that belong to this project
+                const backendProjectJobs = response.data.jobs.filter((j: any) => j.project_id === projectId);
+
+                if (backendProjectJobs.length > 0) {
+                    setJobs(backendProjectJobs);
+                    // Sync back to localStorage
+                    localStorage.setItem(`octavia_project_jobs_${projectId}`, JSON.stringify(backendProjectJobs));
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch jobs from backend:', error);
         }
     };
 
@@ -230,8 +249,7 @@ export default function ProjectDetailPage() {
         const displayName = file.name;
 
         // Store the file as a blob URL for the job page to access
-        const fileBlob = new Blob([file], { type: file.type });
-        const fileUrl = URL.createObjectURL(fileBlob);
+        const fileUrl = URL.createObjectURL(file);
 
         // Store project context in localStorage for the job page to pick up
         localStorage.setItem('octavia_project_context', JSON.stringify({
@@ -243,13 +261,7 @@ export default function ProjectDetailPage() {
             projectType: jobType
         }));
 
-        // For demo accounts, don't store in project, just redirect
-        if (user?.email === "demo@octavia.com") {
-            redirectToJobType(jobType);
-            return;
-        }
-
-        // For non-demo accounts, store the file metadata in the project
+        // Store the file metadata in the project (including demo accounts for visibility)
         const newFile: ProjectFile = {
             id: Date.now().toString(),
             name: displayName,
@@ -430,6 +442,41 @@ export default function ProjectDetailPage() {
         }
     };
 
+    const handleDownloadJob = async (job: Job) => {
+        try {
+            const blob = await api.downloadFile(job.id);
+            // Determine file extension
+            let ext = ".mp4";
+            if (job.type.includes("audio")) ext = ".mp3";
+            if (job.type.includes("subtitle")) ext = ".srt";
+
+            api.saveFile(blob, `translated_${job.id}${ext}`);
+            toast({
+                title: "Download Started",
+                description: "Your file is being downloaded.",
+            });
+        } catch (error) {
+            console.error("Download failed:", error);
+            toast({
+                title: "Download Failed",
+                description: "Could not download the translated file.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleRefresh = async () => {
+        if (projectId) {
+            setLoading(true);
+            await loadProjectFiles(projectId);
+            loadProject();
+            toast({
+                title: "Refreshed",
+                description: "Project data updated successfully.",
+            });
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen w-full bg-bg-dark flex items-center justify-center">
@@ -482,15 +529,24 @@ export default function ProjectDetailPage() {
                         )}
                     </div>
                 </div>
-                <button
-                    onClick={() => setShowUploadModal(true)}
-                    className="btn-border-beam group"
-                >
-                    <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-2.5 px-5">
-                        <Upload className="w-4 h-4" />
-                        <span className="text-sm font-semibold">Upload File</span>
-                    </div>
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleRefresh}
+                        className="p-2.5 rounded-md bg-slate-800/50 hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors border border-white/10"
+                        title="Refresh Status"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                    <button
+                        onClick={() => setShowUploadModal(true)}
+                        className="btn-border-beam group"
+                    >
+                        <div className="btn-border-beam-inner flex items-center justify-center gap-2 py-2.5 px-5">
+                            <Upload className="w-4 h-4" />
+                            <span className="text-sm font-semibold">Upload File</span>
+                        </div>
+                    </button>
+                </div>
             </div>
 
             {/* Files Section */}
@@ -633,7 +689,10 @@ export default function ProjectDetailPage() {
                                                 <span className={`text-xs font-semibold capitalize ${jobStatusConfig.text}`}>{job.status}</span>
                                             </div>
                                             {job.download_url && (
-                                                <button className="p-2 rounded-md bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan hover:text-white transition-colors">
+                                                <button
+                                                    onClick={() => handleDownloadJob(job)}
+                                                    className="p-2 rounded-md bg-accent-cyan/20 hover:bg-accent-cyan/30 text-accent-cyan hover:text-white transition-colors"
+                                                >
                                                     <Download className="w-4 h-4" />
                                                 </button>
                                             )}

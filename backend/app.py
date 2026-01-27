@@ -751,7 +751,8 @@ async def translate_video_enhanced(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     file: UploadFile = File(...),
     target_language: str = Form("es"),
-    chunk_size: int = Form(30)
+    chunk_size: int = Form(30),
+    project_id: Optional[str] = Form(None)
 ):
     """Enhanced video translation with chunk processing"""
     try:
@@ -785,6 +786,7 @@ async def translate_video_enhanced(
             "target_language": target_language, # Add chunk_size here
             "chunk_size": chunk_size,
             "user_id": current_user.id,
+            "project_id": project_id,
             "created_at": datetime.utcnow().isoformat()
         }
         save_jobs_db()
