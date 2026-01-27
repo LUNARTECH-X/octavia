@@ -216,7 +216,7 @@ export default function DashboardPage() {
                     <h2 className="text-xl font-bold text-white mb-2">Welcome back, {currentUser.name}!</h2>
                     <p className="text-slate-400">
                         {currentUser.verified
-                            ? "Your email is verified and ready to start translating."
+                            ? "Break the silence. Transform your content into multiple languages instantly."
                             : "Please verify your email to access all features."}
                     </p>
                     <div className="flex items-center gap-2 mt-2">

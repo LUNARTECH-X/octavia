@@ -134,9 +134,9 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
   });
 
   return (
-    <div className={`glass-panel p-6 relative overflow-hidden ${pkg.popular ? 'border-2 border-primary-purple' : 'border border-white/10'}`}>
+    <div className={`glass-panel p-6 relative flex flex-col h-full ${pkg.popular ? 'border-2 border-primary-purple' : 'border border-white/10'}`}>
       {pkg.popular && (
-        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-primary-purple to-accent-cyan text-white text-xs font-bold px-4 py-1 rounded-full">
+        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-primary-purple to-accent-cyan text-white text-[11px] font-bold px-4 py-1 rounded-full z-20 shadow-[0_0_15px_rgba(168,85,247,0.5)] whitespace-nowrap">
           Most Popular
         </div>
       )}
@@ -154,7 +154,7 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
         </div>
       </div>
 
-      <ul className="space-y-3 mb-6">
+      <ul className="space-y-3 mb-8 flex-grow">
         {pkg.features.map((feature, idx) => (
           <li key={idx} className="flex items-center gap-3 text-sm">
             <Check className="w-4 h-4 text-accent-green flex-shrink-0" />
@@ -167,8 +167,8 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
         onClick={handlePurchase}
         disabled={isProcessing}
         className={`w-full py-3 rounded-lg font-bold transition-all duration-200 ${pkg.popular
-            ? 'bg-gradient-to-r from-primary-purple to-accent-cyan hover:opacity-90 text-white'
-            : 'bg-white/10 hover:bg-white/20 text-white'
+          ? 'bg-gradient-to-r from-primary-purple to-accent-cyan hover:opacity-90 text-white'
+          : 'bg-white/10 hover:bg-white/20 text-white'
           } ${isProcessing ? 'opacity-70 cursor-not-allowed' : ''}`}
       >
         {isProcessing ? (
@@ -183,10 +183,10 @@ export default function BillingCard({ package: pkg }: BillingCardProps) {
 
       {statusMessage && (
         <div className={`mt-4 text-sm text-center p-3 rounded-lg ${statusMessage.includes("completed") || statusMessage.includes("success")
-            ? "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20"
-            : statusMessage.includes("failed") || statusMessage.includes("error")
-              ? "bg-red-500/10 text-red-400 border border-red-500/20"
-              : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+          ? "bg-accent-cyan/10 text-accent-cyan border border-accent-cyan/20"
+          : statusMessage.includes("failed") || statusMessage.includes("error")
+            ? "bg-red-500/10 text-red-400 border border-red-500/20"
+            : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
           }`}>
           {statusMessage}
         </div>

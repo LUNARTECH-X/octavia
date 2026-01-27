@@ -302,18 +302,21 @@ export default function VideoTranslationPage() {
   return (
     <div className="space-y-8 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col gap-2">
-        <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="flex items-center gap-5">
+          <div className="flex flex-col">
+            <h2 className="text-white text-2xl font-black leading-tight bg-gradient-to-r from-white via-primary-purple-bright to-white bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+              Octavia
+            </h2>
+            <p className="text-[10px] font-bold leading-tight tracking-[0.2em] bg-gradient-to-r from-primary-purple-bright via-accent-cyan to-primary-purple-bright bg-clip-text text-transparent text-glow-purple">
+              RISE BEYOND LANGUAGE
+            </p>
+          </div>
+
+          <div className="h-10 w-[1px] bg-white/10 hidden sm:block mx-1" />
+
           <div>
             <h1 className="font-display text-3xl font-black text-white text-glow-purple">Video Translation</h1>
-            <p className="text-slate-400 text-sm">Transform videos across languages with AI-powered audio alignment</p>
-          </div>
-          <div className="glass-card px-4 py-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary-purple-bright animate-pulse" />
-              <span className="text-white text-sm font-medium">Credits: <span className="font-bold text-lg">{user?.credits || 0}</span></span>
-            </div>
-            <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider">Available Balance</p>
           </div>
         </div>
       </div>

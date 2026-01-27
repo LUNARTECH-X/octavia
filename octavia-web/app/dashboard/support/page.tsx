@@ -7,9 +7,23 @@ export default function SupportPage() {
     return (
         <div className="space-y-8">
             {/* Header */}
-            <div>
-                <h1 className="font-display text-3xl font-black text-white text-glow-purple mb-2">Support</h1>
-                <p className="text-slate-400 text-sm">Get help from our support team</p>
+            <div className="flex flex-wrap justify-between items-center gap-4">
+                <div className="flex items-center gap-5">
+                    <div className="flex flex-col">
+                        <h2 className="text-white text-2xl font-black leading-tight bg-gradient-to-r from-white via-primary-purple-bright to-white bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                            Octavia
+                        </h2>
+                        <p className="text-[10px] font-bold leading-tight tracking-[0.2em] bg-gradient-to-r from-primary-purple-bright via-accent-cyan to-primary-purple-bright bg-clip-text text-transparent text-glow-purple">
+                            RISE BEYOND LANGUAGE
+                        </p>
+                    </div>
+
+                    <div className="h-10 w-[1px] bg-white/10 hidden sm:block mx-1" />
+
+                    <div>
+                        <h1 className="font-display text-3xl font-black text-white text-glow-purple">Support</h1>
+                    </div>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

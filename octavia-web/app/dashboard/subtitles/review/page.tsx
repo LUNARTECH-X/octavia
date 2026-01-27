@@ -344,15 +344,30 @@ ${subtitles.map(sub =>
         {/* Left: Subtitle Editor */}
         <div className="flex-1 flex flex-col gap-6">
           <div className="h-fit">
-            <div className="flex items-center justify-between">
-              <h1 className="font-display text-3xl font-black text-white text-glow-purple mb-2">Review Subtitles</h1>
+            <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
+              <div className="flex items-center gap-5">
+                <div className="flex flex-col">
+                  <h2 className="text-white text-2xl font-black leading-tight bg-gradient-to-r from-white via-primary-purple-bright to-white bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                    Octavia
+                  </h2>
+                  <p className="text-[10px] font-bold leading-tight tracking-[0.2em] bg-gradient-to-r from-primary-purple-bright via-accent-cyan to-primary-purple-bright bg-clip-text text-transparent text-glow-purple">
+                    RISE BEYOND LANGUAGE
+                  </p>
+                </div>
+
+                <div className="h-10 w-[1px] bg-white/10 hidden sm:block mx-1" />
+
+                <div>
+                  <h1 className="font-display text-3xl font-black text-white text-glow-purple">Review Subtitles</h1>
+                </div>
+              </div>
+
               {jobId && (
                 <div className="text-xs text-slate-500 font-mono bg-white/5 px-3 py-1 rounded">
                   Job: {jobId.substring(0, 8)}...
                 </div>
               )}
             </div>
-            <p className="text-slate-400 text-sm">Edit and refine your generated subtitles</p>
           </div>
 
           {/* Subtitle List */}

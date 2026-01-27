@@ -92,9 +92,6 @@ export function Sidebar() {
                         <h1 className="text-white text-lg font-black tracking-[0.15em] bg-gradient-to-r from-white via-primary-purple-bright to-white bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(168,85,247,0.3)]">
                             LUNARTECH
                         </h1>
-                        <p className="text-[10px] font-bold leading-tight tracking-widest text-slate-500">
-                            MASTER BRAND
-                        </p>
                     </div>
                 </div>
 
