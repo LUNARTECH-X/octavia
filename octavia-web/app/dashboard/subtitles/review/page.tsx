@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Download, CheckCircle, Edit3, Save, X, Loader2, FileText, Clock, Languages } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
+import { useNotification } from "@/contexts/NotificationContext";
 
 interface SubtitleItem {
   id: number;
@@ -20,6 +21,7 @@ export default function SubtitleReviewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const jobId = searchParams.get("jobId") || localStorage.getItem("current_subtitle_job");
+  const { showNotification } = useNotification();
 
   const [subtitles, setSubtitles] = useState<SubtitleItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -251,7 +253,11 @@ export default function SubtitleReviewPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      alert(`Subtitles downloaded in ${format} format!`);
+      showNotification({
+        type: "success",
+        title: "Download Started",
+        message: `Subtitles downloaded in ${format} format!`
+      });
     } catch (error) {
       console.error("Download failed:", error);
 
@@ -267,10 +273,18 @@ export default function SubtitleReviewPage() {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        alert(`Subtitles downloaded in ${format} format! (Local fallback)`);
+        showNotification({
+          type: "success",
+          title: "Download Started",
+          message: `Subtitles downloaded in ${format} format! (Local fallback)`
+        });
       } catch (fallbackError) {
         console.error("Fallback download also failed:", fallbackError);
-        alert("Failed to download subtitles. Please try again.");
+        showNotification({
+          type: "error",
+          title: "Download Failed",
+          message: "Failed to download subtitles. Please try again."
+        });
       }
     }
   };

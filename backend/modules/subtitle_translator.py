@@ -117,6 +117,11 @@ class SubtitleTranslator:
 
         # Save translated subtitles
         output_path = self._save_translated(file_path, translated_subs, target_lang)
+        print(f"DEBUG: Saved translated subtitles to {output_path}")
+        if os.path.exists(output_path):
+            print(f"DEBUG: Verified output file exists and has size {os.path.getsize(output_path)} bytes")
+        else:
+            print(f"DEBUG: ERROR - Output file does not exist at {output_path}")
 
         return {
             "output_path": output_path,
@@ -237,11 +242,19 @@ class SubtitleTranslator:
         )
         
         # Create new SRT file
-        with open(output_path, 'w', encoding='utf-8') as f:
-            for sub in subtitles:
-                f.write(f"{sub.index}\n")
-                f.write(f"{str(sub.start).replace('.', ',')} --> {str(sub.end).replace('.', ',')}\n")
-                f.write(f"{sub.text}\n\n")
+        try:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                for sub in subtitles:
+                    f.write(f"{sub.index}\n")
+                    # Use formatted time to be safe
+                    start_time = str(sub.start).replace('.', ',')
+                    end_time = str(sub.end).replace('.', ',')
+                    f.write(f"{start_time} --> {end_time}\n")
+                    f.write(f"{sub.text}\n\n")
+            print(f"DEBUG: _save_translated successfully wrote {len(subtitles)} segments to {output_path}")
+        except Exception as e:
+            print(f"DEBUG: ERROR in _save_translated: {e}")
+            raise
         
         return output_path
 

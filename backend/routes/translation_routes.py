@@ -147,6 +147,7 @@ async def translate_subtitle_file(
             "file_path": file_path,
             "source_language": sourceLanguage,
             "target_language": targetLanguage,
+            "language": targetLanguage,
             "user_id": current_user.id,
             "user_email": current_user.email,
             "project_id": project_id,
@@ -539,17 +540,70 @@ async def download_subtitle_file(file_id: str, current_user: User = Depends(get_
     """Download translated subtitle file by file_id"""
     try:
         is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
-
-        output_dir = "backend/outputs/subtitles"
-        filename = os.path.join(output_dir, f"subtitles_{file_id}.srt")
-
-        if os.path.exists(filename):
-            return FileResponse(filename, media_type="text/plain", filename=f"subtitles_{file_id}.srt")
+        
+        # Try to get job info from job_storage
+        job = await job_storage.get_job(file_id)
+        
+        # Verify access
+        if job and not is_demo_user:
+            if job.get("user_id") and job["user_id"] != current_user.id:
+                raise HTTPException(403, "Access denied")
+        
+        # Determine format/filename from job or default
+        fmt = "srt"
+        if job:
+            fmt = job.get("format", "srt")
+        
+        base_filename = f"subtitles_{file_id}.{fmt}"
+        
+        # Search for the file in possible locations
+        import glob
+        possible_paths = [
+            base_filename,
+            os.path.join("backend/outputs", base_filename),
+            os.path.join("outputs", base_filename),
+            os.path.join("backend/outputs/subtitles", base_filename),
+            os.path.join("outputs/subtitles", base_filename),
+        ]
+        
+        # Also check if job has a direct output path
+        if job and job.get("output_path"):
+            possible_paths.insert(0, job["output_path"])
+        
+        final_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                final_path = path
+                break
+        
+        # Pattern matching if direct paths fail
+        if not final_path:
+            search_patterns = [
+                f"backend/outputs/*{file_id}*.{fmt}",
+                f"outputs/*{file_id}*.{fmt}",
+                f"*{file_id}*.{fmt}",
+            ]
+            for pattern in search_patterns:
+                matches = glob.glob(pattern)
+                if matches:
+                    final_path = matches[0]
+                    break
+        
+        if final_path and os.path.exists(final_path):
+            media_type = "text/plain" if fmt == "srt" else "application/octet-stream"
+            return FileResponse(
+                final_path, 
+                media_type=media_type, 
+                filename=base_filename
+            )
         else:
+            print(f"Subtitle file not found for {file_id}. Tried: {possible_paths}")
             raise HTTPException(status_code=404, detail="Subtitle file not found")
+            
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error downloading subtitles: {e}")
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 async def process_video_enhanced_job(job_id, file_path, target_language, chunk_size, user_id):
@@ -792,12 +846,30 @@ async def process_subtitle_translation_job(job_id, file_path, source_language, t
         
         if os.path.exists(result["output_path"]):
             import shutil
+            print(f"DEBUG: Copying translated file from {result['output_path']} to {output_filename}")
             shutil.copy2(result["output_path"], output_filename)
+        else:
+            print(f"DEBUG: ERROR - Translation output file missing: {result['output_path']}")
         
+        # Read translated content for preview/review
+        subtitle_content = ""
+        try:
+            if os.path.exists(output_filename):
+                print(f"DEBUG: Reading translated content from {output_filename}")
+                with open(output_filename, "r", encoding="utf-8") as f:
+                    subtitle_content = f.read()
+                print(f"DEBUG: Successfully read {len(subtitle_content)} characters")
+            else:
+                print(f"DEBUG: ERROR - Target file for reading missing: {output_filename}")
+        except Exception as e:
+            print(f"Warning: Could not read subtitle content for job record: {e}")
+            
         # Update job with results
         update_data = {
             "status": "completed",
             "progress": 100,
+            "content": subtitle_content,
+            "language": target_language,
             "result": {
                 "download_url": f"/api/translate/download/subtitles/{job_id}",
                 "source_language": source_language,

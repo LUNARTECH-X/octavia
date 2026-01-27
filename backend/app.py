@@ -1883,6 +1883,16 @@ async def review_subtitles(
         raise HTTPException(403, "Access denied")
     if job.get("status") != "completed":
         raise HTTPException(400, "Subtitles not ready yet. Status: " + job.get("status", "unknown"))
+    
+    # Get language with fallbacks
+    language = job.get("language") or job.get("target_language") or "English"
+    if len(language) <= 3: # If it's a code like 'es'
+        # Simple mapping or capitalize
+        lang_map = {"en": "English", "es": "Spanish", "fr": "French", "de": "German"}
+        language = lang_map.get(language.lower(), language.capitalize())
+    else:
+        language = language.capitalize()
+
     format = job.get("format", "srt")
     filename = job.get("filename", f"subtitles_{job_id}.{format}")
     
@@ -1893,10 +1903,14 @@ async def review_subtitles(
         import glob
         possible_paths = [
             filename,  # Direct path from job
-            f"backend/outputs/{filename}",
-            f"outputs/{filename}",
+            os.path.join("backend/outputs", filename),
+            os.path.join("outputs", filename),
+            os.path.join("backend/outputs/subtitles", filename),
+            os.path.join("outputs/subtitles", filename),
             f"backend/outputs/subtitles_{job_id}.{format}",
             f"outputs/subtitles_{job_id}.{format}",
+            f"backend/outputs/subtitles/subtitles_{job_id}.{format}",
+            f"outputs/subtitles/subtitles_{job_id}.{format}",
             f"subtitles_{job_id}.{format}",
         ]
         
@@ -1942,7 +1956,7 @@ async def review_subtitles(
             "job_id": job_id,
             "status": job.get("status"),
             "format": format,
-            "language": job.get("language"),
+            "language": language,
             "segment_count": job.get("segment_count", 0),
             "content": subtitle_content,
             "download_url": job.get("download_url"),
