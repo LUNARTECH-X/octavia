@@ -612,6 +612,7 @@ async def process_video_enhanced_job(job_id, file_path, target_language, chunk_s
         # Update job status
         translation_jobs[job_id]["progress"] = 10
         translation_jobs[job_id]["message"] = "Initializing AI models..."
+        await job_storage.update_progress(job_id, 10, "Initializing AI models...")
 
         # Initialize pipeline
         pipeline = VideoTranslationPipeline()
@@ -621,6 +622,7 @@ async def process_video_enhanced_job(job_id, file_path, target_language, chunk_s
         # Update progress
         translation_jobs[job_id]["progress"] = 30
         translation_jobs[job_id]["message"] = "Models loaded. Starting video processing..."
+        await job_storage.update_progress(job_id, 30, "Models loaded. Starting video processing...")
 
         # Process video
         result = pipeline.process_video(file_path, target_language)
@@ -680,6 +682,7 @@ async def process_video_enhanced_job(job_id, file_path, target_language, chunk_s
                 "target_language": target_language
             }
         })
+        await job_storage.fail_job(job_id, error_msg)
         save_translation_jobs()
 
         # Refund credits on failure
@@ -713,6 +716,7 @@ async def process_subtitle_job(job_id, file_path, language, format, user_id):
             "error": "Job timeout - exceeded maximum processing time",
             "failed_at": datetime.utcnow().isoformat()
         })
+        await job_storage.fail_job(job_id, "Job timeout - exceeded maximum processing time")
         # Refund credits on timeout
         try:
             response = supabase.table("users").select("credits").eq("id", user_id).execute()
@@ -727,6 +731,7 @@ async def process_subtitle_job(job_id, file_path, language, format, user_id):
             "error": str(e),
             "failed_at": datetime.utcnow().isoformat()
         })
+        await job_storage.fail_job(job_id, str(e))
 
 async def _process_subtitle_job_internal(job_id, file_path, language, format, user_id):
     """Internal subtitle generation logic"""
@@ -734,6 +739,7 @@ async def _process_subtitle_job_internal(job_id, file_path, language, format, us
         # Update job status - model loading
         translation_jobs[job_id]["progress"] = 15
         translation_jobs[job_id]["message"] = "Loading Whisper AI models..."
+        await job_storage.update_progress(job_id, 15, "Loading Whisper AI models...")
 
         # Initialize subtitle generator with optimized settings
         generator = SubtitleGenerator(model_size="tiny")  # Use faster model for better performance
@@ -741,6 +747,7 @@ async def _process_subtitle_job_internal(job_id, file_path, language, format, us
         # Update progress - audio extraction (if needed)
         translation_jobs[job_id]["progress"] = 30
         translation_jobs[job_id]["message"] = "Extracting audio for transcription..."
+        await job_storage.update_progress(job_id, 30, "Extracting audio for transcription...")
 
         # Process file with optimized settings - this is the main work
         # We can't easily get granular progress from the generator yet, 
@@ -749,6 +756,7 @@ async def _process_subtitle_job_internal(job_id, file_path, language, format, us
 
         translation_jobs[job_id]["progress"] = 85
         translation_jobs[job_id]["message"] = "Finalizing subtitles and exporting..."
+        await job_storage.update_progress(job_id, 85, "Finalizing subtitles and exporting...")
 
         if not result["success"]:
             raise ValueError(f"Subtitle generation failed: {result.get('error', 'Unknown error')}")
@@ -790,16 +798,18 @@ async def _process_subtitle_job_internal(job_id, file_path, language, format, us
             os.remove(file_path)
 
     except Exception as e:
+        error_msg = str(e)
         translation_jobs[job_id].update({
             "status": "failed",
-            "error": str(e),
+            "error": error_msg,
             "failed_at": datetime.utcnow().isoformat(),
             "result": {
                 "success": False,
-                "error": str(e),
+                "error": error_msg,
                 "output_path": None
             }
         })
+        await job_storage.fail_job(job_id, error_msg)
 
         # Refund credits on failure
         try:
@@ -816,14 +826,14 @@ async def process_subtitle_translation_job(job_id, file_path, source_language, t
         # Update job status
         translation_jobs[job_id]["progress"] = 5
         translation_jobs[job_id]["message"] = "Initializing translation engine..."
+        await job_storage.update_progress(job_id, 5, "Initializing translation engine...")
 
         # Define progress callback
-        def update_progress(pct, msg):
+        async def update_progress(pct, msg):
             translation_jobs[job_id]["progress"] = pct
             translation_jobs[job_id]["message"] = msg
-            # We don't update Supabase on every segment to avoid rate limits, 
-            # but we could update it every 20 segments if needed.
-            # Local translation_jobs is what the status endpoint uses first.
+            # Force Redis update via job_storage
+            await job_storage.update_progress(job_id, pct, msg)
 
         # Perform actual subtitle translation
         translator = SubtitleTranslator()
@@ -837,6 +847,7 @@ async def process_subtitle_translation_job(job_id, file_path, source_language, t
         
         translation_jobs[job_id]["progress"] = 95
         translation_jobs[job_id]["message"] = "Translation complete. Saving file..."
+        await job_storage.update_progress(job_id, 95, "Translation complete. Saving file...")
 
         # Save the translated subtitles to a dedicated directory for download
         output_dir = "backend/outputs/subtitles"
@@ -1176,6 +1187,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
     try:
         # Update job status
         translation_jobs[job_id]["progress"] = 10
+        await job_storage.update_progress(job_id, 10, "Initializing audio translation...")
 
         # Initialize translator with config
         from modules.audio_translator import TranslationConfig
@@ -1184,6 +1196,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
 
         # Update progress
         translation_jobs[job_id]["progress"] = 20
+        await job_storage.update_progress(job_id, 20, "Loading audio translator...")
 
         # Import chunking logic from pipeline (like video translation does)
         try:
@@ -1203,6 +1216,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
             # Chunk the audio like video translation does
             translation_jobs[job_id]["progress"] = 30
             translation_jobs[job_id]["message"] = "Splitting audio into chunks..."
+            await job_storage.update_progress(job_id, 30, "Splitting audio into chunks...")
 
             chunks = chunker.chunk_audio_parallel(file_path)
             if not chunks:
@@ -1213,6 +1227,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
 
             translation_jobs[job_id]["progress"] = 40
             translation_jobs[job_id]["message"] = f"Processing {total_chunks} audio chunks..."
+            await job_storage.update_progress(job_id, 40, f"Processing {total_chunks} audio chunks...")
 
             # Process chunks in parallel like video translation
             translated_chunk_paths = []
@@ -1274,6 +1289,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
                         progress_percent = 40 + int((processed_chunks / total_chunks) * 50)  # 40-90%
                         translation_jobs[job_id]["progress"] = progress_percent
                         translation_jobs[job_id]["message"] = f"Completed chunk {processed_chunks}/{total_chunks}"
+                        await job_storage.update_progress(job_id, progress_percent, f"Completed chunk {processed_chunks}/{total_chunks}")
 
                     except Exception as exc:
                         logger.error(f'Chunk {chunk.id} generated exception: {exc}')
@@ -1282,6 +1298,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
             # Sort by chunk ID and merge audio chunks
             translation_jobs[job_id]["progress"] = 90
             translation_jobs[job_id]["message"] = "Merging translated audio chunks..."
+            await job_storage.update_progress(job_id, 90, "Merging translated audio chunks...")
 
             translated_chunk_paths.sort(key=lambda x: x[0])
             valid_paths = [path for _, path in translated_chunk_paths if path and os.path.exists(path)]
@@ -1325,7 +1342,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
         quality_metrics = {"skipped": "Audio translation quality validation disabled to match video translation behavior"}
 
         # Update job with results
-        translation_jobs[job_id].update({
+        update_data = {
             "status": "completed",
             "progress": 100,
             "result": {
@@ -1335,9 +1352,11 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
             },
             "completed_at": datetime.utcnow().isoformat(),
             "output_path": result.output_path,  # Use the actual output path from translator
-            "quality_metrics": quality_metrics,
-            "quality_passed": validation_result.is_valid if 'validation_result' in locals() else None
-        })
+            "quality_metrics": quality_metrics
+        }
+        
+        translation_jobs[job_id].update(update_data)
+        await job_storage.complete_job(job_id, update_data)
 
         save_translation_jobs()
 
@@ -1346,16 +1365,18 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
             os.remove(file_path)
 
     except Exception as e:
+        error_msg = str(e)
         translation_jobs[job_id].update({
             "status": "failed",
-            "error": str(e),
+            "error": error_msg,
             "failed_at": datetime.utcnow().isoformat(),
             "result": {
                 "success": False,
-                "error": str(e),
+                "error": error_msg,
                 "output_path": None
             }
         })
+        await job_storage.fail_job(job_id, error_msg)
 
         save_translation_jobs()
 
@@ -1387,6 +1408,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         # Update job status
         translation_jobs[job_id]["progress"] = 10
         translation_jobs[job_id]["message"] = "Parsing subtitle file..."
+        await job_storage.update_progress(job_id, 10, "Parsing subtitle file...")
 
         # Parse subtitle file
         try:
@@ -1416,6 +1438,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         # Update progress
         translation_jobs[job_id]["progress"] = 20
         translation_jobs[job_id]["message"] = "Translating subtitles..."
+        await job_storage.update_progress(job_id, 20, "Translating subtitles...")
 
         # Translate subtitle text if needed
         translated_segments = []
@@ -1444,6 +1467,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
                     if i % 10 == 0:
                         progress = 20 + int((i / len(subtitle_segments)) * 30)
                         translation_jobs[job_id]["progress"] = progress
+                        await job_storage.update_progress(job_id, progress, f"Translating segment {i}/{len(subtitle_segments)}...")
 
                 logger.info(f"Translated {len(translated_segments)} segments")
 
@@ -1456,6 +1480,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         # Update progress
         translation_jobs[job_id]["progress"] = 50
         translation_jobs[job_id]["message"] = "Generating individual TTS segments..."
+        await job_storage.update_progress(job_id, 50, "Generating TTS segments...")
 
         # Generate TTS for each subtitle segment individually and place at exact timing
         total_segments = len(translated_segments)
@@ -1464,6 +1489,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         # Update progress
         translation_jobs[job_id]["progress"] = 60
         translation_jobs[job_id]["message"] = f"Generating audio for {total_segments} segments..."
+        await job_storage.update_progress(job_id, 60, f"Generating audio for {total_segments} segments...")
 
         def generate_audio_for_segment(segment_index: int, segment: dict):
             """Generate TTS audio for a single subtitle segment"""
@@ -1618,6 +1644,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
                     progress = 60 + int((processed_segments / total_segments) * 25)
                     translation_jobs[job_id]["progress"] = progress
                     translation_jobs[job_id]["message"] = f"Generated audio segment {processed_segments}/{total_segments}"
+                    await job_storage.update_progress(job_id, progress, f"Generated audio segment {processed_segments}/{total_segments}")
 
                 except Exception as exc:
                     logger.error(f'Segment {segment_index} generated exception: {exc}')
@@ -1626,6 +1653,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         # Sort segments by start time and create proper timeline-based composition
         translation_jobs[job_id]["progress"] = 85
         translation_jobs[job_id]["message"] = "Creating timeline-based audio composition..."
+        await job_storage.update_progress(job_id, 85, "Creating timeline-based audio composition...")
 
         audio_segments.sort(key=lambda x: x['start_time'])
         valid_segments = [seg for seg in audio_segments if seg and os.path.exists(seg['path'])]
@@ -1706,18 +1734,20 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         logger.info(f"Successfully generated subtitle audio: {output_path}")
 
         # Update job with results
-        translation_jobs[job_id].update({
+        update_data = {
             "status": "completed",
             "progress": 100,
             "result": {
                 "download_url": f"/api/download/subtitle-audio/{job_id}",
                 "duration_seconds": len(final_audio) / 1000.0,
-                "chunks_processed": len(valid_chunks),
                 "total_segments": len(translated_segments)
             },
             "completed_at": datetime.utcnow().isoformat(),
             "output_path": output_path
-        })
+        }
+        
+        translation_jobs[job_id].update(update_data)
+        await job_storage.complete_job(job_id, update_data)
 
         save_translation_jobs()
 
@@ -1734,16 +1764,18 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
                     pass
 
     except Exception as e:
+        error_msg = str(e)
         translation_jobs[job_id].update({
             "status": "failed",
-            "error": str(e),
+            "error": error_msg,
             "failed_at": datetime.utcnow().isoformat(),
             "result": {
                 "success": False,
-                "error": str(e),
+                "error": error_msg,
                 "output_path": None
             }
         })
+        await job_storage.fail_job(job_id, error_msg)
 
         save_translation_jobs()
 

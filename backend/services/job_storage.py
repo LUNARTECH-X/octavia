@@ -5,36 +5,25 @@ import os
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List
-from shared_dependencies import supabase
+import json
+from shared_dependencies import supabase, redis_client
 
 
 class JobStorage:
-    """Unified job storage using Supabase for regular users, local storage for demo users"""
+    """Unified job storage using Supabase for regular users, Redis for demo/transient jobs"""
 
     def __init__(self):
         self.table_name = "translation_jobs"
-        self.demo_file = "demo_jobs.json"
-        self._demo_jobs = self._load_demo_jobs()
+        self.use_redis = redis_client is not None
+        if not self.use_redis:
+            print("WARNING: Redis not available, demo jobs will be transient in memory")
+        self._memory_jobs = {} # Fallback if Redis is down
 
-    def _load_demo_jobs(self) -> Dict:
-        """Load demo jobs from file"""
-        import json
-        if os.path.exists(self.demo_file):
-            try:
-                with open(self.demo_file, "r") as f:
-                    return json.load(f)
-            except Exception as e:
-                print(f"Error loading demo jobs: {e}")
-        return {}
+    def _get_redis_job_key(self, job_id: str) -> str:
+        return f"job:{job_id}"
 
-    def _save_demo_jobs(self):
-        """Save demo jobs to file"""
-        import json
-        try:
-            with open(self.demo_file, "w") as f:
-                json.dump(self._demo_jobs, f)
-        except Exception as e:
-            print(f"Error saving demo jobs: {e}")
+    def _get_redis_user_key(self, user_id: str) -> str:
+        return f"user_jobs:{user_id}"
 
     def _is_demo_user(self, user_id: str = None, job_data: dict = None) -> bool:
         """Check if this is a demo user"""
@@ -85,10 +74,23 @@ class JobStorage:
 
             # Check if this is a demo user
             if self._is_demo_user(job_data=job_data):
-                # Store in local memory and file for demo users
-                self._demo_jobs[job_id] = job_data.copy()
-                self._save_demo_jobs()
-                print(f"Created demo job {job_id} in persistent local storage")
+                # Store in Redis for demo users
+                if self.use_redis:
+                    job_key = self._get_redis_job_key(job_id)
+                    user_key = self._get_redis_user_key(job_data.get("user_id", "unknown"))
+                    
+                    # Store job data
+                    redis_client.set(job_key, json.dumps(job_data))
+                    # Add to user's job list
+                    redis_client.sadd(user_key, job_id)
+                    # Set expiry (7 days) for demo jobs to save space
+                    redis_client.expire(job_key, 60 * 60 * 24 * 7)
+                    redis_client.expire(user_key, 60 * 60 * 24 * 7)
+                    
+                    print(f"Created demo job {job_id} in Redis")
+                else:
+                    self._memory_jobs[job_id] = job_data.copy()
+                    print(f"Created demo job {job_id} in memory fallback")
                 return job_id
             else:
                 # Store in Supabase for regular users
@@ -109,12 +111,18 @@ class JobStorage:
             raise
     
     async def get_job(self, job_id: str) -> Optional[Dict]:
-        """Get a job by ID - checks demo storage first, then Supabase"""
+        """Get a job by ID - checks Redis first, then Supabase"""
         try:
-            # Check demo jobs first
-            if job_id in self._demo_jobs:
-                print(f"Found demo job {job_id} in local storage")
-                return self._demo_jobs[job_id].copy()
+            # Check Redis/Memory first
+            if self.use_redis:
+                job_data = redis_client.get(self._get_redis_job_key(job_id))
+                if job_data:
+                    print(f"Found job {job_id} in Redis")
+                    return json.loads(job_data)
+            
+            if job_id in self._memory_jobs:
+                print(f"Found demo job {job_id} in memory fallback")
+                return self._memory_jobs[job_id].copy()
 
             # Check Supabase for regular jobs
             from services.db_utils import with_retry
@@ -137,10 +145,20 @@ class JobStorage:
 
             # Check if this is a demo user
             if self._is_demo_user(user_id=user_id):
-                # Get demo jobs
-                demo_jobs = [job for job in self._demo_jobs.values() if job.get("user_id") == user_id]
-                jobs.extend(demo_jobs)
-                print(f"Found {len(demo_jobs)} demo jobs for user {user_id}")
+                # Get demo jobs from Redis
+                if self.use_redis:
+                    user_key = self._get_redis_user_key(user_id)
+                    job_ids = redis_client.smembers(user_key)
+                    for jid in job_ids:
+                        job_data = redis_client.get(self._get_redis_job_key(jid))
+                        if job_data:
+                            jobs.append(json.loads(job_data))
+                    print(f"Found {len(jobs)} demo jobs for user {user_id} in Redis")
+                else:
+                    # Fallback to memory
+                    demo_jobs = [job for job in self._memory_jobs.values() if job.get("user_id") == user_id]
+                    jobs.extend(demo_jobs)
+                    print(f"Found {len(demo_jobs)} demo jobs for user {user_id} in memory")
             else:
                 # Get regular jobs from Supabase
                 from services.db_utils import with_retry
@@ -163,13 +181,21 @@ class JobStorage:
             if not job:
                 return False
 
-            # Check if this is a demo job
-            if job_id in self._demo_jobs:
-                # Update in local storage
-                self._demo_jobs[job_id].update(updates)
-                self._demo_jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-                self._save_demo_jobs()
-                print(f"Updated demo job {job_id} in persistent local storage")
+            # Check if this is a demo job (in Redis or Memory)
+            is_redis_job = self.use_redis and redis_client.exists(self._get_redis_job_key(job_id))
+            is_memory_job = job_id in self._memory_jobs
+
+            if is_redis_job or is_memory_job:
+                # Update in Redis/Memory
+                job.update(updates)
+                job["updated_at"] = datetime.utcnow().isoformat()
+                
+                if is_redis_job:
+                    redis_client.set(self._get_redis_job_key(job_id), json.dumps(job))
+                    print(f"Updated demo job {job_id} in Redis")
+                else:
+                    self._memory_jobs[job_id] = job
+                    print(f"Updated demo job {job_id} in memory fallback")
                 return True
             else:
                 # Update in Supabase for regular jobs

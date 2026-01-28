@@ -2557,7 +2557,7 @@ async def process_subtitle_to_audio_job(
     """Background task for subtitle-to-audio generation"""
     try:
         # Update job status
-        
+        await job_storage.update_progress(job_id, 10, "Initializing subtitle-to-audio job...")
         # Read subtitle file
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -2567,7 +2567,8 @@ async def process_subtitle_to_audio_job(
                 subtitle_content = f.read()
         
         # Update progress
-        
+        await job_storage.update_progress(job_id, 20, "Subtitle file loaded...")
+
         logger.info(f"=== STARTING SUBTITLE-TO-AUDIO PROCESS ===")
         logger.info(f"Job ID: {job_id}")
         logger.info(f"File: {file_path}")
@@ -2583,7 +2584,8 @@ async def process_subtitle_to_audio_job(
         )
         
         # Update progress
-        
+        await job_storage.update_progress(job_id, 50, "Subtitle translation completed...")
+
         # Generate audio from translated subtitles
         logger.info(f"Generating audio with language: {language_to_use}, voice: {voice}")
         audio_filename, segment_count = await generate_audio_from_subtitles(
@@ -2594,7 +2596,8 @@ async def process_subtitle_to_audio_job(
         )
         
         # Update progress
-        
+        await job_storage.update_progress(job_id, 90, "Audio generation completed...")
+
         # Update job with results
         await job_storage.complete_job(job_id, {
             "status": "completed",
@@ -2733,6 +2736,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
         # Update job status
         jobs_db[job_id]["progress"] = 5
         jobs_db[job_id]["message"] = "Loading AI models..."
+        await job_storage.update_progress(job_id, 5, "Loading AI models...")
 
         # Use the SAME high-quality AudioTranslator as video translation
         from modules.audio_translator import AudioTranslator, TranslationConfig
@@ -2762,11 +2766,13 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
 
         jobs_db[job_id]["progress"] = 10
         jobs_db[job_id]["message"] = "AI models loaded. Starting audio processing..."
+        await job_storage.update_progress(job_id, 10, "AI models loaded. Starting audio processing...")
 
         # Step 1: Preprocess audio (same as video translation)
         processed_audio_path = translator.preprocess_audio(file_path)
         jobs_db[job_id]["progress"] = 20
         jobs_db[job_id]["message"] = "Audio preprocessing completed..."
+        await job_storage.update_progress(job_id, 20, "Audio preprocessing completed...")
 
         # Step 2: Transcribe with segments (same as video translation)
         transcription = translator.transcribe_with_segments(processed_audio_path)
@@ -2780,6 +2786,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
 
         jobs_db[job_id]["progress"] = 40
         jobs_db[job_id]["message"] = f"Transcribed {len(original_text)} chars, {len(segments)} segments..."
+        await job_storage.update_progress(job_id, 40, f"Transcribed segments...")
 
         # Step 3: Translate text (same as video translation)
         translated_text, translated_segments = translator.translate_text_with_context(
@@ -2788,6 +2795,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
 
         jobs_db[job_id]["progress"] = 60
         jobs_db[job_id]["message"] = "Translation completed. Generating high-quality audio..."
+        await job_storage.update_progress(job_id, 60, "Translation completed. Generating high-quality audio...")
 
         # Step 4: Generate speech using SAME TTS pipeline as video translation
         output_path = f"translated_audio_{job_id}.wav"
@@ -2800,6 +2808,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
 
         jobs_db[job_id]["progress"] = 80
         jobs_db[job_id]["message"] = "TTS synthesis completed. Applying audio enhancement..."
+        await job_storage.update_progress(job_id, 80, "TTS synthesis completed. Applying audio enhancement...")
 
         # Step 5: Apply SAME audio processing as video translation
         if translator.config.enable_gain_consistency:
@@ -2815,6 +2824,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
 
         jobs_db[job_id]["progress"] = 95
         jobs_db[job_id]["message"] = "Finalizing high-quality audio..."
+        await job_storage.update_progress(job_id, 95, "Finalizing high-quality audio...")
 
         # Step 7: Calculate final metrics
         original_audio = AudioSegment.from_file(processed_audio_path)
@@ -2822,7 +2832,7 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
         duration_match_percent = (1 - abs(len(translated_audio) - len(original_audio)) / len(original_audio)) * 100
 
         # Update job with results
-        jobs_db[job_id].update({
+        completion_data = {
             "status": "completed",
             "progress": 100,
             "result": {
@@ -2833,7 +2843,9 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
             },
             "completed_at": datetime.utcnow().isoformat(),
             "output_path": output_path
-        })
+        }
+        jobs_db[job_id].update(completion_data)
+        await job_storage.complete_job(job_id, completion_data)
         save_jobs_db()
 
         logger.info(f"[SUCCESS] High-quality audio translation completed: {output_path}")
@@ -2843,16 +2855,18 @@ async def process_audio_translation_job(job_id: str, file_path: str, source_lang
             os.remove(file_path)
 
     except Exception as e:
+        error_msg = str(e)
         jobs_db[job_id].update({
             "status": "failed",
-            "error": str(e),
+            "error": error_msg,
             "failed_at": datetime.utcnow().isoformat(),
             "result": {
                 "success": False,
-                "error": str(e),
+                "error": error_msg,
                 "output_path": None
             }
         })
+        await job_storage.fail_job(job_id, error_msg)
         save_jobs_db()
 
         # Refund credits on failure

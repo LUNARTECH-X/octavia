@@ -2,10 +2,10 @@
 Shared dependencies and utilities for the Octavia backend
 """
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-# Load environment variables early
-load_dotenv()
+# Load environment variables early - look for .env in current or parent dirs
+load_dotenv(find_dotenv(), override=True)
 
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -39,6 +39,24 @@ try:
 except Exception as e:
     print(f"WARNING: Failed to initialize Supabase client: {e}")
     supabase = None
+
+# Initialize Redis client
+REDIS_URL = os.getenv("REDIS_URL")
+redis_client = None
+
+if REDIS_URL:
+    try:
+        import redis
+        # Use from_url for easy connection string handling (including SSL)
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        # Test connection
+        redis_client.ping()
+        print("Successfully connected to Redis")
+    except Exception as e:
+        print(f"WARNING: Failed to initialize Redis client: {e}")
+        redis_client = None
+else:
+    print("WARNING: REDIS_URL not set. Redis client not initialized.")
 
 # Password management utility
 class PasswordManager:

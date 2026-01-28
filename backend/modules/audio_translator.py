@@ -74,6 +74,7 @@ class TranslationConfig:
     ollama_boundary_model: str = "qwen2.5:1.5b"  # Use reliable model
     ollama_boundary_timeout: int = 60  # Reasonable timeout for boundary detection
     ollama_host: str = "http://localhost:11434"  # Ollama host for boundary detection
+    ollama_model: str = "translategemma:4b"  # Default Ollama model to match primary LLM
     min_segment_length_chars: int = 10  # Minimum characters per segment for CJK
     # High-quality translation settings
     use_nllb_translation: bool = True  # Use NLLB for better Chinese translation
