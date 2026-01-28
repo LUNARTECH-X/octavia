@@ -66,6 +66,7 @@ console_handler.setFormatter(formatter)
 # Set up logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+logger.propagate = False
 
 # Import and add secret masker
 try:
@@ -364,6 +365,11 @@ except ImportError:
 async def process_video_translation_job(job_id: str, file_path: str, target_language: str, user_id: str, separate: bool = False):
     """Background task for video translation"""
     try:
+        # Check if job was cancelled before starting
+        if await job_storage.is_cancelled(job_id):
+            logger.info(f"Job {job_id} was cancelled before processing started")
+            return
+        
         # Update job status in Supabase
         await job_storage.update_progress(job_id, 5, "Initializing translation pipeline...")
         await job_storage.update_status(job_id, "processing")
@@ -372,10 +378,25 @@ async def process_video_translation_job(job_id: str, file_path: str, target_lang
         if app_config.pipeline_available or DEMO_MODE:
             from modules.pipeline import VideoTranslationPipeline, PipelineConfig
 
-            # Process video with job_id for progress tracking
+            # Process video with job_id for progress tracking and cancellation
             config = PipelineConfig(chunk_size=DEFAULT_CHUNK_SIZE, enable_vocal_separation=separate)
             pipeline = VideoTranslationPipeline(config)
+            
+            # Pass job_id and job_storage so pipeline can check for cancellation
+            pipeline.job_id = job_id
+            pipeline.job_storage = job_storage
+            
             result = pipeline.process_video(file_path, target_language)
+
+            # Check if job was cancelled during processing
+            if await job_storage.is_cancelled(job_id):
+                logger.info(f"Job {job_id} was cancelled during processing - aborting completion")
+                return
+            
+            # Check if result indicates cancellation
+            if result.get("cancelled"):
+                logger.info(f"Job {job_id} processing returned cancelled status")
+                return
 
             if result.get("success"):
                 # Update progress based on result
@@ -408,6 +429,11 @@ async def process_video_translation_job(job_id: str, file_path: str, target_lang
             raise Exception("Video translation is not available. The full video processing pipeline is required for video translation. Please contact support for assistance.")
 
     except Exception as e:
+        # Don't mark as failed if it was cancelled
+        if await job_storage.is_cancelled(job_id):
+            logger.info(f"Job {job_id} was cancelled, not marking as failed")
+            return
+            
         logger.error(f"Video translation job {job_id} failed: {str(e)}")
         await job_storage.fail_job(job_id, str(e))
 
@@ -425,6 +451,7 @@ async def process_video_translation_job(job_id: str, file_path: str, target_lang
                     os.remove(temp_file)
                 except:
                     pass
+
 
 # ========== AUTHENTICATION ENDPOINTS ==========
 # Moved to routes/auth_routes.py
@@ -1168,6 +1195,87 @@ async def get_job_progress(
     except Exception as e:
         logger.error(f"Progress fetch error for job {job_id}: {e}")
         raise HTTPException(500, f"Failed to fetch progress: {str(e)}")
+
+
+@app.post("/api/cancel/{job_id}")
+async def cancel_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Cancel a running translation job"""
+    try:
+        # Get the job first
+        job = await job_storage.get_job(job_id)
+        
+        # Fallback to jobs_db if not in job_storage
+        if not job and job_id in jobs_db:
+            job = jobs_db[job_id]
+        
+        if not job:
+            raise HTTPException(404, "Job not found")
+        
+        # Access control
+        is_demo_user = DEMO_MODE and current_user.email == "demo@octavia.com"
+        if job.get("user_id") and job["user_id"] != current_user.id:
+            if not is_demo_user:
+                raise HTTPException(403, "Access denied - you can only cancel your own jobs")
+        
+        # Check if job is already completed or cancelled
+        current_status = job.get("status", "")
+        if current_status in ["completed", "cancelled", "failed"]:
+            return {
+                "success": True,
+                "message": f"Job already {current_status}",
+                "job_id": job_id,
+                "status": current_status
+            }
+        
+        # Cancel the job in storage
+        await job_storage.cancel_job(job_id)
+        
+        # Also update jobs_db if present (legacy support)
+        if job_id in jobs_db:
+            jobs_db[job_id]["status"] = "cancelled"
+            jobs_db[job_id]["cancelled"] = True
+        
+        # Cleanup temp files if they exist
+        file_path = job.get("file_path") or job.get("input_file")
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logger.info(f"Cleaned up temp file for cancelled job {job_id}: {file_path}")
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup temp file {file_path}: {cleanup_error}")
+        
+        # Refund credits based on job type
+        job_type = job.get("type", "video")
+        credits_to_refund = 0
+        if job_type == "video":
+            credits_to_refund = VIDEO_TRANSLATION_CREDITS
+        elif job_type == "audio":
+            credits_to_refund = AUDIO_TRANSLATION_CREDITS
+        elif job_type in ["subtitle", "subtitles"]:
+            credits_to_refund = 5  # Default subtitle credits
+        
+        if credits_to_refund > 0 and not is_demo_user:
+            user_id = job.get("user_id") or current_user.id
+            await refund_credits(user_id, credits_to_refund, "job cancelled by user")
+            logger.info(f"Refunded {credits_to_refund} credits for cancelled job {job_id}")
+        
+        logger.info(f"Job {job_id} cancelled successfully by user {current_user.id}")
+        
+        return {
+            "success": True,
+            "message": "Job cancelled successfully",
+            "job_id": job_id,
+            "credits_refunded": credits_to_refund if not is_demo_user else 0
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Cancel job error for {job_id}: {e}")
+        raise HTTPException(500, f"Failed to cancel job: {str(e)}")
 
 
 @app.get("/api/jobs/history")

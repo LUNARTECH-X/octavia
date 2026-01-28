@@ -5,7 +5,8 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useUser } from "@/contexts/UserContext";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Video, Rocket, Loader2, Sparkles, FileVideo, CheckCircle, AlertCircle, Play, Pause, Volume2, AudioLines } from "lucide-react";
+import { Upload, Video, Rocket, Loader2, Sparkles, FileVideo, CheckCircle, AlertCircle, Play, Pause, Volume2, AudioLines, XCircle } from "lucide-react";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -26,6 +27,8 @@ export default function VideoTranslationPage() {
   const [previewText, setPreviewText] = useState("Hello! This is a preview of how the translated audio will sound.");
   const [isPlayingPreview, setIsPlayingPreview] = useState(false);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -140,7 +143,7 @@ export default function VideoTranslationPage() {
             setUploadProgress(data.progress);
           }
 
-          if (data.status === 'completed' || data.status === 'failed') {
+          if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
             setLoading(false);
             localStorage.removeItem('octavia_active_video_job');
             if (data.status === 'completed') {
@@ -153,6 +156,13 @@ export default function VideoTranslationPage() {
               setTimeout(() => {
                 router.push(`/dashboard/video/review?jobId=${activeJobId}`);
               }, 1500);
+            } else if (data.status === 'cancelled') {
+              // Job was cancelled (possibly from another tab or backend)
+              clearFile();
+              toast({
+                title: "Job Cancelled",
+                description: "The translation job was cancelled.",
+              });
             } else {
               setError(data.error || "Translation failed");
             }
@@ -299,6 +309,71 @@ export default function VideoTranslationPage() {
     setActiveJobId(null);
     setJobProgress(null);
     localStorage.removeItem('octavia_active_video_job');
+  };
+
+  const handleCancelJob = async () => {
+    if (!activeJobId) {
+      // For demo mode or no active job, just reset
+      setShowCancelModal(false);
+      clearFile();
+      setLoading(false);
+      toast({
+        title: "Job Cancelled",
+        description: "The translation job has been cancelled.",
+      });
+      return;
+    }
+
+    setIsCancelling(true);
+
+    try {
+      const token = getToken();
+
+      // Call the cancel API
+      const response = await fetch(`${API_BASE_URL}/api/cancel/${activeJobId}`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to cancel job");
+      }
+
+      // Reset all state
+      clearFile();
+      setLoading(false);
+      setShowCancelModal(false);
+
+      toast({
+        title: "Job Cancelled",
+        description: "The translation job has been stopped and all progress has been cleared.",
+      });
+
+      // Refresh credits in case any were refunded
+      refreshCredits();
+
+    } catch (err: any) {
+      console.error("Cancel error:", err);
+      // Even if API fails, reset local state for demo users
+      if (isDemoUser) {
+        clearFile();
+        setLoading(false);
+        setShowCancelModal(false);
+        toast({
+          title: "Job Cancelled",
+          description: "The demo job has been cancelled.",
+        });
+      } else {
+        toast({
+          title: "Cancel Failed",
+          description: err.message || "Failed to cancel job. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   return (
@@ -460,6 +535,17 @@ export default function VideoTranslationPage() {
               </div>
             ))}
           </div>
+
+          {/* Cancel Button */}
+          <div className="pt-2 border-t border-white/5">
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 transition-all duration-300"
+            >
+              <XCircle className="w-5 h-5" />
+              <span className="font-medium">Cancel Translation</span>
+            </button>
+          </div>
         </motion.div>
       )}
 
@@ -500,6 +586,19 @@ export default function VideoTranslationPage() {
           </div>
         </div>
       )}
+
+      {/* Cancel Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleCancelJob}
+        title="Cancel Translation?"
+        message="Are you sure you want to cancel this translation? All progress will be lost and any files will be deleted. This action cannot be undone."
+        confirmText="Yes, Cancel Job"
+        cancelText="Keep Running"
+        isLoading={isCancelling}
+        variant="danger"
+      />
     </div>
   );
 }

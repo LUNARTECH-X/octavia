@@ -377,7 +377,19 @@ class AudioTranslator:
                 logger.info("[OK] Loaded standard whisper base model")
 
             if self.config.source_lang != "auto":
-                logger.info("Loading translation model...")
+                logger.info("Checking for Primary LLM (Ollama/Gemma)...")
+
+                # Check if Ollama is available and configured as primary - EARLY EXIT for speed/stability
+                if self.config.use_llm_primary and self.config.llm_provider == "ollama":
+                    try:
+                        if self._check_ollama_available():
+                            logger.info(f"[OK] Primary LLM (Ollama: {self.config.ollama_model}) is available. Skipping heavy NMT downloads.")
+                            self._models_loaded = True
+                            return True
+                    except Exception as e:
+                        logger.debug(f"Ollama availability check failed: {e}")
+
+                logger.info("Loading standard translation models...")
                 model_key = f"{self.config.source_lang}-{self.config.target_lang}"
                 
                 # Check if we should use NLLB for this language pair
@@ -2399,7 +2411,7 @@ Refined {tgt_name.upper()} translation:"""
         Iterative refinement loop to ensure translated audio matches original duration.
         
         Strategy:
-        1. Estimate initial duration
+        1. Estimate duration based on word/character count
         2. If too long/short, refine with LLM using Fit-to-Time prompts
         3. Repeat until within tolerance or max iterations reached
         
@@ -3799,43 +3811,49 @@ Refined {tgt_name.upper()} translation:"""
             
             # Load translation model if not loaded (delayed loading for auto-detect)
             if not self.translation_pipeline:
-                 logger.info(f"Loading translation model for detected language: {self.config.source_lang} -> {self.config.target_lang}")
-                 model_key = f"{self.config.source_lang}-{self.config.target_lang}"
-                 model_name = self.MODEL_MAPPING.get(model_key)
-
-                 if model_name is None:
-                     logger.info(f"Same-language translation ({model_key}), no translation model needed")
-                     self.translation_pipeline = None
-                 elif not model_name:
-                     logger.warning(f"Model not found for {model_key}, using Helsinki-NLP/opus-mt-mul-en")
-                     model_name = "Helsinki-NLP/opus-mt-mul-en"
-
-                     # Load tokenizer and model
-                     self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
-                     self.translation_model = MarianMTModel.from_pretrained(model_name)
-                     
-                     device = 0 if torch.cuda.is_available() else -1
-                     self.translation_pipeline = pipeline(
-                        "translation",
-                        model=self.translation_model,
-                        tokenizer=self.translation_tokenizer,
-                        device=device,
-                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-                     )
+                 # Check for Primary LLM early exit first
+                 use_llm_primary = self.config.use_llm_primary and self.config.llm_provider == "ollama"
+                 if use_llm_primary and self._check_ollama_available():
+                     logger.info(f"[OK] Primary LLM (Ollama: {self.config.ollama_model}) available for detected language. Skipping heavy NMT downloads.")
+                     # No need to load MarianMT, translate_text_with_context will handle it
                  else:
-                     # Load tokenizer and model
-                     self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
-                     self.translation_model = MarianMTModel.from_pretrained(model_name)
-                     
-                     device = 0 if torch.cuda.is_available() else -1
-                     self.translation_pipeline = pipeline(
-                        "translation",
-                        model=self.translation_model,
-                        tokenizer=self.translation_tokenizer,
-                        device=device,
-                        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
-                     )
-                 logger.info(f"Translation model loaded: {model_name}")
+                     logger.info(f"Loading translation model for detected language: {self.config.source_lang} -> {self.config.target_lang}")
+                     model_key = f"{self.config.source_lang}-{self.config.target_lang}"
+                     model_name = self.MODEL_MAPPING.get(model_key)
+
+                     if model_name is None:
+                         logger.info(f"Same-language translation ({model_key}), no translation model needed")
+                         self.translation_pipeline = None
+                     elif not model_name:
+                         logger.warning(f"Model not found for {model_key}, using Helsinki-NLP/opus-mt-mul-en")
+                         model_name = "Helsinki-NLP/opus-mt-mul-en"
+
+                         # Load tokenizer and model
+                         self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                         self.translation_model = MarianMTModel.from_pretrained(model_name)
+                         
+                         device = 0 if torch.cuda.is_available() else -1
+                         self.translation_pipeline = pipeline(
+                            "translation",
+                            model=self.translation_model,
+                            tokenizer=self.translation_tokenizer,
+                            device=device,
+                            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                         )
+                     else:
+                         # Load tokenizer and model
+                         self.translation_tokenizer = MarianTokenizer.from_pretrained(model_name)
+                         self.translation_model = MarianMTModel.from_pretrained(model_name)
+                         
+                         device = 0 if torch.cuda.is_available() else -1
+                         self.translation_pipeline = pipeline(
+                            "translation",
+                            model=self.translation_model,
+                            tokenizer=self.translation_tokenizer,
+                            device=device,
+                            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                         )
+                     logger.info(f"Translation model loaded: {model_name}")
             
             logger.info(f"Transcribed: {len(original_text)} characters, {len(segments)} segments in {detected_language}")
             

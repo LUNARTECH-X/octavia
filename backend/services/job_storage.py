@@ -241,6 +241,28 @@ class JobStorage:
         }
         return await self.update_job(job_id, updates)
 
+    async def cancel_job(self, job_id: str) -> bool:
+        """Mark job as cancelled and set cancellation flag"""
+        updates = {
+            "status": "cancelled",
+            "cancelled": True,
+            "cancelled_at": datetime.utcnow().isoformat(),
+            "message": "Job cancelled by user"
+        }
+        return await self.update_job(job_id, updates)
+
+    async def is_cancelled(self, job_id: str) -> bool:
+        """Check if a job has been cancelled"""
+        try:
+            job = await self.get_job(job_id)
+            if job:
+                return job.get("cancelled", False) or job.get("status") == "cancelled"
+            return False
+        except Exception as e:
+            print(f"Error checking cancellation for job {job_id}: {e}")
+            return False
+
 
 # Global instance
 job_storage = JobStorage()
+

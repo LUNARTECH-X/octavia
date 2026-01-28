@@ -37,6 +37,11 @@ except ImportError:
     AI_ORCHESTRATOR_AVAILABLE = False
 
 
+class CancellationException(Exception):
+    """Custom exception when a job is cancelled"""
+    pass
+
+
 class MemoryMonitor:
     """
     Unified memory monitoring for CPU and GPU systems.
@@ -1380,6 +1385,10 @@ class VideoTranslationPipeline:
             chunk_start_time = datetime.now()
 
             try:
+                # Check for cancellation before processing each chunk
+                if job_id:
+                    self._check_cancellation(job_id, jobs_db)
+
                 # Memory check before processing
                 if self.memory_monitor:
                     mem_status = self.memory_monitor.get_memory_status()
@@ -1829,11 +1838,52 @@ class VideoTranslationPipeline:
             except Exception as e:
                 logger.warning(f"Failed to sync progress to Supabase: {e}")
 
+    def _check_cancellation(self, job_id: str, jobs_db: Dict = None):
+        """
+        Check if the job has been cancelled.
+        Raises CancellationException if cancelled.
+        """
+        if not job_id:
+            return
+
+        is_cancelled_flag = False
+        
+        # 1. Check in-memory jobs_db if provided
+        if jobs_db and job_id in jobs_db:
+            if jobs_db[job_id].get("status") == "cancelled" or jobs_db[job_id].get("cancelled"):
+                is_cancelled_flag = True
+
+        # 2. Check persistent job_storage if available
+        if not is_cancelled_flag and self.job_storage:
+            try:
+                # synchronous check using helper
+                def check_async():
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            future = asyncio.run_coroutine_threadsafe(self.job_storage.is_cancelled(job_id), loop)
+                            return future.result(timeout=5)
+                        else:
+                            return loop.run_until_complete(self.job_storage.is_cancelled(job_id))
+                    except:
+                        return False
+                
+                is_cancelled_flag = check_async()
+            except Exception as e:
+                logger.debug(f"Error checking cancellation for job {job_id}: {e}")
+
+        if is_cancelled_flag:
+            logger.info(f"Cancellation detected for job {job_id}")
+            raise CancellationException(f"Job {job_id} was cancelled by user")
+
     def process_video_fast(self, video_path: str, target_lang: str = "de", source_lang: str = None, job_id: str = None, jobs_db: Dict = None) -> Dict[str, Any]:
         """Fast video translation pipeline - optimized for FREE deployment"""
         start_time = datetime.now()
         
         try:
+            # 0. Initial cancellation check
+            self._check_cancellation(job_id, jobs_db)
+
             logger.info(f"Starting FAST video translation")
             logger.info(f"Input: {video_path}")
             logger.info(f"Target: {target_lang}")
@@ -1847,10 +1897,16 @@ class VideoTranslationPipeline:
             logger.info("1. Loading models...")
             if job_id:
                 self._update_job_progress(job_id, 10, "Loading AI translation models...", jobs_db=jobs_db)
+            
+            self._check_cancellation(job_id, jobs_db)
+
             # Detect source language if not provided
             if source_lang is None:
                 source_lang = self._detect_source_language(video_path) or "en"
             logger.info(f"Detected/using source language: {source_lang}")
+            
+            self._check_cancellation(job_id, jobs_db)
+
             if not self.load_models(source_lang=source_lang, target_lang=target_lang):
                 return {
                     "success": False,
@@ -1860,6 +1916,8 @@ class VideoTranslationPipeline:
                     "target_language": target_lang
                 }
             
+            self._check_cancellation(job_id, jobs_db)
+
             # 2. Extract and pre-process audio
             logger.info("2. Extracting audio...")
             if job_id:
@@ -1869,6 +1927,8 @@ class VideoTranslationPipeline:
             if not self.extract_audio_fast(video_path, temp_audio):
                 raise Exception("Audio extraction failed")
             
+            self._check_cancellation(job_id, jobs_db)
+
             # Calculate original audio duration for metrics
             from pydub import AudioSegment
             original_audio = AudioSegment.from_file(temp_audio)
@@ -1885,18 +1945,24 @@ class VideoTranslationPipeline:
                     if job_id:
                         self._update_job_progress(job_id, 20, "Separating vocals from background (Magic Mode)...", jobs_db=jobs_db)
                     
+                    self._check_cancellation(job_id, jobs_db)
+
                     separation_dir = os.path.join(self.config.temp_dir, "separation")
                     separation_result = self.vocal_separator.separate_with_fallback(vocal_audio, separation_dir)
                     
                     vocal_audio = separation_result.vocals_path
                     instrumental_audio = separation_result.instrumental_path
                     logger.info(f"Vocal separation complete. Vocals: {vocal_audio}, Instrumental: {instrumental_audio}")
+                except CancellationException:
+                    raise
                 except Exception as e:
                     logger.warning(f"Vocal separation failed, continuing with original audio: {e}")
                     vocal_audio = temp_audio
                     instrumental_audio = None
             # ------------------------------------
             
+            self._check_cancellation(job_id, jobs_db)
+
             # 3. Chunk audio
             logger.info("3. Chunking audio...")
             if job_id:
@@ -1923,6 +1989,8 @@ class VideoTranslationPipeline:
                     "target_language": target_lang
                 }
 
+            self._check_cancellation(job_id, jobs_db)
+
             total_chunks = len(chunks)
             logger.info(f"Created {total_chunks} audio chunks")
             if job_id:
@@ -1932,8 +2000,13 @@ class VideoTranslationPipeline:
             logger.info(f"4. Processing {len(chunks)} chunks...")
             if job_id:
                 self._update_job_progress(job_id, 30, f"Starting TTS generation for {total_chunks} chunks...", jobs_db=jobs_db)
+            
+            self._check_cancellation(job_id, jobs_db)
+
             translated_paths, subtitle_segments = self.process_chunks_batch(chunks, target_lang, job_id, jobs_db)
             
+            self._check_cancellation(job_id, jobs_db)
+
             if len(translated_paths) != len(chunks):
                 logger.warning(f"Only {len(translated_paths)}/{len(chunks)} chunks processed successfully")
             
@@ -1994,26 +2067,29 @@ class VideoTranslationPipeline:
                     "target_language": target_lang
                 }
             
+            self._check_cancellation(job_id, jobs_db)
+
             logger.info("6. Merging with video...")
-            logger.info(f"Job ID: {job_id}")
             if job_id:
                 output_filename = f"translated_video_{job_id}.mp4"
-                logger.info(f"Using job_id filename: {output_filename}")
             else:
                 output_filename = f"translated_{os.path.basename(video_path)}"
-                logger.info(f"Using fallback filename: {output_filename}")
             output_path = os.path.join(self.config.output_dir, output_filename)
-            logger.info(f"Final output path: {output_path}")
             
+            self._check_cancellation(job_id, jobs_db)
+
             logger.info(f"Calling merge_files_fast with output_path: {output_path}")
             if not self.merge_files_fast(video_path, merged_audio, output_path, instrumental_path=instrumental_audio):
                 return {
+                    "success": False,
                     "error": "Video merge failed",
                     "processing_time_s": (datetime.now() - start_time).total_seconds(),
                     "output_path": "",
                     "target_language": target_lang
                 }
             
+            self._check_cancellation(job_id, jobs_db)
+
             # 7. Generate subtitles if requested
             subtitle_files = {}
             if self.config.generate_subtitles and subtitle_segments:
@@ -2059,19 +2135,17 @@ class VideoTranslationPipeline:
             
             result = {
                 "success": True,
-                "output_path": output_path,  # Fixed key name
+                "output_path": output_path,
                 "target_language": target_lang,
                 "processing_time_s": total_time,
                 "subtitle_files": subtitle_files,
                 "total_chunks": len(chunks),
                 "message": f"Translation completed in {total_time:.1f}s",
-                # Add missing keys for CLI compatibility
                 "successful_chunks": len(chunks),
                 "duration_match_within_tolerance": duration_metrics.get("within_tolerance", True),
                 "avg_duration_diff_ms": duration_metrics.get("duration_diff_ms", 0),
                 "avg_condensation_ratio": 1.0,
                 "total_time_seconds": total_time,
-                # Duration metrics
                 "duration_match_percent": duration_metrics.get("duration_match_percent", 100.0),
                 "duration_diff_percent": duration_metrics.get("duration_diff_percent", 0.0),
                 "original_duration_ms": duration_metrics.get("original_duration_ms", 0),
@@ -2079,11 +2153,19 @@ class VideoTranslationPipeline:
             }
             
             logger.info(f"[OK] Translation completed in {total_time:.1f}s")
-            logger.info(f"  Output: {output_path}")
-            if subtitle_files:
-                logger.info(f"  Subtitles: {list(subtitle_files.keys())}")
             return result
             
+        except CancellationException as ce:
+            logger.info(f"Pipeline caught cancellation for job {job_id}: {ce}")
+            self.cleanup_temp_files()
+            return {
+                "success": False,
+                "cancelled": True,
+                "error": str(ce),
+                "processing_time_s": (datetime.now() - start_time).total_seconds(),
+                "output_path": "",
+                "target_language": target_lang
+            }
         except Exception as e:
             logger.error(f"Translation failed: {e}")
             import traceback
@@ -2105,6 +2187,7 @@ class VideoTranslationPipeline:
                 "total_chunks": 0,
                 "message": f"Translation failed: {str(e)}"
             }
+
     
     def process_video(self, video_path: str, target_lang: str = "de") -> Dict[str, Any]:
         """Alias for process_video_fast for compatibility"""

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, HTTPException, Form, status, Depends
+from fastapi import APIRouter, Request, HTTPException, Form, status, Depends, Response
 from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta
 import secrets
@@ -294,7 +294,7 @@ async def resend_verification(request: Request):
         raise JobProcessingError("", "Failed to resend verification email")
 
 @router.post("/logout")
-async def logout(response, current_user: User = Depends(get_current_user)):
+async def logout(response: Response, current_user: User = Depends(get_current_user)):
     response.delete_cookie(key="access_token")
 
     return {
