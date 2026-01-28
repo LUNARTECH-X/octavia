@@ -856,6 +856,52 @@ class ApiService {
     }, true);
   }
 
+  // Subscribe to real-time job progress updates via WebSocket
+  subscribeToJobProgress(
+    jobId: string,
+    onMessage: (data: any) => void,
+    onError?: (error: any) => void,
+    onClose?: () => void
+  ): () => void {
+    // Determine WS protocol based on current API_BASE_URL
+    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const wsBaseUrl = API_BASE_URL.replace(/^https?:\/\//, '');
+    const wsUrl = `${wsProtocol}://${wsBaseUrl}/ws/progress/${jobId}`;
+
+    console.log(`Subscribing to job progress via WS: ${wsUrl}`);
+
+    let socket: WebSocket | null = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        onMessage(data);
+      } catch (err) {
+        console.error('Error parsing WS message:', err);
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error('WS Error:', error);
+      if (onError) onError(error);
+    };
+
+    socket.onclose = () => {
+      console.log('WS Connection closed');
+      if (onClose) onClose();
+    };
+
+    // Return unsubscribe function
+    return () => {
+      if (socket) {
+        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+          socket.close();
+        }
+        socket = null;
+      }
+    };
+  }
+
   // Get user's job history
   async getUserJobHistory(): Promise<ApiResponse<{
     jobs: Array<{

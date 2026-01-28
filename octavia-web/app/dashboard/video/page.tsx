@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Video, Rocket, Loader2, Sparkles, FileVideo, CheckCircle, AlertCircle, Play, Pause, Volume2, AudioLines, XCircle } from "lucide-react";
 import ConfirmationModal from "@/components/ConfirmationModal";
+import { api } from "@/lib/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -122,11 +123,11 @@ export default function VideoTranslationPage() {
     };
   }, []);
 
-  // Poll for job progress
+  // Subscribe to job progress via WebSocket
   useEffect(() => {
     if (!activeJobId || !loading) return;
 
-    const pollProgress = async () => {
+    const fetchProgress = async () => {
       try {
         const token = getToken();
         if (!token) return;
@@ -137,48 +138,68 @@ export default function VideoTranslationPage() {
 
         if (response.ok) {
           const data = await response.json();
-          setJobProgress(data);
-
-          if (data.progress !== undefined) {
-            setUploadProgress(data.progress);
-          }
-
-          if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
-            setLoading(false);
-            localStorage.removeItem('octavia_active_video_job');
-            if (data.status === 'completed') {
-              toast({
-                title: "Translation completed!",
-                description: "Taking you to the review page...",
-                variant: "default",
-              });
-              // Redirect to review page after a short delay for the toast
-              setTimeout(() => {
-                router.push(`/dashboard/video/review?jobId=${activeJobId}`);
-              }, 1500);
-            } else if (data.status === 'cancelled') {
-              // Job was cancelled (possibly from another tab or backend)
-              clearFile();
-              toast({
-                title: "Job Cancelled",
-                description: "The translation job was cancelled.",
-              });
-            } else {
-              setError(data.error || "Translation failed");
-            }
-          }
+          handleProgressUpdate(data);
         }
       } catch (err) {
-        console.error("Polling error:", err);
-        // If we get persistent errors for a recovered job, maybe it's dead
-        if (activeJobId && loading) {
-          // We'll keep trying for now, but in a real app we might clear after N failures
+        console.error("Manual progress fetch error:", err);
+      }
+    };
+
+    const handleProgressUpdate = (data: any) => {
+      setJobProgress(data);
+
+      if (data.progress !== undefined) {
+        setUploadProgress(data.progress);
+      }
+
+      if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+        setLoading(false);
+        localStorage.removeItem('octavia_active_video_job');
+
+        if (data.status === 'completed') {
+          toast({
+            title: "Translation completed!",
+            description: "Taking you to the review page...",
+            variant: "default",
+          });
+          // Redirect to review page after a short delay for the toast
+          setTimeout(() => {
+            router.push(`/dashboard/video/review?jobId=${activeJobId}`);
+          }, 1500);
+        } else if (data.status === 'cancelled') {
+          clearFile();
+          toast({
+            title: "Job Cancelled",
+            description: "The translation job was cancelled.",
+          });
+        } else {
+          setError(data.error || "Translation failed");
         }
       }
     };
 
-    const interval = setInterval(pollProgress, 5000);
-    return () => clearInterval(interval);
+    // WebSocket subscription for real-time updates
+    const unsubscribe = api.subscribeToJobProgress(
+      activeJobId,
+      (data) => {
+        console.log("WS Update:", data);
+        handleProgressUpdate(data);
+      },
+      (err) => {
+        console.warn("WS connection error in video page:", err);
+      }
+    );
+
+    // Initial fetch to get latest status
+    fetchProgress();
+
+    // Secondary fallback polling (every 10 seconds)
+    const interval = setInterval(fetchProgress, 10000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, [activeJobId, loading]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

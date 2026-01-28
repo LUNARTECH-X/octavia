@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { api } from "@/lib/api";
 
 interface ProgressTrackerProps {
     jobId: string;
@@ -83,18 +84,47 @@ export function ProgressTracker({
         }
     }, [jobId, onComplete, onError]);
 
-    useEffect(() => {
-        if (!isPolling) return;
 
-        // Initial fetch
+    useEffect(() => {
+        if (!jobId || !isPolling) return;
+
+        // Subscribe to real-time updates via WebSocket
+        const unsubscribe = api.subscribeToJobProgress(
+            jobId,
+            (data) => {
+                // Map result fields if they are at the top level (from complete_job)
+                if (data.status === "completed" && !data.message && data.download_url) {
+                    data.message = "Translation completed successfully";
+                }
+
+                setProgress(data);
+
+                if (data.status === "completed") {
+                    setIsPolling(false);
+                    onComplete?.(jobId);
+                } else if (data.status === "failed") {
+                    setIsPolling(false);
+                    const errorMsg = data.message || data.error || "Translation failed";
+                    setError(errorMsg);
+                    onError?.(errorMsg);
+                }
+            },
+            (err) => {
+                console.warn("WS Error, falling back to polling:", err);
+            }
+        );
+
+        // Slow polling fallback (every 10 seconds) to ensure we don't get stuck
+        const interval = setInterval(fetchProgress, 10000);
+
+        // Initial fetch to get current state
         fetchProgress();
 
-        // Set up polling
-        const interval = setInterval(fetchProgress, pollInterval);
-
-        // Cleanup
-        return () => clearInterval(interval);
-    }, [isPolling, fetchProgress, pollInterval]);
+        return () => {
+            unsubscribe();
+            clearInterval(interval);
+        };
+    }, [jobId, isPolling, fetchProgress]);
 
     if (error) {
         return (

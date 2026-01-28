@@ -2,14 +2,14 @@
 
 > **Project:** Octavia Video Translator
 > **Component:** End-to-End Synchronization Engine (Frontend to Backend Pipeline)
-> **Status:** Production-Ready (Enhanced UI/UX)
-> **Version:** 1.3.0
+> **Status:** Production-Ready (Real-time Sync)
+> **Version:** 1.4.0
 
 ---
 
 ## Executive Summary
 
-The Octavia progress tracking system is a critical infrastructure component designed to bridge the data-gap between backend AI pipelines and the user's dashboard. This specification details the transition to a **Standardized Premium UX** using high-fidelity glass loading states, real-time segment tracking for translations, and an intelligent transition between granular progress bars (for long video jobs) and interactive spinners (for fast subtitle jobs).
+The Octavia progress tracking system is a critical infrastructure component designed to bridge the data-gap between backend AI pipelines and the user's dashboard. This specification details the transition from legacy polling to a **Real-time Push Architecture (WebSockets)**, providing instant synchronization for granular pipeline steps, with a robust HTTP polling fallback for maximum reliability across all network conditions.
 
 ---
 
@@ -20,25 +20,31 @@ sequenceDiagram
     participant U as User Browser (Next.js)
     participant L as LocalStorage (Persistent)
     participant B as Backend API (FastAPI)
+    participant W as WebSocket Manager
     participant S as AI Pipeline (Worker)
 
     U->>B: POST /api/translate/video
     B-->>U: 202 Accepted {job_id: "XYZ"}
     U->>L: Store "XYZ" in persistent_job_id
     
-    loop Real-time Polling
-        U->>B: GET /api/progress/XYZ
-        B->>S: Query status of XYZ
-        B-->>U: {status: "processing", progress: 85}
+    rect rgb(40, 40, 80)
+    Note over U,W: Real-time Sync
+    U->>W: WS Connect /ws/progress/XYZ
+    W->>U: WS Accept
+    S->>B: update_job()
+    B->>W: broadcast(XYZ, data)
+    W->>U: PUSH {status: "processing", progress: 85}
+    end
+
+    rect rgb(60, 40, 40)
+    Note over U,B: Heartbeat Fallback (10s)
+    U->>B: GET /api/progress/XYZ
+    B-->>U: {current_state}
     end
 
     Note over U,L: [User Refreshes Page]
     U->>L: Recover "XYZ"
-    U->>B: Resume Polling
-    
-    S->>B: Job Status: "completed"
-    B-->>U: Redirect to /review/XYZ
-    U->>L: Clear entry
+    U->>W: Re-establish WS
 ```
 
 ---
@@ -82,13 +88,29 @@ Below is the definitive list of technical challenges encountered during the impl
 *   **The Solution:** Standardized Liquid Glass Loading.
     *   **Action:** Transitioned from progress bars to premium animated spinners for low-latency tasks. Added granular status sub-text (e.g., "Translated 11/49 segments...") to provide high-fidelity feedback without the psychological friction of an "incremental" bar.
 
+### Issue 8: Excessive API Load (Scalability Risk)
+*   **The Problem:** Default 2s polling created ~300 requests for a 10-minute job. Under high user load, the backend API became saturated with redundant status checks.
+*   **The Solution:** Optimized Polling & Transition to WS.
+    *   **Action:** Increased global polling interval to 5s (60% request reduction) as an interim fix, before fully implementing the WebSocket push architecture.
+
+### Issue 9: Real-time Data Latency (UX Stutter)
+*   **The Problem:** Polling intervals created a delayed response to backend events (e.g., job completion detected 4.9s after it actually finished).
+*   **The Solution:** Implemented WebSocket Push Architecture.
+    *   **Action:** Developed `WebSocketManager` on the backend and added a WS subscription listener in the `ApiService`. State changes in `JobStorage` now trigger immediate JSON broadcasts.
+
+### Issue 10: Data-Loss Concurrency Bug (Production Risk)
+*   **The Problem:** A generic `/tmp/octavia` directory was used for all jobs. One job's completion `cleanup` would delete active files for other concurrent jobs.
+*   **The Solution:** Job-Specific Isolation (Pending Implementation).
+    *   **Mitigation:** Identified as a critical risk during the production audit and scheduled for unique subdirectory per job_id.
+
 ---
 
 ## 3. Technical Tradeoffs
 
 | Implementation | Tradeoff | Rationale |
 | :--- | :--- | :--- |
-| **HTTP Polling** | Higher header overhead. | Protocol reliability and ease of debugging over stateful WebSocket complexities. |
+| **WebSockets** | State-management overhead. | Provides true real-time synchronization and reduces HTTP request flood. |
+| **HTTP Polling** | Higher header overhead. | Maintained as a 10s "Heartbeat" fallback for network resiliency. |
 | **JSON Fallback** | Disk I/O latency. | Critical for Database-less development and local-first testing. |
 | **LocalStorage** | Device-specific. | Ensures individual user privacy without requiring server-side session tracking. |
 

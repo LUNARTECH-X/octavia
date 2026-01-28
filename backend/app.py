@@ -7,10 +7,12 @@ import traceback
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
-from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, File, UploadFile, BackgroundTasks, status
+from fastapi import FastAPI, Request, Response, HTTPException, Depends, Form, File, UploadFile, BackgroundTasks, status, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+from services.websocket_manager import ws_manager
 
 # Audio processing
 try:
@@ -1153,6 +1155,19 @@ async def download_video(
     # Nothing found
     print(f"[VIDEO DOWNLOAD] Video file not found for job {job_id}")
     raise HTTPException(404, f"Video file not found. Searched: {possible_paths}")
+
+@app.websocket("/ws/progress/{job_id}")
+async def websocket_progress(websocket: WebSocket, job_id: str):
+    """Handle WebSocket connections for job progress updates"""
+    await ws_manager.connect(websocket, job_id)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket, job_id)
+    except Exception as e:
+        print(f"WS Exception for {job_id}: {e}")
+        ws_manager.disconnect(websocket, job_id)
 
 @app.get("/api/progress/{job_id}")
 async def get_job_progress(

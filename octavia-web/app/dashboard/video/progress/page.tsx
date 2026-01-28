@@ -141,26 +141,49 @@ export default function TranslationProgressPage() {
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        if (jobId) {
-            // Initial fetch
-            fetchJobStatus();
+        if (!jobId) return;
 
-            // Set up polling every 5 seconds for updates
-            const interval = setInterval(fetchJobStatus, 5000);
-            intervalRef.current = interval;
+        // WebSocket subscription for real-time updates
+        const unsubscribe = api.subscribeToJobProgress(
+            jobId,
+            (data) => {
+                console.log("WS Update in progress page:", data);
+                if (data) {
+                    setJobData(data);
+                    setProgress(data.progress || 0);
 
-            return () => {
-                if (intervalRef.current) {
-                    clearInterval(intervalRef.current);
+                    // If job is completed or failed, we can handle it here too
+                    if (data.status === "completed") {
+                        setTimeout(() => {
+                            router.push(`/dashboard/video/review?jobId=${jobId}`);
+                        }, 3000);
+                    }
                 }
-                // Cleanup audio on unmount
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                }
-            };
-        }
-    }, [jobId]);
+            },
+            (err) => {
+                console.warn("WS connection error in progress page:", err);
+            }
+        );
+
+        // Initial fetch
+        fetchJobStatus();
+
+        // Slow polling fallback (every 10 seconds)
+        const interval = setInterval(fetchJobStatus, 10000);
+        intervalRef.current = interval;
+
+        return () => {
+            unsubscribe();
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+            // Cleanup audio on unmount
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.src = '';
+            }
+        };
+    }, [jobId, router, audioElement]);
 
     // Cleanup audio when component unmounts
     useEffect(() => {

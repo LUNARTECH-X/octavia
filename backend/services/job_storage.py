@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 import json
 from shared_dependencies import supabase, redis_client
+from services.websocket_manager import ws_manager
 
 
 class JobStorage:
@@ -209,7 +210,15 @@ class JobStorage:
                 
                 result = await with_retry(perform_update)
 
-                return len(result.data) > 0
+                if len(result.data) > 0:
+                    # Broadcast update to WebSocket clients
+                    await ws_manager.broadcast(job_id, result.data[0])
+                    return True
+                return False
+            
+            # After local update (Redis/Memory), also broadcast
+            await ws_manager.broadcast(job_id, job)
+            return True
         except Exception as e:
             print(f"Error updating job {job_id}: {e}")
             return False
