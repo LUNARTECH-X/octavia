@@ -145,8 +145,8 @@ export default function TranslationProgressPage() {
             // Initial fetch
             fetchJobStatus();
 
-            // Set up polling every 2 seconds for faster updates
-            const interval = setInterval(fetchJobStatus, 2000);
+            // Set up polling every 5 seconds for updates
+            const interval = setInterval(fetchJobStatus, 5000);
             intervalRef.current = interval;
 
             return () => {
@@ -301,19 +301,19 @@ export default function TranslationProgressPage() {
 
         return (
             <div className={`glass-card flex flex-col items-center gap-3 p-4 text-center ${isCompleted
-                    ? "border-accent-cyan/30 bg-accent-cyan/5"
-                    : isActive
-                        ? "glass-panel-glow ring-1 ring-primary-purple/50 relative overflow-hidden"
-                        : "opacity-50"
+                ? "border-accent-cyan/30 bg-accent-cyan/5"
+                : isActive
+                    ? "glass-panel-glow ring-1 ring-primary-purple/50 relative overflow-hidden"
+                    : "opacity-50"
                 }`}>
                 {isActive && <div className="glass-shine" />}
 
                 <div className="relative z-10 flex flex-col items-center gap-3">
                     <div className={`flex size-10 items-center justify-center rounded-full ${isCompleted
-                            ? "bg-accent-cyan/20 text-accent-cyan"
-                            : isActive
-                                ? "bg-primary-purple/20 text-primary-purple-bright"
-                                : "bg-white/5 text-slate-500"
+                        ? "bg-accent-cyan/20 text-accent-cyan"
+                        : isActive
+                            ? "bg-primary-purple/20 text-primary-purple-bright"
+                            : "bg-white/5 text-slate-500"
                         } shadow-glow`}>
                         {isCompleted ? (
                             <CheckCircle className="w-5 h-5" />
@@ -329,10 +329,10 @@ export default function TranslationProgressPage() {
                             {label}
                         </p>
                         <p className={`text-xs ${isCompleted
-                                ? "text-accent-cyan"
-                                : isActive
-                                    ? "text-primary-purple-bright"
-                                    : "text-slate-400"
+                            ? "text-accent-cyan"
+                            : isActive
+                                ? "text-primary-purple-bright"
+                                : "text-slate-400"
                             }`}>
                             {status === "completed" ? "Completed" : status === "active" ? "In Progress" : "Queued"}
                         </p>
@@ -436,10 +436,10 @@ export default function TranslationProgressPage() {
                                 animate={{ width: `${isCompleted ? 100 : progress}%` }}
                                 transition={{ duration: 1, ease: "easeOut" }}
                                 className={`h-2.5 rounded-full shadow-glow ${isCompleted
-                                        ? "bg-accent-cyan"
-                                        : isFailed || isCancelled
-                                            ? "bg-red-500"
-                                            : "bg-primary-purple"
+                                    ? "bg-accent-cyan"
+                                    : isFailed || isCancelled
+                                        ? "bg-red-500"
+                                        : "bg-primary-purple"
                                     }`}
                             />
                         </div>
@@ -474,15 +474,15 @@ export default function TranslationProgressPage() {
                                             return (
                                                 <>
                                                     <span className={`font-bold ${avgConfidence >= 0.8 ? 'text-accent-cyan' :
-                                                            avgConfidence >= 0.6 ? 'text-yellow-400' :
-                                                                'text-red-400'
+                                                        avgConfidence >= 0.6 ? 'text-yellow-400' :
+                                                            'text-red-400'
                                                         }`}>
                                                         {(avgConfidence * 100).toFixed(0)}%
                                                     </span>
                                                     <span className={`px-2 py-0.5 rounded text-xs ${qualityRating === 'Excellent' ? 'bg-accent-cyan/20 text-accent-cyan' :
-                                                            qualityRating === 'Good' ? 'bg-blue-500/20 text-blue-400' :
-                                                                qualityRating === 'Fair' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                    'bg-red-500/20 text-red-400'
+                                                        qualityRating === 'Good' ? 'bg-blue-500/20 text-blue-400' :
+                                                            qualityRating === 'Fair' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                'bg-red-500/20 text-red-400'
                                                         }`}>
                                                         {qualityRating}
                                                     </span>
@@ -551,20 +551,20 @@ export default function TranslationProgressPage() {
                                                         <div className="text-xs text-slate-400">Quality:</div>
                                                         <div className="flex items-center gap-1">
                                                             <div className={`w-2 h-2 rounded-full ${chunk.confidence_score >= 0.8 ? 'bg-accent-cyan' :
-                                                                    chunk.confidence_score >= 0.6 ? 'bg-yellow-500' :
-                                                                        'bg-red-500'
+                                                                chunk.confidence_score >= 0.6 ? 'bg-yellow-500' :
+                                                                    'bg-red-500'
                                                                 }`}></div>
                                                             <span className={`text-xs font-medium ${chunk.confidence_score >= 0.8 ? 'text-accent-cyan' :
-                                                                    chunk.confidence_score >= 0.6 ? 'text-yellow-400' :
-                                                                        'text-red-400'
+                                                                chunk.confidence_score >= 0.6 ? 'text-yellow-400' :
+                                                                    'text-red-400'
                                                                 }`}>
                                                                 {(chunk.confidence_score * 100).toFixed(0)}%
                                                             </span>
                                                             {chunk.quality_rating && (
                                                                 <span className={`text-xs px-1 py-0.5 rounded ${chunk.quality_rating === 'excellent' ? 'bg-accent-cyan/20 text-accent-cyan' :
-                                                                        chunk.quality_rating === 'good' ? 'bg-blue-500/20 text-blue-400' :
-                                                                            chunk.quality_rating === 'fair' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                                'bg-red-500/20 text-red-400'
+                                                                    chunk.quality_rating === 'good' ? 'bg-blue-500/20 text-blue-400' :
+                                                                        chunk.quality_rating === 'fair' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                                            'bg-red-500/20 text-red-400'
                                                                     }`}>
                                                                     {chunk.quality_rating}
                                                                 </span>
@@ -581,8 +581,8 @@ export default function TranslationProgressPage() {
                                         <button
                                             onClick={() => handlePlayChunk(chunk)}
                                             className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-medium transition-all ${playingChunk === chunk.id
-                                                    ? 'bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30'
-                                                    : 'bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/20'
+                                                ? 'bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30'
+                                                : 'bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/20'
                                                 }`}
                                         >
                                             {playingChunk === chunk.id ? (
@@ -667,12 +667,12 @@ export default function TranslationProgressPage() {
                                             return (
                                                 <>
                                                     <div className={`w-3 h-3 rounded-full ${avgConfidence >= 0.8 ? 'bg-accent-cyan' :
-                                                            avgConfidence >= 0.6 ? 'bg-yellow-500' :
-                                                                'bg-red-500'
+                                                        avgConfidence >= 0.6 ? 'bg-yellow-500' :
+                                                            'bg-red-500'
                                                         }`}></div>
                                                     <span className={`text-sm font-bold ${avgConfidence >= 0.8 ? 'text-accent-cyan' :
-                                                            avgConfidence >= 0.6 ? 'text-yellow-400' :
-                                                                'text-red-400'
+                                                        avgConfidence >= 0.6 ? 'text-yellow-400' :
+                                                            'text-red-400'
                                                         }`}>
                                                         {(avgConfidence * 100).toFixed(0)}%
                                                     </span>

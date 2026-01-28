@@ -177,7 +177,7 @@ export default function VideoTranslationPage() {
       }
     };
 
-    const interval = setInterval(pollProgress, 2000);
+    const interval = setInterval(pollProgress, 5000);
     return () => clearInterval(interval);
   }, [activeJobId, loading]);
 

@@ -22,7 +22,7 @@ export function ProgressTracker({
     jobId,
     onComplete,
     onError,
-    pollInterval = 2000,
+    pollInterval = 5000,
 }: ProgressTrackerProps) {
     const [progress, setProgress] = useState<ProgressData | null>(null);
     const [error, setError] = useState<string | null>(null);
