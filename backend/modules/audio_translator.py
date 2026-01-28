@@ -98,6 +98,7 @@ class TranslationConfig:
     enable_fit_to_time_prompts: bool = True  # Use Fit-to-Time LLM prompts
     speed_adjustment_quality_threshold: float = 1.15  # Max speed ratio before requiring text reflow
     preserve_timing_with_speedup: bool = True  # Use speedup when text reflow fails
+    selected_voice: Optional[str] = None  # User-specified voice for synthesis
     
     def __post_init__(self):
         """Load configuration from environment variables if available"""
@@ -155,7 +156,12 @@ class AudioTranslator:
         "ru": "rus_Cyrl",
         "fr": "fra_Latn",
         "de": "deu_Latn",
-        "es": "spa_Latn"
+        "es": "spa_Latn",
+        "te": "tel_Telu",
+        "kn": "kan_Knda",
+        "swa": "swh_Latn",
+        "sw": "swh_Latn",
+        "swe": "swe_Latn"
     }
 
     # Translation model mapping - Helsinki-NLP models for all language pairs
@@ -221,8 +227,8 @@ class AudioTranslator:
         "es-pt": "Helsinki-NLP/opus-mt-es-pt",
         "pt-es": "Helsinki-NLP/opus-mt-pt-es",
         # Nordic languages
-        "en-sv": "Helsinki-NLP/opus-mt-en-sv",
-        "sv-en": "Helsinki-NLP/opus-mt-sv-en",
+        "en-swe": "Helsinki-NLP/opus-mt-en-sv",
+        "swe-en": "Helsinki-NLP/opus-mt-sv-en",
         "en-da": "Helsinki-NLP/opus-mt-en-da",
         "da-en": "Helsinki-NLP/opus-mt-da-en",
         "en-no": "Helsinki-NLP/opus-mt-en-no",
@@ -274,7 +280,7 @@ class AudioTranslator:
         "ar": "ar-SA-HamedNeural",
         "hi": "hi-IN-SwaraNeural",
         # Nordic languages
-        "sv": "sv-SE-SofieNeural",
+        "swe": "sv-SE-SofieNeural",
         "da": "da-DK-JeppeNeural",
         "no": "no-NO-PernilleNeural",
         "nn": "no-NO-PernilleNeural",  # Norwegian Nynorsk (uses Norwegian voice)
@@ -283,6 +289,16 @@ class AudioTranslator:
         "id": "id-ID-GadisNeural",
         # Javanese (uses Indonesian voice as fallback)
         "jw": "id-ID-GadisNeural",
+        # New languages
+        "te": "te-IN-ShrutiNeural",
+        "kn": "kn-IN-SapnaNeural",
+        "swa": "sw-KE-ZuriNeural",
+        "sw": "sw-KE-ZuriNeural",
+        # Specific Swahili options (direct mapping)
+        "sw-KE-RafikiNeural": "sw-KE-RafikiNeural",
+        "sw-KE-ZuriNeural": "sw-KE-ZuriNeural",
+        "sw-TZ-DaudiNeural": "sw-TZ-DaudiNeural",
+        "sw-TZ-RehemaNeural": "sw-TZ-RehemaNeural"
     }
     
     # Voice rate mapping (characters per second) for different languages
@@ -304,13 +320,17 @@ class AudioTranslator:
         "zh": 7,   # Chinese: ~7 chars/second (slower for character-based)
         "ar": 9,   # Arabic: ~9 chars/second
         "hi": 10,  # Hindi: ~10 chars/second
-        "sv": 11,  # Swedish: ~11 chars/second
+        "swe": 12,  # Swedish: ~12 chars/second
         "da": 11,  # Danish: ~11 chars/second
         "no": 11,  # Norwegian: ~11 chars/second
         "nn": 11,  # Norwegian Nynorsk: ~11 chars/second
         "fi": 11,  # Finnish: ~11 chars/second
         "id": 10,  # Indonesian: ~10 chars/second
         "jw": 10,  # Javanese: ~10 chars/second
+        "te": 10,  # Telugu: ~10 chars/second
+        "kn": 10,  # Kannada: ~10 chars/second
+        "swa": 11,  # Swahili: ~11 chars/second
+        "sw": 11,   # Swahili: ~11 chars/second
     }
 
     # Compression ratios for language pairs (target_length / source_length)
@@ -514,7 +534,11 @@ class AudioTranslator:
                 "de": "de", 
                 "ru": "ru",
                 "es": "es",
-                "fr": "fr"
+                "fr": "fr",
+                "te": "te",
+                "kn": "kn",
+                "swa": "swa",
+                "swe": "swe"
             }
             
             return lang_map.get(detected_lang, self.config.source_lang)
@@ -1826,7 +1850,11 @@ Refined translation:"""
                 "de": "German",
                 "ru": "Russian",
                 "it": "Italian",
-                "pt": "Portuguese"
+                "pt": "Portuguese",
+                "swa": "Swahili",
+                "swe": "Swedish",
+                "te": "Telugu",
+                "kn": "Kannada"
             }
             
             src_name = lang_names.get(source_lang, source_lang)
@@ -2600,7 +2628,8 @@ Refined {tgt_name.upper()} translation:"""
             lang_map = {
                 'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it',
                 'pt': 'pt', 'ru': 'ru', 'ja': 'ja', 'ko': 'ko', 'zh': 'zh-cn',
-                'ar': 'ar', 'hi': 'hi'
+                'ar': 'ar', 'hi': 'hi', 'te': 'te', 'kn': 'kn', 
+                'sw': 'sw', 'swa': 'sw', 'swe': 'sv'
             }
             gtts_lang = lang_map.get(self.config.target_lang, 'en')
 
@@ -2723,7 +2752,8 @@ Refined {tgt_name.upper()} translation:"""
             lang_map = {
                 'en': 'en', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it',
                 'pt': 'pt', 'ru': 'ru', 'ja': 'ja', 'ko': 'ko', 'zh': 'zh-cn',
-                'ar': 'ar', 'hi': 'hi'
+                'ar': 'ar', 'hi': 'hi', 'te': 'te', 'kn': 'kn', 
+                'sw': 'sw', 'swa': 'sw', 'swe': 'sv'
             }
 
             gtts_lang = lang_map.get(self.config.target_lang, 'en')
@@ -3668,7 +3698,12 @@ Refined {tgt_name.upper()} translation:"""
     def select_voice_model(self, target_lang: str, text_length: int) -> str:
         """Select voice model that matches target language phonetics"""
         try:
-            # Get base voice for language
+            # 1. Use user-selected voice if provided
+            if self.config.selected_voice:
+                logger.info(f"Using user-selected voice model: {self.config.selected_voice}")
+                return self.config.selected_voice
+
+            # 2. Get base voice for language
             base_voice = self.VOICE_MAPPING.get(target_lang, "en-US-JennyNeural")
 
             # Adjust speaking rate based on text length and language characteristics
@@ -3905,7 +3940,7 @@ Refined {tgt_name.upper()} translation:"""
 
             # Step 7: Generate speech with timing
             output_path = f"translated_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav"
-            logger.info(f"Generating speech with Edge-TTS (speed: {speed:.2f}x)...")
+            logger.info(f"Generating speech (speed: {speed:.2f}x)...")
 
             # Run synchronous TTS (no asyncio needed)
             tts_success = False

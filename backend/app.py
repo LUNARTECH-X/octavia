@@ -195,8 +195,26 @@ GTTS_VOICE_OPTIONS = {
     "tr": {
         "Turkish": "tr"
     },
-    "sv": {
-        "Swedish": "sv"
+    "swe": {
+        "Swedish": "swe"
+    },
+    "te": {
+        "Telugu": "te"
+    },
+    "kn": {
+        "Kannada": "kn"
+    },
+    "swa": {
+        "Kenya - Rafiki (Male)": "sw-KE-RafikiNeural",
+        "Kenya - Zuri (Female)": "sw-KE-ZuriNeural",
+        "Tanzania - Daudi (Male)": "sw-TZ-DaudiNeural",
+        "Tanzania - Rehema (Female)": "sw-TZ-RehemaNeural"
+    },
+    "sw": {
+        "Kenya - Rafiki (Male)": "sw-KE-RafikiNeural",
+        "Kenya - Zuri (Female)": "sw-KE-ZuriNeural",
+        "Tanzania - Daudi (Male)": "sw-TZ-DaudiNeural",
+        "Tanzania - Rehema (Female)": "sw-TZ-RehemaNeural"
     }
 }
 
@@ -1726,9 +1744,16 @@ async def preview_voice(
 
     # Generate speech using gTTS
     try:
-        # Validate language code for gTTS
-        valid_gtts_langs = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh-cn', 'zh-tw', 'ar', 'hi', 'nl', 'pl', 'tr', 'sv']
-        gtts_lang = lang_code.lower()
+        # Validate and map language code for gTTS
+        gtts_lang_map = {
+            'swa': 'sw',
+            'swe': 'sv',
+            'zh': 'zh-cn'
+        }
+        gtts_lang = gtts_lang_map.get(lang_code.lower(), lang_code.lower())
+        
+        valid_gtts_langs = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh-cn', 'zh-tw', 'ar', 'hi', 'nl', 'pl', 'tr', 'sv', 'te', 'kn', 'sw']
+        
         if gtts_lang not in valid_gtts_langs:
             # Try to map to valid code
             if '-' in gtts_lang:
@@ -1738,23 +1763,83 @@ async def preview_voice(
 
         tts_success = False
 
-        # Try gTTS
-        try:
-            from gtts import gTTS as GoogleTTS
-            logger.info(f"Generating voice preview with gTTS: lang={gtts_lang}, text={text[:50]}")
+        # 1. Prioritize Edge-TTS for specific requested voices
+        if "Neural" in voice_id or voice_id in ["sw-KE-RafikiNeural", "sw-KE-ZuriNeural", "sw-TZ-DaudiNeural", "sw-TZ-RehemaNeural"]:
+            try:
+                import edge_tts
+                import asyncio
+                logger.info(f"Generating voice preview with Edge-TTS: voice={voice_id}")
 
-            tts = GoogleTTS(text=text, lang=gtts_lang, slow=False)
-            tts.save(output_path)
+                async def generate_edge_tts():
+                    communicate = edge_tts.Communicate(text, voice_id)
+                    await communicate.save(output_path)
+                    return True
 
-            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
-                tts_success = True
-                logger.info(f"gTTS succeeded: {output_path}")
-        except Exception as gtts_error:
-            logger.warning(f"gTTS failed: {gtts_error}")
-            raise HTTPException(
-                status_code=400,
-                detail=f"Voice preview not available for this language. gTTS failed: {str(gtts_error)}"
-            )
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(generate_edge_tts())
+                    if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                        tts_success = True
+                        logger.info(f"Edge-TTS preview succeeded: {output_path}")
+                finally:
+                    loop.close()
+            except Exception as edge_err:
+                logger.warning(f"Edge-TTS preview failed: {edge_err}, falling back to gTTS...")
+
+        # 2. Try gTTS as primary or fallback
+        if not tts_success:
+            try:
+                from gtts import gTTS as GoogleTTS
+                logger.info(f"Generating voice preview with gTTS: lang={gtts_lang}, text={text[:50]}")
+
+                tts = GoogleTTS(text=text, lang=gtts_lang, slow=False)
+                tts.save(output_path)
+
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                    tts_success = True
+                    logger.info(f"gTTS succeeded: {output_path}")
+            except Exception as gtts_error:
+                logger.warning(f"gTTS failed for preview: {gtts_error}, trying Edge-TTS fallback...")
+            
+            # Fallback to Edge-TTS for specific languages or if gTTS fails
+            try:
+                import edge_tts
+                import asyncio
+                
+                # Use the same voice mapping as AudioTranslator
+                voice_mapping = {
+                    "te": "te-IN-ShrutiNeural",
+                    "kn": "kn-IN-SapnaNeural",
+                    "swa": "sw-KE-ZuriNeural",
+                    "swe": "sv-SE-SofieNeural",
+                    "en": "en-US-JennyNeural",
+                    "es": "es-ES-ElviraNeural"
+                }
+                
+                edge_voice = voice_mapping.get(gtts_lang, "en-US-JennyNeural")
+                logger.info(f"Using Edge-TTS fallback for preview: voice={edge_voice}")
+                
+                async def generate_edge_preview():
+                    communicate = edge_tts.Communicate(text, edge_voice)
+                    await communicate.save(output_path)
+                
+                # Import required for asyncio.run if not already imported
+                import asyncio
+                asyncio.run(generate_edge_preview())
+                
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                    tts_success = True
+                    logger.info(f"Edge-TTS fallback succeeded for preview: {output_path}")
+                else:
+                    raise Exception("Edge-TTS generated empty file")
+                    
+            except Exception as edge_error:
+                logger.error(f"Both gTTS and Edge-TTS failed for preview. gTTS: {gtts_error}, Edge-TTS: {edge_error}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Voice preview failed. gTTS: {str(gtts_error)}, Edge-TTS: {str(edge_error)}"
+                )
 
         # Verify file was created and has content
         if not tts_success or not os.path.exists(output_path):

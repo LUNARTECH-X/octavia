@@ -68,7 +68,10 @@ export default function VideoTranslationPage() {
     'nl': 'Dutch',
     'pl': 'Polish',
     'tr': 'Turkish',
-    'sv': 'Swedish'
+    'swe': 'Swedish',
+    'swa': 'Swahili',
+    'te': 'Telugu',
+    'kn': 'Kannada'
   };
 
   useEffect(() => {

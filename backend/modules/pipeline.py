@@ -1876,7 +1876,7 @@ class VideoTranslationPipeline:
             logger.info(f"Cancellation detected for job {job_id}")
             raise CancellationException(f"Job {job_id} was cancelled by user")
 
-    def process_video_fast(self, video_path: str, target_lang: str = "de", source_lang: str = None, job_id: str = None, jobs_db: Dict = None) -> Dict[str, Any]:
+    def process_video_fast(self, video_path: str, target_lang: str = "de", source_lang: str = None, job_id: str = None, jobs_db: Dict = None, voice: str = None) -> Dict[str, Any]:
         """Fast video translation pipeline - optimized for FREE deployment"""
         start_time = datetime.now()
         
@@ -1887,6 +1887,7 @@ class VideoTranslationPipeline:
             logger.info(f"Starting FAST video translation")
             logger.info(f"Input: {video_path}")
             logger.info(f"Target: {target_lang}")
+            logger.info(f"Selected voice: {voice}")
             logger.info(f"Using GPU: {self.config.use_gpu}")
             
             # Initial progress update
@@ -1915,6 +1916,11 @@ class VideoTranslationPipeline:
                     "output_path": "",
                     "target_language": target_lang
                 }
+            
+            # Apply user-selected voice if provided
+            if voice:
+                self.translator.config.selected_voice = voice
+                logger.info(f"Set translator voice to: {voice}")
             
             self._check_cancellation(job_id, jobs_db)
 

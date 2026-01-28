@@ -1063,6 +1063,7 @@ async def translate_video(
     background_tasks: BackgroundTasks = BackgroundTasks(),
     file: UploadFile = File(...),
     target_language: str = Form("es"),
+    voice: Optional[str] = Form(None),
     separate: bool = Form(False),
     project_id: Optional[str] = Form(None)
 ):
@@ -1158,7 +1159,8 @@ async def translate_video(
             file_path,
             target_language,
             current_user.id,
-            separate
+            separate,
+            voice
         )
 
         return {
@@ -1795,7 +1797,7 @@ async def process_subtitle_audio_job(job_id: str, file_path: str, source_languag
         except Exception as refund_error:
             print(f"Failed to refund credits: {refund_error}")
 
-async def process_video_job(job_id, file_path, target_language, user_id, separate=False):
+async def process_video_job(job_id, file_path, target_language, user_id, separate=False, voice=None):
     """Background task for FULL video translation with AI pipeline"""
     try:
         import asyncio
@@ -1848,7 +1850,7 @@ async def process_video_job(job_id, file_path, target_language, user_id, separat
                 # Process the video with full AI pipeline in a thread to keep loop responsive
                 import functools
                 loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(None, functools.partial(pipeline.process_video_fast, file_path, target_language, job_id=job_id, jobs_db=jobs_db))
+                result = await loop.run_in_executor(None, functools.partial(pipeline.process_video_fast, file_path, target_language, job_id=job_id, jobs_db=jobs_db, voice=voice))
                 
                 if result:
                     jobs_db[job_id]["progress"] = 100
